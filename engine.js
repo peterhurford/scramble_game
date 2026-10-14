@@ -169,8 +169,10 @@ function cnVisibility(s) { const v = s.verify; const insp = s.cn.deal && s.cn.de
 // The IC's confidence that an alert is real cheating: centered on the truth, blurred by weak intelligence.
 function cheatConf(s, real) { const x = (real ? 0.72 : 0.28) + (hash01(s.seed, 'cheatconf', s.turn) - 0.5) * 1.3 * (1 - s.intelQ / 100); return x < 0.38 ? 'low' : x < 0.62 ? 'moderate' : 'high'; }
 function enforcement(s) { const v = s.verify, insp = s.cn.deal && s.cn.deal.terms.inspect; return 0.5 * s.intelQ / 100 + 0.25 * Math.min(100, v.survey) / 100 + (insp ? 0.25 * Math.min(100, v.inspect) / 100 : 0); }
-function betrayP(s) { return s.cn.cheat ? 1 : clamp(TUNE.betray * (TUNE.betrayAt - enforcement(s)), 0.02, 0.8); }
-function betrayWord(s) { const p = betrayP(s); return p < 0.08 ? 'high' : p < 0.25 ? 'moderate' : 'low'; }
+// What you can know: the hidden-program risk your enforcement leaves, ignoring whether China is cheating right now.
+function hiddenRisk(s) { return clamp(TUNE.betray * (TUNE.betrayAt - enforcement(s)), 0.02, 0.8); }
+function betrayP(s) { return s.cn.cheat ? 1 : hiddenRisk(s); }
+function betrayWord(s) { const p = hiddenRisk(s); return p < 0.08 ? 'high' : p < 0.25 ? 'moderate' : 'low'; }
 
 // US drag: what our own moves cost American labs, as a fraction of their growth rate.
 function usDrag(s) {
