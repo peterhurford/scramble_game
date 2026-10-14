@@ -319,8 +319,14 @@ function cnReadout(s) {
   const us = Math.max(0.05, frontierRate(s, true)), rr = e.rate / us;
   const src = {};
   for (const k in e.src) src[k] = tier === 0 ? shareWord(e.src[k] / (e.comp || 1)) : tier === 1 ? rng(e.src[k], e.rel * e.src[k]) : `~${P(e.src[k])}%`;
+  // the same information as numbers, for bots: a word reads as its bucket's middle, a range as its midpoint
+  const mid = (x, err, cap = 1e9) => (Math.max(0, Math.floor(P(x - err) / 10) * 10) + Math.min(cap, Math.ceil(P(x + err) / 10) * 10)) / 200;
+  const bucket = (x, cuts, mids) => mids[cuts.findIndex(c => x < c) < 0 ? cuts.length : cuts.findIndex(c => x < c)];
+  const compSeen = tier === 0 ? bucket(e.comp, [0.6, 0.85, 1.1], [0.5, 0.72, 0.97, 1.25]) : tier === 1 ? mid(e.comp, e.rel * e.comp) : e.comp;
+  const seen = { comp: compSeen, dist: tier === 0 ? bucket(e.dist, [0.1, 0.35, 0.7], [0.05, 0.22, 0.52, 0.85]) : tier === 1 ? mid(e.dist, 0.6 * e.rel, 100) : e.dist };
+  for (const k in e.src) seen[k] = tier === 0 ? compSeen * bucket(e.src[k] / (e.comp || 1), [0.06, 0.15, 0.35], [0.03, 0.1, 0.25, 0.45]) : tier === 1 ? mid(e.src[k], e.rel * e.src[k]) : e.src[k];
   return {
-    tier, src, est: e,
+    tier, src, est: e, seen,
     comp: fmt(e.comp, e.rel * e.comp, compWord, undefined, ' of baseline'), dist: fmt(e.dist, 0.6 * e.rel, distWord, 100),
     rate: tier === 0 ? (rr > 1.15 ? 'faster than the US' : rr > 0.85 ? 'about the US pace' : 'slower than the US') : tier === 1 ? `${(Math.round(e.rate * (1 - e.rel) * 10) / 10).toFixed(1)}–${(Math.round(e.rate * (1 + e.rel) * 10) / 10).toFixed(1)} mo/mo` : `~${(Math.round(e.rate * 10) / 10).toFixed(1)} mo/mo`,
     note: ['Patchy intelligence: the IC can only characterize these.', 'Decent intelligence: the IC gives ranges.', 'Sharp intelligence: the IC gives point estimates.'][tier],
@@ -364,12 +370,20 @@ function newGame(opts) {
   // hidden per-game miscalibration: each indicator's marker sits somewhat off the true threshold, and the IC has a standing bias
   s.cal = { uplift: clamp(0.15 * gauss(s), -0.3, 0.3), cobench: clamp(0.15 * gauss(s), -0.3, 0.3), horizon: clamp(0.15 * gauss(s), -0.3, 0.3), arr: clamp(0.15 * gauss(s), -0.3, 0.3) };
   s.icBias = clamp(2.2 * gauss(s), -4.5, 4.5);
+  cnStart(s);
   if (dk === 'excomm') { s.cn.f = { m: 45, sec: 37, sci: 18 }; }
   recordIndicators(s); pushHist(s);
   log(s, 'You start as the White House AI Czar. Your office is in the EEOB, Room 374. Your team is you.', 'info');
   s.queue.push({ id: 'intro' });
   return s;
 }
+// Hidden per-game starting point for China's offshore compute, smuggling and distillation (1 = the note's baseline). Drawn from hash01 so the main random stream is untouched.
+function cnStart(s) {
+  const c = s.cn, u = k => hash01(s.seed, 'cnstart', k);
+  c.base = { remote: 0.5 + u('remote'), smuggle: 0.4 + 1.2 * u('smuggle'), dist: 0.6 + 0.4 * u('dist') };
+  c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
+}
+const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
 function pushHist(s) { s.hist.push({ t: s.t, F: frontier(s), cn: s.cn.cap, cnEst: leadEstimate(s).mid, labs: s.labs.map(l => l.cap), paced: paced(s), phase: s.phase, salience: s.salience, tension: s.tension, markets: s.markets }); }
 
 /* ================= the room ================= */
@@ -487,14 +501,14 @@ def({ id: 'remote', cat: 'policy', name: 'Close the remote-access loophole', pha
   tags: { hawk: 1.8, markets: -0.4, allies: -0.5, commerce: 1 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
   desc: 'Chinese firms train their largest runs on data centers abroad, above all in Johor, Malaysia. Close the cloud loophole.',
-  effect: () => 'China loses about a quarter of its effective training compute over two months. Beijing temperature +8. US clouds lose foreign revenue: US labs 2% slower.',
+  effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +8. US clouds lose foreign revenue: US labs 2% slower.',
   apply(s) { s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8; shiftCN(s, { sec: 4, m: -2 }); s.coalition -= 3; return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
 });
 def({ id: 'smuggle', cat: 'policy', name: 'Chip smuggling enforcement surge', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1, room: true, once: true,
   tags: { hawk: 1, commerce: 1, control: 0.5 },
   desc: 'BIS agents in Singapore and the Gulf, location verification on export licenses, prosecutions.',
   effect: () => 'Smuggled compute falls by about half; chip accounting +8.',
-  apply(s) { s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.5); s.verify.inspect += 4; s.tension += 2; return 'Forty new enforcement agents deploy. The first indictment comes within weeks.'; },
+  apply(s) { s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.5 * cnBase(s).smuggle); s.verify.inspect += 4; s.tension += 2; return 'Forty new enforcement agents deploy. The first indictment comes within weeks.'; },
 });
 def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { hawk: 1.6, markets: -1.2, industry: -0.6, deal: -0.8, allies: -0.4 },
@@ -902,7 +916,7 @@ const CHIPS = {
   allies: () => ['+Coalition grows', '+Some Senate votes'],
   labmeet: () => ['+Relationship with the lab up'],
   assess: () => ['+Sharper readings for a while'],
-  distill: () => ['+Much harder for China to copy US models', '-Slows US labs slightly', '-Beijing annoyed'],
+  distill: () => ['+Much harder for China to distill US models', '-Slows US labs slightly', '-Beijing annoyed'],
   remote: () => ['+Cuts China’s compute', '-Slows US labs slightly', '-Beijing angry'],
   smuggle: () => ['+Trims China’s compute', '~Beijing mildly annoyed'],
   chips: () => ['+Cuts China’s compute, mostly over a year', '-Slows US labs a little', '-Markets dip', '-Beijing very angry', '-Risk of retaliation'],
@@ -1253,9 +1267,9 @@ ev({ id: 'deadline_up', forced: true, title: 'The deadline', stamp: 'Six months 
   ] });
 const BEG = {
   chips: { name: 'the ban on chip sales and tool servicing', lift(s) { s.cn.legalT = 1; s.cn.smeT = 1; }, cost: 'China compute +19% (+12% right away)' },
-  remote: { name: 'the remote-access rule', lift(s) { s.cn.remoteT = 1; }, cost: 'China compute +21% over two months' },
-  distill: { name: 'the API cutoff', lift(s) { s.cn.distT = 1; }, cost: 'China copying US models back to 100%' },
-  smuggle: { name: 'the smuggling crackdown', lift(s) { s.cn.smuggleT = Math.max(s.cn.smuggleT, 1); }, cost: 'China compute +4%' },
+  remote: { name: 'the remote-access rule', lift(s) { s.cn.remoteT = cnBase(s).remote; }, cost: 'China’s offshore compute comes back over two months' },
+  distill: { name: 'the API cutoff', lift(s) { s.cn.distT = cnBase(s).dist; }, cost: 'China’s distillation of US models back to where it was' },
+  smuggle: { name: 'the smuggling crackdown', lift(s) { s.cn.smuggleT = Math.max(s.cn.smuggleT, cnBase(s).smuggle); }, cost: 'Smuggled compute back up' },
 };
 function begTarget(s) { return ['chips', 'remote', 'distill', 'smuggle'].find(k => s.policies[k]) || null; }
 function liftControl(s, k) { BEG[k].lift(s); s.policies[k] = false; s.stats.lifted = (s.stats.lifted || 0) + 1; }
@@ -1544,8 +1558,13 @@ function endTurn(s) {
     if (c.posture !== prev) log(s, 'Beijing’s posture shifts: ' + { diffuse: 'diffusion, not the frontier', race: 'racing the frontier', engage: 'open to a deal' }[c.posture] + '.', 'cn');
     if (c.posture === 'race' && prev !== 'race' && !s.seen.cn_race) { s.queue.push({ id: 'cn_race' }); s.seen.cn_race = s.turn; }
     c.race = c.posture === 'race' ? Math.min(1, c.race + 0.34) : Math.max(0, c.race - 0.2);
-    if (c.posture === 'race') { c.smuggleT = Math.min(1.2, c.smuggleT + 0.05); s.tension += 2; }
+    if (c.posture === 'race') { c.smuggleT = Math.min(1.2 * cnBase(s).smuggle, c.smuggleT + 0.05); s.tension += 2; }
     s.tension += (28 - s.tension) * 0.06;
+    // unannounced growth on channels no rule covers yet: a new offshore campus, a new smuggling network
+    if (c.base) {
+      if (!s.policies.remote && !s.flags.malaysiaIn && c.base.remote < 2 && hash01(s.seed, 'campus', s.turn) < 0.04) { c.base.remote += 0.25; c.remoteT += 0.25; }
+      if (!s.policies.smuggle && c.base.smuggle < 2 && hash01(s.seed, 'network', s.turn) < 0.04) { c.base.smuggle += 0.3; c.smuggleT += 0.3; }
+    }
   }
 
   // --- US labs

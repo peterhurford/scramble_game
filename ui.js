@@ -86,7 +86,7 @@ function hintChips(h) {
   return chipList(parts.map(p => {
     let t = /\+\d/.test(p) ? '+' : /(-|−)\d/.test(p) ? '-' : '~';
     // for these, going up is bad for you
-    if (/temperature|slower|court|runaway|risk \+|China compute|China copying|overhang/i.test(p) && t !== '~') t = t === '+' ? '-' : '+';
+    if (/temperature|slower|court|runaway|risk \+|China compute|China distill|overhang/i.test(p) && t !== '~') t = t === '+' ? '-' : '+';
     if (/odds|chance|\d+%: /i.test(p)) t = '~';
     return t + wordify(p);
   }), true);
@@ -286,7 +286,7 @@ function chinaPanel(v) {
     <div class="sb"><div class="row"><div class="lbl">Training compute: ${rd.comp}</div></div>
       <div class="stack">${segs.map(sg => `<i style="width:${100 * src[sg[1]] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]}: ${rd.src[sg[1]]}"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">${rd.rate}</span></div>
+      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">${rd.rate}</span></div>
       <div class="sub" style="margin-top:8px">${rd.note}${rd.tier < 2 ? ' Sharpen with the GEOINT baseline, verification funding or an IC assessment.' : ''}</div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
@@ -620,7 +620,7 @@ function showHelp() {
     <h4>The race</h4>
     <p>The track at the top is the game. US and China move right; each tick is a month of US frontier progress. The red band is the IC’s estimate of where recursive self-improvement becomes possible. Danger rises smoothly as anyone doing unconstrained automated research nears it; some escapes are caught in time (warning shots), and the rest are runaways.</p>
     <ul><li>Unpaced labs move about a tick a month. Paced labs crawl, especially with automation limits.</li>
-    <li>China’s speed depends on its compute (home, offshore, smuggled, legal) and on copying US models. Your levers cut both, and Beijing gets angrier.</li>
+    <li>China’s speed depends on its compute (home, offshore, smuggled, legal) and on distilling US models. Your levers cut both, and Beijing gets angrier.</li>
     <li>Some of your moves slow US labs too. Slower US labs reach the danger zone later, but the lead shrinks, markets sag and the labs resent it. Security is the big one: SL4 slows them somewhat and SL5 a lot, in exchange for making stolen weights much rarer. A theft nearly erases the lead.</li></ul>
     <h4>Three phases</h4>
     <ul><li><b>Phase 0</b> (monthly): prepare, win policies, cultivate the cabinet, watch the RSI bars. Ask for the emergency meeting when the evidence and your credibility can carry it.</li>

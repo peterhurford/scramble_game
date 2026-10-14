@@ -3,7 +3,9 @@
 const E = require('../engine.js');
 
 const PROJ = ['team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk'];
-const POL0 = ['distill', 'fund', 'remote', 'smuggle', 'sl4', 'chips', 'accelerate', 'speech', 'malaysia'];
+const POL0 = ['distill', 'fund', 'remote', 'smuggle', 'sl4', 'chips', 'accelerate', 'speech', 'malaysia', 'assess'];
+// China policies a strategy can make conditional on the Beijing readout: skip unless the reading is at least the gate.
+const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offshore', 0.4], smuggle: ['smuggled', 0.2], chips: ['legal', 0.15] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
 const EVENTS = ['knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'cyberattack', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'resign', 'algo_break', 'bill'];
 
@@ -11,6 +13,7 @@ const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
 PROJ.forEach(p => g('proj.' + p, 'real', -1, 1));
 POL0.forEach(p => g('pol.' + p, 'real', -1, 1));
+Object.keys(GATE).forEach(p => g('gate.' + p, 'real', 0, GATE[p][1]));
 g('meetEvery', 'int', 0, 4); g('meetA', 'choice', PEOPLE); g('meetB', 'choice', PEOPLE);
 PEOPLE.forEach(p => g('fav.' + p, 'bool'));
 g('favReserve', 'int', 0, 8);
@@ -29,6 +32,7 @@ function expertGenome() {
   const G = {};
   PROJ.forEach((p, i) => G['proj.' + p] = 1 - i * 0.1);
   POL0.forEach(p => G['pol.' + p] = -0.5);
+  Object.keys(GATE).forEach(p => G['gate.' + p] = 0);
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
     mech: 'charter', thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
@@ -58,6 +62,15 @@ function charter(s, G) {
   });
   E.finishConvening(s);
 }
+// What the bot knows about China: the readout (default), the hidden truth, or only the note's baseline.
+const SIGHT = process.env.SIGHT || 'readout';
+function seen(s) {
+  if (SIGHT === 'readout') return E.view(s).cnRead.seen;
+  const e = E.view(s).cnEst; const t = SIGHT === 'truth' ? e : null;
+  const c = s.cn, src = t ? { domestic: 0.45 * (0.8 + 0.2 * c.sme), offshore: 0.25 * c.remote, smuggled: 0.08 * c.smuggle, legal: 0.12 * c.legal } : { offshore: 0.25 * Math.min(1, c.remoteT), smuggled: 0.08 * Math.min(1, c.smuggleT), legal: 0.12 * c.legalT };
+  return Object.assign(src, { dist: t ? c.dist : Math.min(1, c.distT) });
+}
+const gated = (s, G, p) => { const gt = G['gate.' + p]; if (!gt) return false; const x = seen(s)[GATE[p][0]]; return x < gt ? x : false; };
 function chooser(G) { return (s, ev) => { const k = G['ev.' + ev.id]; return k == null ? 0 : k % ev.choices.length; }; }
 function resolve(s, G) { let n = 0; const ch = chooser(G); while (s.queue.length && !s.ending && n++ < 25) { const ev = E.currentEvent(s); const i = ch(s, ev); note(s, 'event', ev.title + ' \u2192 ' + ev.choices[i].label, 'event gene ev.' + ev.id + '=' + G['ev.' + ev.id]); E.chooseEvent(s, i); } }
 
@@ -69,7 +82,7 @@ function turn(s, G) {
     const saving = v0.ic.mid < G.saveIc;
     if (v0.ic.mid < G.speechIc && v0.briefOdds < 0.5 && tryAct(s, 'speech', {}, G, 'IC says RSI within ' + G.speechIc.toFixed(1) + ' months and the meeting is not yet winnable')) step();
     const pols = POL0.filter(p => G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a]);
-    for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { step(); break; } }
+    for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { step(); break; } }
     if (s.phase !== 'p0') return;
     const v1 = E.view(s);
     const wantBrief = (v1.rObs > G.briefR && v1.briefOdds > G.briefOdds) || (v1.ic.mid < G.briefIc && v1.briefOdds > G.briefIcOdds);
@@ -149,4 +162,4 @@ function evaluate(G, seeds, diff) {
   for (const sd of seeds) { const s = play(G, sd, diff); if (s.ending === 'phase2') wins++; if (s.ending === 'loc') loc++; score += E.score(s).score; }
   return { win: wins / seeds.length, score: score / seeds.length, loc: loc / seeds.length };
 }
-module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS };
+module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE };
