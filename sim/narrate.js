@@ -51,6 +51,7 @@ P(`3. Add automation limits / trigger / sign missing labs if still missing.`);
 P(`4. **Offer Beijing:** mutual cap + ${terms.map(t => E.TERMS.find(x => x.id === t).label.toLowerCase()).join(', ')}${G.threatLead < 14 ? `, plus a threat if the lead is over ${G.threatLead.toFixed(1)} months` : ''}. Re-offers whenever Beijing will take a call.${terms.map(t => w('o.' + t)).filter(Boolean).join('')}`);
 P(`5. Fund verification to the top (${G.fundFirst ? 'early' : 'late'}). Hardware pacing once the overhang passes ${G.hwOver.toFixed(1)} months.${w('hwOver')}`);
 P(`6. Presidential address if pacing support drops below ${Math.round(G.speechSup)}.${w('speechSup')} Coalition work while coalition < ${Math.round(G.alliesCoal)} or Senate < ${Math.round(G.senateT)}.${w('senateT')}`);
+P(`- **Congress:** ${G.statute ? 'works the Hill to 60 votes and sends a pacing bill' : 'stays on executive authority'}${G.hillP0 ? ', and works the Hill with spare Phase 0 actions' : ''}.${w('statute')}${w('hillP0')} **Intelligence:** commissions IC assessments while intelligence is under ${Math.round(G.intelTarget)}${w('intelTarget')}; calls the summit only when confidence Beijing will comply is ${G.summitConf} or better.${w('summitConf')} **Cheating alerts:** ${G.cheatDismiss === 'never' ? 'never dismissed' : 'dismissed when IC confidence is ' + G.cheatDismiss + ' or lower'}.${w('cheatDismiss')}`);
 P(`7. Surge verification (${G.surge}); meet the VP if support < ${Math.round(G.meetSup)}; then leftover projects.\n`);
 
 P('## Every event choice\n');
