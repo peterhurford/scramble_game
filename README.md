@@ -17,7 +17,7 @@ Open `index.html` in a browser. The game saves to localStorage after every move.
 - `sim/narrate.js [genome.json]`: writes `sim/playbook.md`, which describes a strategy in plain English, says what each choice is worth, and walks through one game turn by turn.
 - `sim/ablate.js`, `sim/uae.js`, `sim/hostile.js`: one-off analyses (what each choice is worth, the UAE choice, credibility lost to hostile principals).
 
-Tunables for the UAE event live in `TUNE` in `engine.js`.
+Tunables for the UAE event and the President's hawk bias (`hawkBase`, `hawkProvoke`, `hawkRace`) live in `TUNE` in `engine.js`.
 
 `index.html#autotest` plays random games through the real UI and sets `body[data-test]` to PASS or FAIL. `#demo-p0`, `#demo-scramble`, `#demo-p1` and `#demo-end` fast-forward a seeded game for screenshots.
 

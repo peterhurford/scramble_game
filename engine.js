@@ -29,16 +29,16 @@ const DIFFS = {
 
 const PRINCIPALS = [
   { id: 'vp', name: 'Vice President', title: 'Vice President', short: 'VP', faction: 'Populist', infl: 68, fireable: false,
-    prefs: { pause: 0.2, hawk: 1.4, markets: 0.2, deal: -0.6, control: 0.8, industry: -1.0, military: 0.4, commerce: 0, ic: 0, allies: -0.6 }, sal: 1.3,
+    prefs: { pause: 0.2, hawk: 0.6, markets: 0.2, deal: -0.6, control: 0.8, industry: -1.0, military: 0.4, commerce: 0, ic: 0, allies: -0.6 }, sal: 1.3,
     bio: 'Asks the question everyone is thinking: if we pause, does China pause?' },
   { id: 'cos', name: 'Chief of Staff', title: 'Chief of Staff', short: 'COS', faction: 'Politics', infl: 80, fireable: true,
-    prefs: { pause: 0, hawk: 0.4, markets: 1.2, deal: 0.5, control: 1.4, industry: 0, military: 0, commerce: -1.6, ic: 0, allies: 0 }, sal: 0.9,
+    prefs: { pause: 0, hawk: -0.2, markets: 1.2, deal: 0.5, control: 1.4, industry: 0, military: 0, commerce: -1.6, ic: 0, allies: 0 }, sal: 0.9,
     bio: 'Guards the schedule and the midterm map. Wants the government visibly in charge. Does not trust Commerce.' },
   { id: 'tsy', name: 'Treasury Secretary', title: 'Treasury Secretary', short: 'TSY', faction: 'Dealmaker', infl: 64, fireable: true,
     prefs: { pause: -0.4, hawk: -0.6, markets: 2.0, deal: 1.8, control: 0, industry: 0.5, military: 0, commerce: -1.4, ic: 0, allies: 0.5 }, sal: 0.6,
     bio: 'Wants calm markets and a trade deal with Beijing. Needs a win, and is at war with Commerce.' },
   { id: 'doc', name: 'Commerce Secretary', title: 'Commerce Secretary', short: 'DOC', faction: 'Industry', infl: 62, fireable: true, persuade: 0.35,
-    prefs: { pause: -1.6, hawk: 1.0, markets: 0.8, deal: -0.2, control: 0.4, industry: 2.0, military: 0.2, commerce: 2.4, ic: 0, allies: -0.3 }, sal: 0.35,
+    prefs: { pause: -1.6, hawk: -0.6, markets: 0.8, deal: -0.2, control: 0.4, industry: 2.0, military: 0.2, commerce: 2.4, ic: 0, allies: -0.3 }, sal: 0.35,
     bio: 'Owns export controls and wants to own everything else. The industry\u2019s voice in the cabinet: thinks a pause is a gift to Beijing. Leaks when cornered.' },
   { id: 'sec', name: 'Secretary of State', title: 'Secretary of State & NSA', short: 'STATE', faction: 'Hawk', infl: 70, fireable: true,
     prefs: { pause: 0, hawk: 2.0, markets: 0, deal: -0.3, control: 0.5, industry: 0, military: 1.0, commerce: 0, ic: 0.5, allies: 1.0 }, sal: 0.7,
@@ -87,7 +87,7 @@ const COMPONENTS = [
 const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12 };
+const TUNE = { hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -358,7 +358,9 @@ function stanceOn(s, p, tags, key, extra) {
   return Math.tanh(x / 1.6);
 }
 function presBias(s, tags) {
-  let b = 0.06 * (tags.control || 0) + 0.05 * (tags.hawk || 0) + 0.03 * (tags.military || 0);
+  // The President wants a deal with Xi: hawk moves get easier only as Beijing provokes (thefts, busts, a racing posture).
+  const hawk = TUNE.hawkBase + TUNE.hawkProvoke * Math.min(3, s.provoked || 0) + (s.cn.posture === 'race' ? TUNE.hawkRace : 0);
+  let b = 0.06 * (tags.control || 0) + hawk * (tags.hawk || 0) + 0.03 * (tags.military || 0);
   if (tags.deal) b += 0.05 * tags.deal * (lead(s) > 3 ? 1 : -1);
   b += (0.02 + 0.004 * Math.max(0, 100 - s.markets)) * (tags.markets || 0); // the worse the markets, the more the President weighs market costs
   return b;
@@ -1456,11 +1458,13 @@ function currentEvent(s) {
   const ch = typeof e.choices === 'function' ? e.choices(s) : e.choices;
   return { id: q.id, title: e.title, stamp: e.stamp, body: e.body(s), choices: ch.map(c => ({ label: c.label, hint: typeof c.hint === 'function' ? c.hint(s) : (c.hint || '') })) };
 }
+const PROVOKE = ['theft', 'theft_foiled', 'smuggle_bust', 'distill_report', 'cn_race', 'cn_cheat', 'rare_earths', 'taiwan', 'johor'];
 function chooseEvent(s, i) {
   if (!s.queue.length) return { error: 'No event' };
   const q = s.queue[0]; const e = EV[q.id];
   const c = (typeof e.choices === 'function' ? e.choices(s) : e.choices)[i]; if (!c) return { error: 'Bad choice' };
   const text = c.fx(s);
+  if (PROVOKE.indexOf(q.id) >= 0) s.provoked = (s.provoked || 0) + 1;
   s.queue.shift();
   s.seen[q.id] = s.seen[q.id] || s.turn;
   normalize(s);

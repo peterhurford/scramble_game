@@ -608,7 +608,7 @@ function showGlossary(key) {
 function showHelp() {
   openModal(`<div class="mh"><span>${icon('doc')} Briefing book</span><span>How to play</span></div><div class="mb help">
     <h2>How to play</h2>
-    <p>Each turn you spend ${icon('bolt')} <b>actions</b> and ${icon('coin')} <b>political capital</b>. Moves marked ${icon('star')} need the President, who weighs the cabinet: each principal’s view times their influence, plus your credibility. You see the odds before you commit, and the dice after.</p>
+    <p>Each turn you spend ${icon('bolt')} <b>actions</b> and ${icon('coin')} <b>political capital</b>. Moves marked ${icon('star')} need the President, who weighs the cabinet: each principal’s view times their influence, plus your credibility. You get a read on the odds before you commit, and see the dice after. The President wants a trade deal with Xi: hawkish moves are a hard sell until Beijing provokes (a theft, a smuggling bust, a racing posture).</p>
     <h4>The race</h4>
     <p>The track at the top is the game. US and China move right; each tick is a month of US frontier progress. The red band is the IC’s estimate of where recursive self-improvement becomes possible. Danger rises smoothly as anyone doing unconstrained automated research nears it; some escapes are caught in time (warning shots), and the rest are runaways.</p>
     <ul><li>Unpaced labs move about 1 tick a month. Paced labs move 0.12 with automation limits, 0.40 without.</li>
