@@ -1,22 +1,22 @@
 # The optimized strategy
 
-Wins 86% of 800 fresh Advisor games (loss of control 10%). "Worth" = how many points of win rate are lost if that one rule is switched back to the scripted expert's choice.
+Wins 84% of 800 fresh Advisor games (loss of control 10%). "Worth" = how many points of win rate are lost if that one rule is switched back to the scripted expert's choice.
 
 ## Phase 0 (monthly turns)
 
 - **Projects, in order:** Hire a real team → Raise the labs to SL5 → Legal authorities study (DPA, IEEPA) → Write the memo for the emergency meeting → Cryptographic proof-of-training → Pre-draft the Pacing Charter with lab lawyers → Build the thermal and GEOINT baseline → Track 2 dialogue with Chinese scientists → Inspectors, chip ledger, whistleblower lines.
-- **Never builds:** AI control protocols with the labs _(worth +3.2 pts vs the expert's choice)_.
+- **Never builds:** AI control protocols with the labs _(worth +3.4 pts vs the expert's choice)_.
 - **One Oval policy per turn, in order:** Executive order: SL4 security for frontier labs → Fund verification → Anti-distillation crackdown. **Never pushes:** Close the remote-access loophole, Chip smuggling enforcement surge, End chip sales and tool servicing, National AI acceleration package, Presidential address on AI risk, Bring Malaysia into the regime.
 - **Meetings:** every 3 turns, alternating the Chief of Staff and the Vice President. _(worth -0.6 pts vs the expert's choice)_
-- **Favors:** grants every ask from Chief of Staff, Treasury Secretary, DNI, as long as capital stays at 5 or more. _(worth +0.0 pts vs the expert's choice)_ _(worth +0.9 pts vs the expert's choice)_ _(worth +1.5 pts vs the expert's choice)_
-- **Emergency meeting:** asks only when the indicators are 30% of the way to the threshold **and** the President is 95% likely to agree, or when the IC says RSI is within 1.9 months and the odds exceed 65%. _(worth +9.8 pts vs the expert's choice)_
+- **Favors:** grants every ask from Chief of Staff, Treasury Secretary, DNI, as long as capital stays at 5 or more. _(worth +0.0 pts vs the expert's choice)_ _(worth +0.8 pts vs the expert's choice)_ _(worth +0.4 pts vs the expert's choice)_
+- **Emergency meeting:** asks only when the indicators are 30% of the way to the threshold **and** the President is 95% likely to agree, or when the IC says RSI is within 1.9 months and the odds exceed 65%. _(worth +6.8 pts vs the expert's choice)_
 - **Speeches:** pushes a presidential address when the IC says RSI is within 0.7 months and the meeting isn't winnable yet.
 - **Spare actions:** nothing.
 
 ## The scramble
 
-- **Mechanism:** DPA halt. _(worth +2.9 pts vs the expert's choice)_  **Threshold:** 1e21.  **Automation limits:** yes.  **Monitoring trigger:** 200 MW + 1,200 km cluster rule.
-- **Go first?** wait for Beijing if the IC says RSI is 8.1+ months away, otherwise go first. _(worth -6.3 pts vs the expert's choice)_ _(worth +5.0 pts vs the expert's choice)_
+- **Mechanism:** DPA halt. _(worth +1.3 pts vs the expert's choice)_  **Threshold:** 1e21.  **Automation limits:** yes.  **Monitoring trigger:** 200 MW + 1,200 km cluster rule.
+- **Go first?** wait for Beijing if the IC says RSI is 8.1+ months away, otherwise go first. _(worth -7.5 pts vs the expert's choice)_ _(worth +5.5 pts vs the expert's choice)_
 - **Signing table:** asks the labs in order; sweetens a lab's deal only if its odds are under 37% and it holds at least 18% of US compute. _(worth +0.0 pts vs the expert's choice)_
 - **Launch:** waits until automation limits and the trigger are in (or day 11). **Spare actions:** remote.
 
@@ -24,57 +24,57 @@ Wins 86% of 800 fresh Advisor games (loss of control 10%). "Worth" = how many po
 
 1. Call the Phase 2 summit the moment every requirement is met.
 3. Add automation limits / trigger / sign missing labs if still missing.
-4. **Offer Beijing:** mutual cap + mutual on-site inspections, market lane for chinese open-weight models, joint safety institute and shared evals, entity list relief, eased visas for researchers, plus a threat if the lead is over 5.9 months. Re-offers whenever Beijing will take a call. _(worth +5.9 pts vs the expert's choice)_ _(worth +1.9 pts vs the expert's choice)_
-5. Fund verification to the top (early). Hardware pacing once the overhang passes 8.2 months. _(worth +1.7 pts vs the expert's choice)_
-6. Presidential address if pacing support drops below 15. _(worth +2.2 pts vs the expert's choice)_ Coalition work while coalition < 72 or Senate < 65. _(worth +0.0 pts vs the expert's choice)_
+4. **Offer Beijing:** mutual cap + mutual on-site inspections, market lane for chinese open-weight models, joint safety institute and shared evals, entity list relief, eased visas for researchers, plus a threat if the lead is over 5.9 months. Re-offers whenever Beijing will take a call. _(worth +7.0 pts vs the expert's choice)_ _(worth +2.3 pts vs the expert's choice)_
+5. Fund verification to the top (early). Hardware pacing once the overhang passes 8.2 months. _(worth +2.4 pts vs the expert's choice)_
+6. Presidential address if pacing support drops below 15. _(worth +1.8 pts vs the expert's choice)_ Coalition work while coalition < 72 or Senate < 65. _(worth +0.0 pts vs the expert's choice)_
 7. Surge verification (inspect); meet the VP if support < 66; then leftover projects.
 
 ## Every event choice
 
 - **The knock** → “We can’t rule it out, and that is the point. We need to get in position this week.”.
 - **Midterms** → Quietly help the new chairs plan AI hearings. _(worth +0.0 pts vs the expert's choice)_
-- **The distillation report** → Let the labs handle it. _(worth +1.5 pts vs the expert's choice)_
+- **The distillation report** → Let the labs handle it. _(worth +0.5 pts vs the expert's choice)_
 - **Smuggling bust** → Use it in your next briefing.
-- **The trade summit** → Back Treasury. _(worth +1.9 pts vs the expert's choice)_
-- **“Useful idiots”** → Ignore it. _(worth +0.4 pts vs the expert's choice)_
+- **The trade summit** → Back Treasury. _(worth +0.6 pts vs the expert's choice)_
+- **“Useful idiots”** → Ignore it. _(worth +0.0 pts vs the expert's choice)_
 - **An op-ed** → Amplify it.
-- **Kite K3** → Use it to push export controls. _(worth +0.6 pts vs the expert's choice)_
+- **Kite K3** → Use it to push export controls. _(worth +0.1 pts vs the expert's choice)_
 - **A model turns off its monitor** → Declassify and brief it.
 - **Power bills** → Tie pacing to ratepayers. _(worth +0.0 pts vs the expert's choice)_
-- **A feud** → Back the President. _(worth +0.5 pts vs the expert's choice)_
-- **Your memo leaks** → Blame Commerce, loudly. _(worth +4.4 pts vs the expert's choice)_
+- **A feud** → Back the President. _(worth +0.4 pts vs the expert's choice)_
+- **Your memo leaks** → Blame Commerce, loudly. _(worth +3.3 pts vs the expert's choice)_
 - **Johor** → Push State to raise it with Kuala Lumpur.
 - **A water utility** → Attribute it to the PRC. _(worth -1.1 pts vs the expert's choice)_
-- **A protocol** → Lean on Mindscale publicly. _(worth +0.1 pts vs the expert's choice)_
+- **A protocol** → Lean on Mindscale publicly. _(worth -0.5 pts vs the expert's choice)_
 - **Capex jitters** → Reassure markets.
-- **The midnight calls** → Join the calls. _(worth -0.1 pts vs the expert's choice)_
-- **Unsanctioned jobs** → Let the lab handle it. _(worth -0.3 pts vs the expert's choice)_
+- **The midnight calls** → Join the calls. _(worth +0.1 pts vs the expert's choice)_
+- **Unsanctioned jobs** → Let the lab handle it. _(worth +0.4 pts vs the expert's choice)_
 - **Rare earths** → Negotiate.
 - **Strait drills** → Send a carrier group. _(worth +0.0 pts vs the expert's choice)_
 - **Dinner** → Let it go. _(worth +0.0 pts vs the expert's choice)_
 - **A proposal** → Engage on the technical track.
-- **G7** → Stick to trade. _(worth +0.6 pts vs the expert's choice)_
-- **An end run** → Absorb it. _(worth +0.5 pts vs the expert's choice)_
+- **G7** → Stick to trade. _(worth +0.9 pts vs the expert's choice)_
+- **An end run** → Absorb it. _(worth +0.3 pts vs the expert's choice)_
 - **Commerce and Treasury** → Back Treasury.
 - **A signature issue** → Give the VP the spotlight.
 - **The hawks want options** → Oppose them.
-- **If we pause, does China pause?** → Recommend a six-month deadline. _(worth +0.1 pts vs the expert's choice)_
+- **If we pause, does China pause?** → Recommend a six-month deadline. _(worth +1.8 pts vs the expert's choice)_
 - **The deadline** → Make it permanent: America stays paused regardless.
-- **Beijing asks, again** → Offer to lift it if they skip their next big training run. _(worth +4.0 pts vs the expert's choice)_
+- **Beijing asks, again** → Offer to lift it if they skip their next big training run. _(worth +3.1 pts vs the expert's choice)_
 - **WHITE HOUSE WEIGHS AI PAUSE** → Confirm and frame it.
 - **The ambassador calls** → Take the meeting. _(worth +0.0 pts vs the expert's choice)_
-- **“I will not pause”** → Ignore it. _(worth +0.5 pts vs the expert's choice)_
-- **The Hill wants in** → After the decision. _(worth +0.2 pts vs the expert's choice)_
-- **A whistleblower** → Seize the compute under the DPA. _(worth +0.6 pts vs the expert's choice)_
-- **Two heat signatures** → Interdict their next shipment. _(worth +0.1 pts vs the expert's choice)_
+- **“I will not pause”** → Ignore it. _(worth +0.1 pts vs the expert's choice)_
+- **The Hill wants in** → After the decision. _(worth +0.4 pts vs the expert's choice)_
+- **A whistleblower** → Seize the compute under the DPA. _(worth +0.0 pts vs the expert's choice)_
+- **Two heat signatures** → Interdict their next shipment. _(worth +0.3 pts vs the expert's choice)_
 - **Injunction** → Appeal and ask the labs to comply voluntarily. _(worth +0.0 pts vs the expert's choice)_
 - **“Kite is catching up”** → Show the crossover analysis. _(worth +0.0 pts vs the expert's choice)_
-- **Polaris UAE** → Leave it. _(worth +1.6 pts vs the expert's choice)_
+- **Polaris UAE** → Leave it. _(worth +1.4 pts vs the expert's choice)_
 - **A hearing** → Send a deputy. _(worth +0.0 pts vs the expert's choice)_
 - **Treasury wants relief** → Support it.
 - **An exemption** → Fight it. _(worth +0.0 pts vs the expert's choice)_
-- **The pause wobbles** → Ask for a Presidential address. _(worth +0.6 pts vs the expert's choice)_
-- **The weights are gone** → Keep it quiet. _(worth +0.2 pts vs the expert's choice)_
+- **The pause wobbles** → Ask for a Presidential address. _(worth +1.3 pts vs the expert's choice)_
+- **The weights are gone** → Keep it quiet. _(worth +0.5 pts vs the expert's choice)_
 - **The Strait** → De-escalate: concessions on Taiwan transits and chip controls. _(worth +0.0 pts vs the expert's choice)_
 - **A warning shot** → Go public.
 - **“Gambling with our lives”** → Invite him to brief the President.
