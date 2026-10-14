@@ -1698,6 +1698,9 @@ function lessons(s) {
 /* ================= view model for the UI ================= */
 function view(s) {
   const le = leadEstimate(s), ic = icEstimate(s), r2 = ready2(s);
+  // Who sits past the near edge of the IC's RSI window: what the player can see, unlike the hazards, which use the true threshold.
+  const zoneAt = frontier(s) + ic.lo * Math.max(0.05, frontierRate(s, true));
+  const inZone = s.labs.filter(l => l.cap >= zoneAt).map(l => LD(l.id).name).concat(frontier(s) - le.mid >= zoneAt ? ['China'] : []);
   return {
     date: dateLabel(s.t), month: monthLabel(s.t), phase: s.phase,
     phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)),
@@ -1705,7 +1708,7 @@ function view(s) {
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
     risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s), drag: usDrag(s), cnComp: cnComp(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
-    rObs: rObserved(s), pauseMood: pauseMood(s),
+    rObs: rObserved(s), pauseMood: pauseMood(s), inZone,
   };
 }
 

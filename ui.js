@@ -203,20 +203,21 @@ function raceStrip(v) {
   g += `<path d="M${X(cn)} ${Y - 17} V${Y - 21} H${X(F)} V${Y - 17}" fill="none" stroke="var(--faint)"/><text x="${(X(cn) + X(F)) / 2}" y="${Y - 26}" text-anchor="middle" class="big">US ahead by ${f1(le.mid)} ± ${f1(le.err)} mo</text>`;
   g += `<circle cx="${X(cn)}" cy="${Y}" r="11" fill="var(--cn)"/><text x="${X(cn)}" y="${Y + 3.5}" text-anchor="middle" class="tok">CN</text>`;
   g += `<circle cx="${X(F)}" cy="${Y}" r="11" fill="var(--us)"/><text x="${X(F)}" y="${Y + 3.5}" text-anchor="middle" class="tok">${S.pacing.active ? '⏸' : 'US'}</text>`;
-  const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : `Gap ${v.cnRate > v.usRate ? 'closing' : 'widening'} <b>${f1(Math.abs(v.cnRate - v.usRate))} mo/month</b>`;
+  const gap = v.cnRate - v.usRate, days = Math.round(30 * Math.abs(gap));
+  const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : days < 2 ? 'Lead <b>holding steady</b>' : gap > 0 ? `China gaining <b>~${days} days a month</b>` : `US pulling away <b>~${days} days a month</b>`;
   const rsi = v.ic.lo > 24 ? 'RSI: 24+ months away' : `RSI possible in <b>${Math.round(v.ic.lo)}–${v.ic.hi > 24 ? '24+' : Math.round(v.ic.hi)} mo</b>`;
   return `<section class="panel race"><div class="ph"><h2>The race</h2><div class="readouts">
       <span>${rsi}</span><span>${cross}</span>
-      ${v.risk > 0 ? `<span class="hot" title="${esc(v.hazards.map(h => h.name + (h.near ? ' nearing' : ' past') + ' the threshold').join(', '))}">Runaway risk <b>${Math.round(100 * v.risk)}%/mo</b></span>` : ''}
+      ${v.inZone.length ? `<span class="hot" title="Past the near edge of the IC’s RSI window. Nobody knows the true threshold; danger rises the deeper anyone goes.">In the RSI window: <b>${esc(v.inZone.join(', '))}</b></span>` : ''}
     </div></div>
     <div class="sx"><svg class="strip" viewBox="0 0 ${W} ${H}" role="img" aria-label="Race track: US, China and the RSI threshold">${g}</svg></div></section>`;
 }
 
 /* ---- sidebar ---- */
 function sidePanel(v) {
-  if (!ui.side) ui.side = 'room';
-  const body = { room: roomPanel, cn: chinaPanel, labs: labPanel, log: logPanel }[ui.side](v);
-  return `<aside class="panel side"><div class="stabs">${SIDE.map(([k, n]) => `<button class="stab ${ui.side === k ? 'on' : ''}" data-side="${k}">${n}</button>`).join('')}</div>${body}</aside>`;
+  const side = ui.side || (S.phase === 'p0' ? 'labs' : 'room'); // RSI signals drive Phase 0; the cabinet matters after
+  const body = { room: roomPanel, cn: chinaPanel, labs: labPanel, log: logPanel }[side](v);
+  return `<aside class="panel side"><div class="stabs">${SIDE.map(([k, n]) => `<button class="stab ${side === k ? 'on' : ''}" data-side="${k}">${n}</button>`).join('')}</div>${body}</aside>`;
 }
 function historyChart(v) {
   const W = 320, H = 150, padL = 24, padR = 14, padT = 8, padB = 18;
