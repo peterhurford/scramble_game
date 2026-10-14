@@ -87,7 +87,7 @@ const COMPONENTS = [
 const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 20 };
+const TUNE = { hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
