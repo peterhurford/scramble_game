@@ -308,6 +308,24 @@ function cnEstimate(s) {
   for (const key in src) src[key] *= comp / sum;
   return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, cnRate(s) * (1 + noise('rate'))), rel };
 }
+// How precisely the advisor can read Beijing: words while intelligence is patchy, ranges once decent, numbers once sharp. An IC assessment counts as +20.
+function cnReadout(s) {
+  const e = cnEstimate(s), q = s.intelQ + (s.flags.assessUntil >= s.turn ? 20 : 0), tier = q < 45 ? 0 : q < 70 ? 1 : 2;
+  const P = x => Math.round(100 * x), rng = (x, err, cap = 1e9) => `${Math.max(0, Math.floor(P(x - err) / 10) * 10)}–${Math.min(cap, Math.ceil(P(x + err) / 10) * 10)}%`;
+  const fmt = (x, err, word, cap, suf = '') => tier === 0 ? word(x) : tier === 1 ? rng(x, err, cap) + suf : `~${P(x)}%${suf} ±${Math.max(1, P(err))}`;
+  const compWord = x => x < 0.6 ? 'sharply cut' : x < 0.85 ? 'somewhat cut' : x < 1.1 ? 'about normal' : 'above normal';
+  const distWord = x => x > 0.7 ? 'heavy' : x > 0.35 ? 'some' : x > 0.1 ? 'a little' : 'almost none';
+  const shareWord = x => x > 0.35 ? 'most of it' : x > 0.15 ? 'a large share' : x > 0.06 ? 'a small share' : 'a sliver';
+  const us = Math.max(0.05, frontierRate(s, true)), rr = e.rate / us;
+  const src = {};
+  for (const k in e.src) src[k] = tier === 0 ? shareWord(e.src[k] / (e.comp || 1)) : tier === 1 ? rng(e.src[k], e.rel * e.src[k]) : `~${P(e.src[k])}%`;
+  return {
+    tier, src, est: e,
+    comp: fmt(e.comp, e.rel * e.comp, compWord, undefined, ' of baseline'), dist: fmt(e.dist, 0.6 * e.rel, distWord, 100),
+    rate: tier === 0 ? (rr > 1.15 ? 'faster than the US' : rr > 0.85 ? 'about the US pace' : 'slower than the US') : tier === 1 ? `${(Math.round(e.rate * (1 - e.rel) * 10) / 10).toFixed(1)}–${(Math.round(e.rate * (1 + e.rel) * 10) / 10).toFixed(1)} mo/mo` : `~${(Math.round(e.rate * 10) / 10).toFixed(1)} mo/mo`,
+    note: ['Patchy intelligence: the IC can only characterize these.', 'Decent intelligence: the IC gives ranges.', 'Sharp intelligence: the IC gives point estimates.'][tier],
+  };
+}
 function leadEstimate(s) {
   const err = 0.3 + 2.4 * (1 - s.intelQ / 100);
   const k = Math.floor(s.turn / 3), fr = (s.turn % 3) / 3;
@@ -1714,7 +1732,7 @@ function view(s) {
     phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)),
     F: frontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
-    risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), detection: detection(s), cnVis: cnVisibility(s),
+    risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
     rObs: rObserved(s), pauseMood: pauseMood(s), inZone,
   };

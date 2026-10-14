@@ -277,16 +277,17 @@ function roomPanel(v) {
 function chinaPanel(v) {
   const c = S.cn, f = c.f;
   const post = { diffuse: ['Diffusing', 'muted', 'Cheap, open, everywhere. Not chasing the frontier.'], race: ['Racing', 'bad', 'State-directed push for the frontier. Theft risk is up.'], engage: ['Open to a deal', 'good', 'The science faction has the floor.'] }[c.posture];
-  const est = v.cnEst, src = est.src, pm = x => '±' + Math.max(1, Math.round(100 * x));
-  const segs = [['Domestic', src.domestic, '#6B7C93'], ['Offshore', src.offshore, '#B8323A'], ['Smuggled', src.smuggled, '#D9822B'], ['Legal', src.legal, '#3B8A7E'], ['Other', src.other, '#9AA7B4']];
+  const rd = v.cnRead, est = rd.est, src = est.src;
+  const segs = [['Domestic', 'domestic', '#6B7C93'], ['Offshore', 'offshore', '#B8323A'], ['Smuggled', 'smuggled', '#D9822B'], ['Legal', 'legal', '#3B8A7E'], ['Other', 'other', '#9AA7B4']];
   const deal = c.deal ? `<div class="okbox">${icon('flag')} Interim deal in force since ${esc(E.monthLabel(c.deal.since))}</div>` : '';
   return `<div class="sb"><div class="row"><span class="pill ${post[1]}">${post[0]}</span><span class="sub">${post[2]}</span></div>${deal}</div>
     <div class="sb"><div class="lbl">Who has the floor</div>
       <div class="fac"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div></div>
-    <div class="sb"><div class="row"><div class="lbl">Training compute: ~${Math.round(100 * est.comp)}% of baseline</div><span class="sp"></span><span class="sub" title="IC estimate. Better intelligence narrows the error.">${pm(est.rel * est.comp)}</span></div>
-      <div class="stack">${segs.map(sg => `<i style="width:${100 * sg[1] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]} ~${Math.round(100 * sg[1])}%"></i>`).join('')}</div>
+    <div class="sb"><div class="row"><div class="lbl">Training compute: ${rd.comp}</div></div>
+      <div class="stack">${segs.map(sg => `<i style="width:${100 * src[sg[1]] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]}: ${rd.src[sg[1]]}"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">~${Math.round(100 * est.dist)}% <span class="sub">${pm(0.6 * est.rel)}</span></span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">~${f1(est.rate)} mo/mo</span></div></div>
+      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">${rd.rate}</span></div>
+      <div class="sub" style="margin-top:8px">${rd.note}${rd.tier < 2 ? ' Sharpen with the GEOINT baseline, verification funding or an IC assessment.' : ''}</div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
 function labPanel(v) {
