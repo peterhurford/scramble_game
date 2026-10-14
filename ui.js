@@ -64,6 +64,22 @@ function meter(v, cls, marks) { return `<div class="meter ${cls || ''}"><i style
 function stanceBar(x) { const w = Math.abs(x) * 50; const left = x >= 0 ? 50 : 50 - w; const col = x > 0.25 ? 'var(--good)' : x < -0.25 ? 'var(--bad)' : 'var(--faint)'; return `<div class="stance"><i style="left:${left}%;width:${w}%;background:${col}"></i><span class="mid"></span></div>`; }
 function pStance(id) { const d = E.PD(S, id), p = E.P(S, id); const x = d.prefs.pause + p.shift + d.sal * (S.salience - 35) / 40 + p.rel / 120; return Math.tanh(x / 1.6); }
 function chipList(list, small) { return `<div class="fx ${small ? 'sm' : ''}">${list.map(c => { const t = c[0] === '+' ? 'g' : c[0] === '-' ? 'b' : 'n'; return `<span class="fxc ${t}">${esc(c.slice(1))}</span>`; }).join('')}</div>`; }
+// Event hints in words: the engine writes exact deltas, the player sees direction and rough size.
+// Capital costs and durations stay exact; odds become oddsWord.
+function wordify(p) {
+  const big = (n, u) => { const a = Math.abs(n); return /mo/.test(u || '') ? (a <= 0.5 ? 1 : a <= 1.5 ? 2 : 3) : (a <= 3 ? 1 : a <= 10 ? 2 : 3); };
+  const cap = x => x.charAt(0).toUpperCase() + x.slice(1);
+  return p
+    .replace(/^(\d+)%:\s*/, (m, n) => cap(E.oddsWord(n / 100)) + ': ')
+    .replace(/\b(loses|gains|buys|loses about) (\d+(?:\.\d+)?) months?/g, '$1 time')
+    .replace(/\b\d+(?:\.\d+)?% (slower|faster)/g, '$1')
+    .replace(/([+\-−])(\d+(?:\.\d+)?)(?:\s*(%|°|months?\b|mo\b))?(?: (influence|relationship|compliance|votes?)\b)?/g, (m, sg, n, u, noun) => {
+      const up = sg === '+', k = big(+n, u);
+      // "+4 influence" reads "more influence"; "Salience +6" reads "Salience up"
+      if (noun) return (k === 1 ? 'a bit ' : k === 3 ? 'much ' : '') + ({ relationship: up ? 'warmer' : 'cooler', compliance: up ? 'more compliant' : 'less compliant' }[noun] || (up ? 'more ' : 'less ') + noun);
+      return (up ? 'up' : 'down') + (k === 1 ? ' slightly' : k === 3 ? ' sharply' : '');
+    });
+}
 function hintChips(h) {
   if (!h) return '';
   const parts = h.split(/;\s+|\.\s+(?=[A-Z0-9])/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
@@ -72,7 +88,7 @@ function hintChips(h) {
     // for these, going up is bad for you
     if (/temperature|slower|court|runaway|risk \+|China compute|China copying|overhang/i.test(p) && t !== '~') t = t === '+' ? '-' : '+';
     if (/odds|chance|\d+%: /i.test(p)) t = '~';
-    return t + p;
+    return t + wordify(p);
   }), true);
 }
 function costHtml(c, room) { return `<span class="cost">${c.ap ? `<span title="Actions">${icon('bolt')}${c.ap}</span>` : ''}${c.pc ? `<span title="Political capital">${icon('coin')}${c.pc}</span>` : ''}${room ? `<span title="Needs the President">${icon('star')}</span>` : ''}${!c.ap && !c.pc ? 'free' : ''}</span>`; }
@@ -309,7 +325,7 @@ function objective(v) {
   if (S.phase === 'p0') {
     body = `<h3>${S.pacing.collapsed ? 'Rebuild the case' : 'Get in position'}</h3>
       <div class="obrow"><span>Alarm</span>${meter(S.alarm, S.alarm > 70 ? 'bad' : '')}<b class="mono">${Math.round(S.alarm)}<small>/100</small></b></div>
-      <div class="sub">At 100 the President calls the emergency meeting. Ask sooner and it works <b>${pct(v.briefOdds)}</b> of the time. <button class="whylink" data-why="alarm">What raises alarm?</button></div>`;
+      <div class="sub">At 100 the President calls the emergency meeting. Ask sooner and your read is it’s <b>${E.oddsWord(v.briefOdds)}</b> to work. <button class="whylink" data-why="alarm">What raises alarm?</button></div>`;
   } else if (S.phase === 'scramble') {
     const p = S.pacing;
     const items = [[p.mech, 'Mechanism', p.mech ? E.MECH[p.mech].label : '—'], [p.threshold, 'Threshold', p.threshold ? E.THRESH[p.threshold].label : '—'], [p.automation, 'Automation limits', p.automation ? 'yes' : 'optional'], [p.trigger, 'Monitoring trigger', p.trigger ? E.TRIG[p.trigger].label : 'optional']];
@@ -357,7 +373,7 @@ function defaultParams(id) {
   if (a.params.kind === 'variant') { const o = a.params.options(S); const pref = o.find(x => x.id === '1e21' || x.id === '200c' || x.id === 'charter'); return { variant: (pref || o[0]).id }; }
   return {};
 }
-function oddsBar(p, roll) { return `<div class="dice"><div class="zone" style="width:${100 * p}%"></div>${roll != null ? `<div class="marker" data-roll="${roll}" style="left:0%"></div>` : ''}<span class="dl2">${pct(p)}</span></div>`; }
+function oddsBar(p, roll) { const known = roll != null; return `<div class="dice"><div class="zone" style="width:${known ? 100 * p : 25 * Math.round(4 * p)}%"></div>${known ? `<div class="marker" data-roll="${roll}" style="left:0%"></div>` : ''}<span class="dl2">${known ? pct(p) : E.oddsWord(p)}</span></div>`; }
 function detailPane() {
   if (!ui.sel) return '<div class="sub">Pick an action.</div>';
   const a = E.ACT[ui.sel]; const prm = ui.params || {};
@@ -500,7 +516,7 @@ function openCharter() {
     if (r) return `<div class="labrow"><div><b>${esc(ld.name)}</b> <span class="sub">needed under ${Math.round(100 * r.p)}, drew ${Math.round(100 * r.roll)}</span></div><span class="stamp ${r.signed ? 'good' : 'bad'}">${r.signed ? 'SIGNED' : 'REFUSED'}</span><div class="res">${esc(r.text)}</div></div>`;
     const p0 = E.charterOdds(S, ld.id, false), p1 = E.charterOdds(S, ld.id, true);
     return `<div class="labrow"><div><b>${esc(ld.name)}</b> <span class="sub">${Math.round(ld.share * 100)}% of compute · safety ${ld.safety} · with you ${Math.round(l.rel)}</span><div class="sub">${esc(ld.blurb)}</div>${oddsBar(p0)}</div>
-      <div class="col2"><button class="ghost" data-ask="${ld.id}">Ask · ${pct(p0)}</button><button class="ghost" data-deal="${ld.id}" ${S.pc >= ld.deal.pc ? '' : 'disabled'} title="${esc(ld.deal.name)}">Sweeten (${ld.deal.pc} ${icon('coin')}) · ${pct(p1)}</button><span class="sub">${esc(ld.deal.name)}</span></div></div>`;
+      <div class="col2"><button class="ghost" data-ask="${ld.id}">Ask · ${E.oddsWord(p0)}</button><button class="ghost" data-deal="${ld.id}" ${S.pc >= ld.deal.pc ? '' : 'disabled'} title="${esc(ld.deal.name)}">Sweeten (${ld.deal.pc} ${icon('coin')}) · ${E.oddsWord(p1)}</button><span class="sub">${esc(ld.deal.name)}</span></div></div>`;
   }).join('');
   const signedShare = E.LABS.reduce((a, ld) => a + (E.L(S, ld.id).signed ? ld.share : 0), 0);
   openModal(`<div class="mh"><span>${icon('cpu')} Roosevelt Room</span><span>${esc(E.dateLabel(S.t))} · capital ${S.pc}</span></div><div class="mb">
@@ -525,7 +541,7 @@ function openOffer() {
     <div class="fac" style="margin-bottom:6px"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div>
     <div class="sub" style="margin-bottom:10px">Market wants a lane for its models; Security hates inspections; Science responds to shared evaluations. ${S.pacing.active ? 'America is already pacing.' : 'America is not pacing: Beijing will ask why it should stop first.'}</div>
     <div class="terms">${terms}</div>
-    <div class="twoodds"><div><div class="lbl">President approves</div>${oddsBar(pv.room.p)}</div><div><div class="lbl">Beijing accepts (IC estimate, ±${Math.round(100 * pv.cn.err)})</div>${oddsBar(pv.cn.mid)}</div></div>
+    <div class="twoodds"><div><div class="lbl">President approves</div>${oddsBar(pv.room.p)}</div><div><div class="lbl">Beijing accepts (IC read)</div>${oddsBar(pv.cn.mid)}</div></div>
     ${whip(pv.room.positions, true)}
     <div class="row"><button class="btn" id="osend">Send it (${icon('bolt')}1 ${icon('coin')}2)</button><button class="ghost" id="ocancel">Not yet</button></div></div>`, true);
   $('#modal').querySelectorAll('[data-term]').forEach(c => c.onchange = () => { t[c.dataset.term] = c.checked; openOffer(); });
