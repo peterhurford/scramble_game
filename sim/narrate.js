@@ -27,6 +27,8 @@ P(`- **Projects, in order:** ${projs.map(pname).join(' → ')}.`);
 P(`- **Never builds:** ${skip.map(p => pname(p) + w('proj.' + p)).join('; ') || 'nothing'}.`);
 const pols = S.POL0.filter(p => G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a]);
 P(`- **One Oval policy per turn, in order:** ${pols.map(p => E.ACT[p].name).join(' → ')}. **Never pushes:** ${S.POL0.filter(p => G['pol.' + p] < 0).map(p => E.ACT[p].name).join(', ')}.`);
+const gates = Object.keys(S.GATE).filter(p => G['gate.' + p] > 0 && G['pol.' + p] >= 0);
+if (gates.length) P(`- **Reads the Beijing tab first:** ${gates.map(p => `skips ${E.ACT[p].name} unless ${S.GATE[p][0]} reads at least ${pct(G['gate.' + p])}${w('gate.' + p)}`).join('; ')}.`);
 P(`- **Meetings:** every ${G.meetEvery} turns, alternating the ${name(G.meetA)} and the ${name(G.meetB)}.${w('meetA')}`);
 const favs = E.PRINCIPALS.map(p => p.id).filter(p => G['fav.' + p]);
 P(`- **Favors:** grants every ask from ${favs.map(name).join(', ') || 'nobody'}, as long as capital stays at ${G.favReserve} or more.${favs.map(p => w('fav.' + p)).filter(Boolean).slice(0, 3).join('')}`);
