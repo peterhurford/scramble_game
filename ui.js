@@ -96,28 +96,29 @@ function bannerLevel() { if (!S) return 'U'; if (S.phase === 'scramble') return 
 function stats() { return S ? { cred: S.cred, pc: S.pc, sal: S.salience, mk: S.markets, tens: S.tension } : null; }
 
 /* ---------------- what changed ---------------- */
-function targetComp() { const c = S.cn; return 0.45 * (0.8 + 0.2 * c.smeT) + 0.08 * c.smuggleT + 0.12 * c.legalT + 0.25 * c.remoteT + 0.10; }
 function snap() {
   if (!S) return {};
   const v = E.view(S); const o = {};
-  const put = (k, label, val, dir) => { o[k] = { label, val, dir }; };
+  // words: [rising, falling] phrasing for things an advisor senses but cannot measure; those show without numbers.
+  const put = (k, label, val, dir, words) => { o[k] = { label, val, dir, words }; };
   put('cred', 'Credibility', S.cred, 1); put('pc', 'Capital', S.pc, 1); put('sal', 'Salience', S.salience, 1); put('mk', 'Markets', S.markets, 1);
   put('tens', 'Beijing temperature', S.tension, -1); put('coal', 'Coalition', S.coalition, 1);
   if (S.phase === 'p0') put('alarm', 'Alarm', S.alarm, 1);
   put('senate', 'Senate votes', v.senate, 1); if (S.pacing.active) put('sup', 'Pacing support', v.support, 1);
   E.COMPONENTS.forEach(c => put('v_' + c.id, 'Verification: ' + c.short, S.verify[c.id], 1));
   put('sl', 'Security level', S.sl, 1); put('intel', 'Intelligence', S.intelQ, 1); put('apMax', 'Actions per turn', S.apMax, 1); put('warp', 'Verification funding', S.warp, 1);
-  put('trust', 'Beijing trust', S.cn.trust, 1); put('sci', 'Beijing science faction', S.cn.f.sci, 1); put('secf', 'Beijing security faction', S.cn.f.sec, -1); put('mktf', 'Beijing market faction', S.cn.f.m, 0);
-  put('cncomp', 'China compute (where it is headed)', 100 * targetComp(), -1); put('copy', 'China copying US models (headed)', 100 * S.cn.distT, -1);
+  const gain = n => ['Beijing\u2019s ' + n + ' faction gaining ground', 'Beijing\u2019s ' + n + ' faction losing ground'];
+  put('trust', 'Beijing trust', S.cn.trust, 1, ['Beijing trusts Washington more', 'Beijing trusts Washington less']); put('sci', '', S.cn.f.sci, 1, gain('science')); put('secf', '', S.cn.f.sec, -1, gain('security')); put('mktf', '', S.cn.f.m, 0, gain('market'));
   put('drag', 'US labs slowed (%)', 100 * v.drag.total, 0); put('cov', 'Coverage (%)', v.coverage, 1);
-  S.principals.forEach(p => { const n = E.PD(S, p.id).name; put('r_' + p.id, n + ' (with you)', p.rel, 1); put('s_' + p.id, n + ' view on pacing', 100 * pStance(p.id), 1); put('i_' + p.id, n + ' influence', p.infl, 0); });
-  E.LABS.forEach(l => { const L = E.L(S, l.id); put('lr_' + l.id, l.name + ' (with you)', L.rel, 1); if (E.covered(S, L)) put('lc_' + l.id, l.name + ' compliance', L.comp, 1); });
+  S.principals.forEach(p => { const n = E.PD(S, p.id).name; put('r_' + p.id, n + ' (with you)', p.rel, 1); put('s_' + p.id, '', 100 * pStance(p.id), 1, [n + ' warming to pacing', n + ' cooling on pacing']); put('i_' + p.id, '', p.infl, 0, [n + ' gaining influence', n + ' losing influence']); });
+  E.LABS.forEach(l => { const L = E.L(S, l.id); put('lr_' + l.id, l.name + ' (with you)', L.rel, 1); if (E.covered(S, L)) put('lc_' + l.id, '', L.comp, 1, [l.name + ' more compliant', l.name + ' less compliant']); });
   return o;
 }
 function diffList(a, b) {
   // Headline numbers first, then per-person and per-lab moves, each by size.
   const out = [];
-  for (const k in b) { if (!a[k]) continue; const d = b[k].val - a[k].val; if (Math.abs(d) < 0.95) continue; const tone = b[k].dir === 0 ? '~' : ((d > 0) === (b[k].dir > 0) ? '+' : '-'); out.push({ s: tone + b[k].label + ' ' + (d > 0 ? '+' : '\u2212') + Math.round(Math.abs(d)), side: /^(r|s|i|lr|lc)_/.test(k) ? 1 : 0, m: Math.abs(d) }); }
+  for (const k in b) { if (!a[k]) continue; const d = b[k].val - a[k].val; if (Math.abs(d) < 0.95) continue; const tone = b[k].dir === 0 ? '~' : ((d > 0) === (b[k].dir > 0) ? '+' : '-'); const w = b[k].words, size = Math.abs(d) <= 3 ? ', slightly' : Math.abs(d) > 10 ? ', sharply' : '';
+    out.push({ s: tone + (w ? w[d > 0 ? 0 : 1] + size : b[k].label + ' ' + (d > 0 ? '+' : '\u2212') + Math.round(Math.abs(d))), side: /^(r|s|i|lr|lc)_/.test(k) ? 1 : 0, m: Math.abs(d) }); }
   return out.sort((x, y) => x.side - y.side || y.m - x.m).map(x => x.s);
 }
 function changedBox(list, title) {
@@ -279,7 +280,7 @@ function chinaPanel(v) {
     <div class="sb"><div class="lbl">Training compute: ${Math.round(100 * v.cnComp)}% of baseline</div>
       <div class="stack">${segs.map(sg => `<i style="width:${100 * sg[1]}%;background:${sg[2]}" title="${sg[0]} ${Math.round(100 * sg[1])}%"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">${Math.round(100 * c.dist)}%</span><span>Trust in Washington</span><span class="v">${Math.round(c.trust)}</span><span>Growth</span><span class="v">${f1(v.cnRate)} mo/mo</span></div></div>
+      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">${Math.round(100 * c.dist)}%</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">${f1(v.cnRate)} mo/mo</span></div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
 function labPanel(v) {
@@ -294,7 +295,7 @@ function labPanel(v) {
         const l = E.L(S, ld.id);
         const status = E.covered(S, l) ? '<span class="pill good">Paced</span>' : l.signed ? '<span class="pill acc">Signed</span>' : l.refused ? '<span class="pill bad">Refused</span>' : S.pacing.active ? '<span class="pill warn">Unbound</span>' : '<span class="pill muted">Racing</span>';
         const behind = F - l.cap;
-        return `<div class="lab" title="${Math.round(ld.share * 100)}% of compute · safety ${ld.safety}"><div class="lt"><b>${esc(ld.name)}</b><span class="sub">${behind < 0.05 ? 'at the frontier' : f1(behind) + ' mo back'}${E.covered(S, l) ? ' · compliance ' + Math.round(l.comp) : ''}</span></div><span class="rel ${l.rel >= 0 ? 'up' : 'dn'}">${l.rel > 0 ? '+' : ''}${Math.round(l.rel)}</span>${status}</div>`;
+        return `<div class="lab" title="${Math.round(ld.share * 100)}% of compute · safety ${ld.safety}"><div class="lt"><b>${esc(ld.name)}</b><span class="sub">${behind < 0.05 ? 'at the frontier' : f1(behind) + ' mo back'}${E.covered(S, l) ? ' · compliance ' + (l.comp < 40 ? 'shaky' : l.comp < 70 ? 'mixed' : 'solid') : ''}</span></div><span class="rel ${l.rel >= 0 ? 'up' : 'dn'}">${l.rel > 0 ? '+' : ''}${Math.round(l.rel)}</span>${status}</div>`;
       }).join('')}
       <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0] + ': ' + Math.round(100 * x[1]) + '%').join('; ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${Math.round(100 * v.drag.total)}%</span>
         <span title="Beijing tries to steal weights ${Math.round(100 * v.theft.attempt)}% of months; an attempt succeeds ${Math.round(100 * v.theft.success)}% of the time at SL${S.sl}.">Security SL${S.sl} · theft risk</span><span class="v">${(100 * v.theft.net).toFixed(1)}%/mo</span></div></div>
