@@ -53,7 +53,7 @@ P(`7. Surge verification (${G.surge}); meet the VP if support < ${Math.round(G.m
 
 P('## Every event choice\n');
 const dummy = E.newGame({ seed: 3 }); dummy.policies.remote = true; dummy.flags.houseFlipped = true;
-const ctx = { lab: 'helix', who: 'helix', pid: 'doc', name: 'Commerce Secretary' };
+const ctx = { lab: 'mindscale', who: 'mindscale', pid: 'doc', name: 'Commerce Secretary' };
 S.EVENTS.forEach(id => {
   dummy.queue = [Object.assign({ id }, ctx)];
   let ev; try { ev = E.currentEvent(dummy); } catch (e) { return; }

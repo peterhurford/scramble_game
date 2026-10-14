@@ -120,10 +120,10 @@ function renderTitle() {
     <div class="thero"><div class="eb">A game about pacing the frontier · Oct 2026 – Dec 2028</div><h1>The Scramble</h1>
     <div class="tgrid"><p>You are the White House AI Czar. Recursive self-improvement may be a year away. When the moment comes it will look like the Cuban Missile Crisis, not a treaty negotiation. Get in position, win the room, pace the frontier, and bring Beijing in before it’s too late.</p>
     <ol class="steps">
-      <li><b>Phase 0.</b> Prepare, win allies in the cabinet, read the indicators.</li>
-      <li><b>The scramble.</b> Fourteen days to decide how America paces.</li>
-      <li><b>Phase 1.</b> Hold the pause, catch cheaters, bring Beijing in.</li>
-      <li><b>Phase 2.</b> A verified treaty. That’s the win.</li></ol></div></div>
+      <li><span><b>Phase 0.</b> Prepare, win allies in the cabinet, read the indicators.</span></li>
+      <li><span><b>The scramble.</b> Fourteen days to decide how America paces.</span></li>
+      <li><span><b>Phase 1.</b> Hold the pause, catch cheaters, bring Beijing in.</span></li>
+      <li><span><b>Phase 2.</b> A verified treaty. That’s the win.</span></li></ol></div></div>
     <div class="tbody">
       <div><div class="lbl">Difficulty</div><div class="diffs">${diffs}</div></div>
       <div class="row"><button class="btn" id="newgame">New game</button>${saved && !saved.ending ? `<button class="ghost" id="cont">Continue · ${esc(E.dateLabel(saved.t))}</button>` : ''}<button class="ghost" id="howto">How to play</button></div>
@@ -313,7 +313,7 @@ function objective(v) {
   } else if (S.phase === 'scramble') {
     const p = S.pacing;
     const items = [[p.mech, 'Mechanism', p.mech ? E.MECH[p.mech].label : '—'], [p.threshold, 'Threshold', p.threshold ? E.THRESH[p.threshold].label : '—'], [p.automation, 'Automation limits', p.automation ? 'yes' : 'optional'], [p.trigger, 'Monitoring trigger', p.trigger ? E.TRIG[p.trigger].label : 'optional']];
-    if (p.mech === 'charter') items.push([S.scramble.convened, 'Signatures', S.scramble.convened ? E.LABS.filter(l => E.L(S, l.id).signed).length + ' of 5' : '—']);
+    if (p.mech === 'charter') items.push([S.scramble.convened, 'Signatures', S.scramble.convened ? E.LABS.filter(l => E.L(S, l.id).signed).length + ' of ' + E.LABS.length : '—']);
     items.push([p.seq, 'Go first?', p.seq ? E.SEQ[p.seq].label : '—']);
     items.push([false, 'Launch Phase 1', '']);
     body = `<h3>Day ${1 + 2 * (S.scramble.turn - 1)} of 14</h3><div class="ticks">${items.map(it => `<span class="${it[0] ? 'ok' : ''}">${it[0] ? '✓' : '○'} ${it[1]}${it[2] ? ': <b>' + esc(it[2]) + '</b>' : ''}</span>`).join('')}</div>`;

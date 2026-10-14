@@ -31,7 +31,7 @@ const BOTS = {
       const prm = {};
       if (a.params) {
         if (a.params.kind === 'principal') prm.who = E.PRINCIPALS[Math.floor(Math.random() * E.PRINCIPALS.length)].id;
-        if (a.params.kind === 'lab') prm.lab = E.LABS[Math.floor(Math.random() * 5)].id;
+        if (a.params.kind === 'lab') prm.lab = E.LABS[Math.floor(Math.random() * E.LABS.length)].id;
         if (a.params.kind === 'comp') prm.comp = E.COMPONENTS[Math.floor(Math.random() * E.COMPONENTS.length)].id;
         if (a.params.kind === 'variant') { const o = E.ACT[a.id].params.options(s); prm.variant = o[Math.floor(Math.random() * o.length)].id; }
       }

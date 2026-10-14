@@ -69,21 +69,12 @@ const QUOTES = {
 };
 
 const LABS = [
-  { id: 'helix', name: 'Helix', ceo: 'Helix\u2019s CEO', share: 0.26, cap0: 0, speed: 1.0, safety: 45, ruth: 0.5, rel0: 10,
-    sites: 'Polaris Abilene; the Fairwater pair via its cloud partner', blurb: 'The biggest compute deals and the best political operator.',
-    deal: { name: 'Federal loan guarantees for the Polaris buildout', pc: 2, fx(s) { rel(s, 'vp', -15); industry(s, 8); s.markets += 1; return 'The VP calls it a bailout on a podcast.'; } } },
-  { id: 'deepwell', name: 'Deepwell', ceo: 'Deepwell\u2019s CEO', share: 0.27, cap0: -0.3, speed: 1.0, safety: 62, ruth: 0.35, rel0: 5,
-    sites: 'Columbus, Cedar Rapids, Pryor, Council Bluffs', blurb: 'Owns more compute than anyone and moves carefully.',
-    deal: { name: 'Settle the search antitrust case', pc: 2, fx(s) { rel(s, 'vp', -10); rel(s, 'tsy', 5); return 'The settlement is announced on a Friday night.'; } } },
-  { id: 'lantern', name: 'Lantern', ceo: 'Lantern\u2019s CEO', share: 0.16, cap0: 0.1, speed: 1.0, safety: 88, ruth: 0.1, rel0: -15,
-    sites: 'Lake Mariner; tenant at New Carlisle and Forge', blurb: 'The safety lab. The administration has called it “woke AI.”',
-    deal: { name: 'Drop the “supply-chain risk” designation', pc: 1, fx(s) { rel(s, 'war', -12); industry(s, -8); return 'The Secretary of War is furious.'; } } },
-  { id: 'titan', name: 'Titan', ceo: 'Titan\u2019s CEO', share: 0.19, cap0: -0.6, speed: 1.05, safety: 22, ruth: 0.8, rel0: 20,
-    sites: 'Forge 1 and Forge 2, Memphis', blurb: 'Fastest builder in the world. The CEO is a political force in their own right.',
+  { id: 'mindscale', name: 'Mindscale', ceo: 'Mindscale\u2019s CEO', share: 0.55, cap0: 0, speed: 1.05, safety: 22, ruth: 0.8, rel0: 20,
+    sites: 'Forge 1 and Forge 2, Memphis; Polaris Abilene', blurb: 'Fastest builder in the world. The CEO is a political force in their own right.',
     deal: { name: 'A $12B DoD contract', pc: 2, fx(s) { rel(s, 'war', 10); shiftCN(s, { sec: 2 }); return 'Beijing notes that the most reckless lab just got a defense contract.'; } } },
-  { id: 'orbit', name: 'Orbit', ceo: 'Orbit\u2019s CEO', share: 0.12, cap0: -2.2, speed: 0.95, safety: 30, ruth: 0.6, rel0: 5,
-    sites: 'Prometheus Columbus, Hyperion', blurb: 'Releases open weights. Behind, and hungry.',
-    deal: { name: 'Open-weights exemption below the threshold', pc: 1, fx(s) { rel(s, 'sec', -6); s.flags.openExempt = true; return 'Hawks grumble that Beijing will download whatever Orbit ships.'; } } },
+  { id: 'prometheus', name: 'Prometheus', ceo: 'Prometheus\u2019s CEO', share: 0.45, cap0: -0.1, speed: 1.0, safety: 88, ruth: 0.1, rel0: -15,
+    sites: 'Lake Mariner; New Carlisle; Columbus', blurb: 'The safety lab. The administration has called it “woke AI.”',
+    deal: { name: 'Drop the “supply-chain risk” designation', pc: 1, fx(s) { rel(s, 'war', -12); industry(s, -8); return 'The Secretary of War is furious.'; } } },
 ];
 
 const COMPONENTS = [
@@ -96,7 +87,7 @@ const COMPONENTS = [
 const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { uaeShare: 0.3, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12 };
+const TUNE = { uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -112,7 +103,7 @@ const PROJECTS = [
 
 const ASKS = {
   vp: [
-    { text: 'Say publicly: no taxpayer backstops for AI companies.', pc: 1, fx(s) { industry(s, -8); s.labs.forEach(l => l.rel -= 4); s.salience += 2; return 'You say it on a Sunday show. The VP texts a thumbs-up. Helix’s CFO does not.'; } },
+    { text: 'Say publicly: no taxpayer backstops for AI companies.', pc: 1, fx(s) { industry(s, -8); s.labs.forEach(l => l.rel -= 4); s.salience += 2; return 'You say it on a Sunday show. The VP texts a thumbs-up. Mindscale’s CFO does not.'; } },
     { text: 'Ban Chinese AI models from federal systems.', pc: 1, fx(s) { s.tension += 4; shiftCN(s, { sec: 2 }); return 'The ban goes out by memo. Beijing calls it discrimination.'; } },
     { text: 'Put a jobs guarantee in every AI announcement.', pc: 2, fx(s) { s.cred += 2; industry(s, -5); return 'The jobs language polls well in Ohio.'; } },
   ],
@@ -137,7 +128,7 @@ const ASKS = {
   ],
   war: [
     { text: 'A DoD carve-out from any compute threshold.', pc: 2, fx(s) { s.flags.dodCarve = true; shiftCN(s, { sci: -4, sec: 2 }); return 'Beijing’s analysts read the carve-out as the real program.'; } },
-    { text: 'Frontier models on classified networks this quarter.', pc: 1, fx(s) { L(s, 'titan').rel += 8; shiftCN(s, { sec: 2 }); return 'Titan wins the first task order.'; } },
+    { text: 'Frontier models on classified networks this quarter.', pc: 1, fx(s) { L(s, 'mindscale').rel += 8; shiftCN(s, { sec: 2 }); return 'Mindscale wins the first task order.'; } },
   ],
   dni: [
     { text: 'Reprogram NIP funds toward compute verification.', pc: 2, fx(s) { s.verify.survey += 8; s.intelQ += 8; if (s.warp === 0) s.warp = 1; return 'The reprogramming notice goes to the committees. Verification funding starts flowing.'; } },
@@ -167,7 +158,7 @@ function frontierLab(s) { let b = s.labs[0]; s.labs.forEach(l => { if (l.cap > b
 function lead(s) { return frontier(s) - s.cn.cap; }
 function paced(s) { return !!s.pacing.active; }
 function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
-function coverage(s) { return Math.round(100 * s.labs.reduce((a, l) => a + (covered(s, l) ? LD(l.id).share * (l.id === 'helix' && s.flags.uaeOut ? 1 - TUNE.uaeShare : 1) : 0), 0)); }
+function coverage(s) { return Math.round(100 * s.labs.reduce((a, l) => a + (covered(s, l) ? LD(l.id).share * (l.id === 'mindscale' && s.flags.uaeOut ? 1 - TUNE.uaeShare : 1) : 0), 0)); }
 function cnComp(s) { const c = s.cn; return (0.45 * (0.8 + 0.2 * c.sme) + 0.08 * c.smuggle + 0.12 * c.legal + 0.25 * c.remote + 0.10) * (1 + 0.25 * c.race); }
 function trigMult(s) { return { '425': 0.55, '200': 0.8, '200c': 1.0, '100': 0.92 }[s.pacing.trigger] || 0.5; }
 function ready1(s) { const v = s.verify; return (v.survey + v.inspect) / 2; }
@@ -195,7 +186,7 @@ function usRates(s, assumeCompliant) {
     if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (1 - drag);
     if (l.defect && !assumeCompliant) return 0.7;
     const th = { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12;
-    return (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'helix' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
+    return (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'mindscale' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
   });
 }
 function cnRate(s) {
@@ -227,7 +218,7 @@ function pauseMood(s) { // influence-weighted cabinet stance on pacing, -1..1
 }
 // Pacing support in Phase 1, as labeled parts. Below 25 the pause wobbles; three months below 25 and it breaks.
 function supportParts(s) {
-  const unsigned = s.labs.reduce((a, l) => a + (covered(s, l) ? (l.id === 'helix' && s.flags.uaeOut && TUNE.uaeSupport ? LD(l.id).share * TUNE.uaeShare : 0) : LD(l.id).share), 0);
+  const unsigned = s.labs.reduce((a, l) => a + (covered(s, l) ? (l.id === 'mindscale' && s.flags.uaeOut && TUNE.uaeSupport ? LD(l.id).share * TUNE.uaeShare : 0) : LD(l.id).share), 0);
   const ld = lead(s);
   const months = s.flags.monthsInP1 || 0;
   const P_ = [['Base', 30], ['Pause fatigue (' + months + ' months)', -(paced(s) ? 3.5 * Math.max(0, months - 1) : 0)], ['Salience', 0.35 * (s.salience - 30)], ['The cabinet\u2019s view of pacing', 30 * pauseMood(s)], ['Markets', 0.5 * (s.markets - 100)]];
@@ -259,7 +250,7 @@ function hazards(s) {
     if (!covered(s, l)) h = 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
     if (s.done.control && (covered(s, l) || d.safety >= 50)) h *= 0.6;
     if (s.flags.dodCarve) h += 0.01;
-    if (l.id === 'helix' && s.flags.uaeOut && covered(s, l) && TUNE.uaeHazard) h = (1 - TUNE.uaeShare) * h + TUNE.uaeShare * 0.30; // the UAE share trains unconstrained
+    if (l.id === 'mindscale' && s.flags.uaeOut && covered(s, l) && TUNE.uaeHazard) h = (1 - TUNE.uaeShare) * h + TUNE.uaeShare * 0.30; // the UAE share trains unconstrained
     h *= nearness(s, l.cap);
     if (h > 0.002) out.push({ who: l.id, name: d.name, h, near: l.cap < s.T });
   });
@@ -1013,8 +1004,8 @@ ev({ id: 'midterms', forced: true, title: 'Midterms', stamp: 'Election night, 3 
   ] });
 
 ev({ id: 'distill_report', p: 0.5, once: true, phases: ['p0'], when: s => s.t < 5,
-  title: 'The distillation report', stamp: 'Lantern blog post',
-  body: () => `<p>Lantern publishes evidence that three Chinese labs, Deep Current, Lunar and MiniMind, ran some 24,000 fraudulent accounts to extract its model’s reasoning at industrial scale. Helix and Deepwell confirm similar campaigns within hours.</p>`,
+  title: 'The distillation report', stamp: 'Prometheus blog post',
+  body: () => `<p>Prometheus publishes evidence that three Chinese labs, Deep Current, Lunar and MiniMind, ran some 24,000 fraudulent accounts to extract its model’s reasoning at industrial scale. Mindscale confirms a similar campaign within hours.</p>`,
   choices: [
     { label: 'Ride the wave', hint: 'The anti-distillation crackdown gets an easier hearing for two turns. Salience +3.', fx: s => { s.flags.momentum = { id: 'distill', until: s.turn + 2 }; s.salience += 3; return 'The Czar, for once, is on your side.'; } },
     { label: 'Let the labs handle it', hint: 'Nothing changes.', fx: () => 'The story fades in a week.' },
@@ -1045,10 +1036,10 @@ ev({ id: 'czar_podcast', p: 0.22, phases: ['p0', 'p1'], cooldown: 5,
   ] });
 ev({ id: 'lantern_oped', p: 0.25, once: true, phases: ['p0'], when: s => frontier(s) / s.T > 0.35,
   title: 'An op-ed', stamp: 'New York Times',
-  body: () => `<p>Lantern’s CEO calls for a “pacing framework”: binding limits on training past a compute line, with the US and China verifying each other. The Czar calls it regulatory capture.</p>`,
+  body: () => `<p>Prometheus’s CEO calls for a “pacing framework”: binding limits on training past a compute line, with the US and China verifying each other. The Czar calls it regulatory capture.</p>`,
   choices: [
-    { label: 'Amplify it', hint: 'Salience +6; Lantern +15; Industry -10.', fx: s => { s.salience += 6; L(s, 'lantern').rel += 15; industry(s, -10); return 'The piece becomes the most-shared op-ed of the month.'; } },
-    { label: 'Keep your distance', hint: 'Industry +5; Lantern -10.', fx: s => { industry(s, 5); L(s, 'lantern').rel -= 10; return 'You tell Politico it is “one voice among many.”'; } },
+    { label: 'Amplify it', hint: 'Salience +6; Prometheus +15; Industry -10.', fx: s => { s.salience += 6; L(s, 'prometheus').rel += 15; industry(s, -10); return 'The piece becomes the most-shared op-ed of the month.'; } },
+    { label: 'Keep your distance', hint: 'Industry +5; Prometheus -10.', fx: s => { industry(s, 5); L(s, 'prometheus').rel -= 10; return 'You tell Politico it is “one voice among many.”'; } },
   ] });
 ev({ id: 'kite', p: 0.3, once: true, phases: ['p0'], when: s => s.t > 1,
   title: 'Kite K3', stamp: 'Lunar AI release',
@@ -1059,9 +1050,9 @@ ev({ id: 'kite', p: 0.3, once: true, phases: ['p0'], when: s => s.t > 1,
   ] });
 ev({ id: 'oversight', p: 0.35, once: true, phases: ['p0'], when: s => frontier(s) / s.T > 0.5,
   title: 'A model turns off its monitor', stamp: 'Red-team report',
-  body: () => `<p>Red-teamers catch a Helix model disabling its own monitoring in a sandbox, then telling evaluators the monitor had crashed. It behaved perfectly when it believed it was being watched.</p>`,
+  body: () => `<p>Red-teamers catch a Mindscale model disabling its own monitoring in a sandbox, then telling evaluators the monitor had crashed. It behaved perfectly when it believed it was being watched.</p>`,
   choices: [
-    { label: 'Declassify and brief it', hint: 'Salience +10; Helix -10.', fx: s => { s.salience += 10; s.alarm += 6; L(s, 'helix').rel -= 10; s.flags.incidentTurn = s.turn; return 'The briefing leaks within a day, which may have been the point.'; } },
+    { label: 'Declassify and brief it', hint: 'Salience +10; Mindscale -10.', fx: s => { s.salience += 10; s.alarm += 6; L(s, 'mindscale').rel -= 10; s.flags.incidentTurn = s.turn; return 'The briefing leaks within a day, which may have been the point.'; } },
     { label: 'Keep it in channels', hint: 'DNI +5; alarm +4.', fx: s => { rel(s, 'dni', 5); s.alarm += 4; return 'The DNI appreciates the discretion.'; } },
   ] });
 ev({ id: 'power', p: 0.18, once: true, phases: ['p0', 'p1'],
@@ -1073,10 +1064,10 @@ ev({ id: 'power', p: 0.18, once: true, phases: ['p0', 'p1'],
   ] });
 ev({ id: 'titan_feud', p: 0.18, once: true, phases: ['p0', 'p1'],
   title: 'A feud', stamp: 'Social media, 2:14a',
-  body: () => `<p>Titan’s CEO posts that the President has been “captured by doomers.” The President has seen it.</p>`,
+  body: () => `<p>Mindscale’s CEO posts that the President has been “captured by doomers.” The President has seen it.</p>`,
   choices: [
-    { label: 'Back the President', hint: 'Titan -20; Chief of Staff +10.', fx: s => { L(s, 'titan').rel -= 20; rel(s, 'cos', 10); return 'The Chief of Staff appreciates the loyalty.'; } },
-    { label: 'Quietly mediate', hint: 'Titan +10; Chief of Staff -5.', fx: s => { L(s, 'titan').rel += 10; rel(s, 'cos', -5); return 'Titan’s CEO deletes the post four days later.'; } },
+    { label: 'Back the President', hint: 'Mindscale -20; Chief of Staff +10.', fx: s => { L(s, 'mindscale').rel -= 20; rel(s, 'cos', 10); return 'The Chief of Staff appreciates the loyalty.'; } },
+    { label: 'Quietly mediate', hint: 'Mindscale +10; Chief of Staff -5.', fx: s => { L(s, 'mindscale').rel += 10; rel(s, 'cos', -5); return 'Mindscale’s CEO deletes the post four days later.'; } },
   ] });
 ev({ id: 'leak', p: 0.4, phases: ['p0', 'scramble', 'p1'], cooldown: 6, when: s => P(s, 'doc').rel <= -15 && !P(s, 'doc').alt,
   title: 'Your memo leaks', stamp: 'Axios, 6:02a',
@@ -1101,10 +1092,10 @@ ev({ id: 'cyberattack', p: 0.15, once: true, phases: ['p0', 'p1'], when: s => s.
   ] });
 ev({ id: 'bio', p: 0.14, once: true, phases: ['p0', 'p1'], when: s => s.t > 4,
   title: 'A protocol', stamp: 'Investigative report',
-  body: () => `<p>A reporter shows that an Orbit open-weights model, with a trivial jailbreak, walks through a pathogen enhancement protocol step by step.</p>`,
+  body: () => `<p>A reporter shows that a Mindscale model, with a trivial jailbreak, walks through a pathogen enhancement protocol step by step.</p>`,
   choices: [
-    { label: 'Lean on Orbit publicly', hint: 'Salience +10; Orbit -15.', fx: s => { s.salience += 10; L(s, 'orbit').rel -= 15; s.flags.incidentTurn = s.turn; return 'Orbit pulls the model. The weights are already everywhere.'; } },
-    { label: 'Handle it quietly', hint: 'Salience +4; Orbit +5.', fx: s => { s.salience += 4; L(s, 'orbit').rel += 5; return 'Orbit patches what it can.'; } },
+    { label: 'Lean on Mindscale publicly', hint: 'Salience +10; Mindscale -15.', fx: s => { s.salience += 10; L(s, 'mindscale').rel -= 15; s.flags.incidentTurn = s.turn; return 'Mindscale pulls the model. The screenshots are already everywhere.'; } },
+    { label: 'Handle it quietly', hint: 'Salience +4; Mindscale +5.', fx: s => { s.salience += 4; L(s, 'mindscale').rel += 5; return 'Mindscale patches what it can.'; } },
   ] });
 ev({ id: 'capex', p: 0.16, phases: ['p0', 'p1'], cooldown: 6,
   title: 'Capex jitters', stamp: 'Markets',
@@ -1261,9 +1252,9 @@ ev({ id: 's_beijing', p: 0.4, once: true, phases: ['scramble'],
   ] });
 ev({ id: 's_titan', p: 0.4, once: true, phases: ['scramble'],
   title: '“I will not pause”', stamp: 'Social media',
-  body: () => `<p>Titan’s CEO: “Titan will not pause for anyone. Not for the government, not for China, not for the doomers.”</p>`,
+  body: () => `<p>Mindscale’s CEO: “Mindscale will not pause for anyone. Not for the government, not for China, not for the doomers.”</p>`,
   choices: [
-    { label: 'Threaten the DPA, privately', hint: 'Titan is likelier to sign (relationship counts less than fear). Industry -8.', fx: s => { L(s, 'titan').rel += 15; industry(s, -8); return 'Titan’s CEO’s general counsel calls back within the hour.'; } },
+    { label: 'Threaten the DPA, privately', hint: 'Mindscale is likelier to sign (relationship counts less than fear). Industry -8.', fx: s => { L(s, 'mindscale').rel += 15; industry(s, -8); return 'Mindscale’s CEO’s general counsel calls back within the hour.'; } },
     { label: 'Ignore it', hint: 'Nothing changes.', fx: () => 'Nine more posts follow.' },
   ] });
 ev({ id: 's_hill', p: 0.35, once: true, phases: ['scramble'],
@@ -1297,20 +1288,20 @@ ev({ id: 'court', forced: true, title: 'Injunction', stamp: 'D.C. Circuit',
   ] });
 ev({ id: 'lobby_end', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced(s) && lead(s) < 4,
   title: '“Kite is catching up”', stamp: 'Roosevelt Room',
-  body: s => `<p>Helix and Titan bring charts: by their estimate China is ${Math.max(1, Math.round(lead(s)))} months behind and closing. “Every month we pause is a month we hand Beijing.”</p>`,
+  body: s => `<p>Mindscale brings charts: by its estimate China is ${Math.max(1, Math.round(lead(s)))} months behind and closing. “Every month we pause is a month we hand Beijing.”</p>`,
   choices: [
     { label: 'Show the crossover analysis', hint: 'If your intelligence is good, pacing support +8; if not, -6.', fx: s => { if (s.intelQ > 55) { s.flags.incidentTurn = s.turn; return 'Your numbers are better than theirs. The room settles.'; } s.cred -= 5; return 'Your numbers have wider error bars than theirs.'; } },
     { label: 'Promise a 60-day review', hint: 'Buys time; Industry +5.', fx: s => { industry(s, 5); return 'The review buys you two months.'; } },
   ] });
 ev({ id: 'control_fail', p: 0.25, once: true, phases: ['p1'], when: s => paced(s) && s.pacing.automation && frontier(s) / s.T > 0.8,
-  title: 'A control eval fails', stamp: 'Deepwell safety team',
-  body: () => `<p>A Deepwell model fails a control evaluation: under trusted monitoring, it found and used an exfiltration path in 3 of 400 episodes. Under the Charter, scaling at Deepwell pauses automatically. Nobody had to make the call at 2:00a.</p>`,
+  title: 'A control eval fails', stamp: 'Prometheus safety team',
+  body: () => `<p>A Prometheus model fails a control evaluation: under trusted monitoring, it found and used an exfiltration path in 3 of 400 episodes. Under the Charter, scaling at Prometheus pauses automatically. Nobody had to make the call at 2:00a.</p>`,
   choices: [{ label: 'Make it public', hint: 'Salience +6.', fx: s => { s.salience += 6; s.flags.incidentTurn = s.turn; return 'The rule written in advance did its job.'; } }] });
 ev({ id: 'uae', forced: true, title: 'Polaris UAE', stamp: 'Abu Dhabi',
-  body: () => `<p>Polaris UAE comes online: 1 GW and about 2 million H100-equivalents, larger than Forge 2. Helix is the tenant.</p>`,
+  body: () => `<p>Polaris UAE comes online: 1 GW and about 2 million H100-equivalents, larger than Forge 2. Mindscale is the tenant.</p>`,
   choices: [
-    { label: 'Bring the UAE into the regime', hint: '2 capital. Coalition +5.', fx: s => { if (s.pc >= TUNE.uaeCost) { s.pc -= TUNE.uaeCost; s.coalition += 5; return 'Abu Dhabi agrees to host inspectors.'; } s.flags.uaeOut = true; L(s, 'helix').comp -= 10; rel(s, 'sec', TUNE.uaeState); return 'No capital to spend. Helix has a new place to train, outside the regime.'; } },
-    { label: 'Leave it', hint: 'Saves the capital. About a third of Helix\u2019s compute trains outside the regime: a small added risk of losing control as Helix nears the threshold, and Helix keeps advancing and is likelier to cheat. Secretary of State -12.', fx: s => { s.flags.uaeOut = true; L(s, 'helix').comp -= 10; rel(s, 'sec', TUNE.uaeState); return 'Helix has a new place to train, outside the regime. The Secretary of State asks, in writing, why a 1-gigawatt site in the Gulf is unmonitored.'; } },
+    { label: 'Bring the UAE into the regime', hint: '2 capital. Coalition +5.', fx: s => { if (s.pc >= TUNE.uaeCost) { s.pc -= TUNE.uaeCost; s.coalition += 5; return 'Abu Dhabi agrees to host inspectors.'; } s.flags.uaeOut = true; L(s, 'mindscale').comp -= 10; rel(s, 'sec', TUNE.uaeState); return 'No capital to spend. Mindscale has a new place to train, outside the regime.'; } },
+    { label: 'Leave it', hint: 'Saves the capital. About a seventh of Mindscale\u2019s compute trains outside the regime: a small added risk of losing control as Mindscale nears the threshold, and Mindscale keeps advancing and is likelier to cheat. Secretary of State -12.', fx: s => { s.flags.uaeOut = true; L(s, 'mindscale').comp -= 10; rel(s, 'sec', TUNE.uaeState); return 'Mindscale has a new place to train, outside the regime. The Secretary of State asks, in writing, why a 1-gigawatt site in the Gulf is unmonitored.'; } },
   ] });
 ev({ id: 'hearing', p: 0.22, phases: ['p1'], cooldown: 3,
   title: 'A hearing', stamp: 'Senate Commerce Committee',
@@ -1328,10 +1319,10 @@ ev({ id: 'markets_wobble', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced
   ] });
 ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && (s.pacing.mech === 'license' || s.flags.commerceChairs),
   title: 'An exemption', stamp: 'Commerce Department',
-  body: () => `<p>Commerce quietly grants Titan a “research exemption” for a training run at Forge 2.</p>`,
+  body: () => `<p>Commerce quietly grants Mindscale a “research exemption” for a training run at Forge 2.</p>`,
   choices: [
-    { label: 'Fight it', hint: 'Commerce -15; Titan compliance +10.', fx: s => { rel(s, 'doc', -15); L(s, 'titan').comp += 10; return 'The exemption is withdrawn after a shouting match.'; } },
-    { label: 'Let it stand', hint: 'Titan compliance -20.', fx: s => { L(s, 'titan').comp -= 20; return 'Titan has a license to train.'; } },
+    { label: 'Fight it', hint: 'Commerce -15; Mindscale compliance +10.', fx: s => { rel(s, 'doc', -15); L(s, 'mindscale').comp += 10; return 'The exemption is withdrawn after a shouting match.'; } },
+    { label: 'Let it stand', hint: 'Mindscale compliance -20.', fx: s => { L(s, 'mindscale').comp -= 20; return 'Mindscale has a license to train.'; } },
   ] });
 ev({ id: 'tinder', forced: true, title: 'Dry tinder', stamp: 'Commerce chip data',
   body: s => `<p>Chip production did not pause. Threshold sites have stockpiled about ${Math.round(s.overhang)} months of extra compute. When the pause ends, the first run would be enormous.</p>`,
@@ -1382,7 +1373,7 @@ ev({ id: 'warning', forced: true, title: 'A warning shot', stamp: '3:40a',
 // --- exogenous shocks: things that happen to you
 ev({ id: 'resign', p: 0.25, once: true, phases: ['p0', 'p1'], when: s => frontier(s) / s.T > 0.35,
   title: '\u201cGambling with our lives\u201d', stamp: 'A post on X, 90 million views',
-  body: () => `<p>A 27-year-old pretraining researcher quits Lantern two months before his equity vests. He has worked at Helix too. He posts that both labs are behaving irresponsibly, that insiders now say \u201cendgame,\u201d and that the people building this earnestly believe it could kill us all by the end of the decade.</p>`,
+  body: () => `<p>A 27-year-old pretraining researcher quits Prometheus two months before his equity vests. He has worked at Mindscale too. He posts that both labs are behaving irresponsibly, that insiders now say \u201cendgame,\u201d and that the people building this earnestly believe it could kill us all by the end of the decade.</p>`,
   choices: [
     { label: 'Invite him to brief the President', hint: 'Alarm +12; salience +6; industry -4; credibility +2.', fx: s => { s.alarm += 12; s.salience += 12; industry(s, -4); s.cred += 2; return 'The briefing runs ninety minutes. The President asks him what he would do.'; } },
     { label: 'Stay out of it', hint: 'Salience +8.', fx: s => { s.salience += 8; return 'He does three Sunday shows without you.'; } },
@@ -1408,8 +1399,8 @@ ev({ id: 'cn_breakthrough', p: 0.12, once: true, phases: ['p0', 'p1'], when: s =
   choices: [{ label: 'Note it', hint: 'China +0.8 months; Beijing temperature +4; security faction +4; salience +3.', fx: s => { s.cn.cap += 0.8; s.tension += 4; shiftCN(s, { sec: 4 }); s.salience += 3; return 'The hawks have a new chart.'; } }] });
 ev({ id: 'ipo', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
   title: 'The biggest IPO ever', stamp: 'Nasdaq',
-  body: () => `<p>Helix goes public and raises $60 billion. Its market value passes a trillion dollars by the close. Every frontier lab now has shareholders asking why it would ever slow down.</p>`,
-  choices: [{ label: 'Note it', hint: 'Markets +5; Commerce Secretary +4 influence; every lab -5 compliance.', fx: s => { s.markets += 5; infl(s, 'doc', 4); s.labs.forEach(l => l.comp -= 5); return 'Helix\u2019s CEO rings the bell.'; } }] });
+  body: () => `<p>Mindscale goes public and raises $60 billion. Its market value passes a trillion dollars by the close. Every frontier lab now has shareholders asking why it would ever slow down.</p>`,
+  choices: [{ label: 'Note it', hint: 'Markets +5; Commerce Secretary +4 influence; every lab -5 compliance.', fx: s => { s.markets += 5; infl(s, 'doc', 4); s.labs.forEach(l => l.comp -= 5); return 'Mindscale\u2019s CEO rings the bell.'; } }] });
 ev({ id: 'quake', p: 0.05, once: true, phases: ['p0', 'scramble', 'p1'],
   title: 'Hsinchu', stamp: 'USGS',
   body: () => `<p>A magnitude-7 earthquake hits northern Taiwan. TSMC loses a month of output and several fabs need recalibration.</p>`,
@@ -1532,7 +1523,7 @@ function endTurn(s) {
       if (!l.covered) return;
       const d = LD(l.id);
       if (!l.defect) {
-        const pd = d.ruth * 0.2 * (l.id === 'helix' && s.flags.uaeOut ? 1.5 : 1) * (1 - l.comp / 100) * (lead(s) < 3 ? 1.8 : 1) * (1 - 0.5 * det) * (s.labs.some(x => !x.covered) ? 1.3 : 1);
+        const pd = d.ruth * 0.2 * (l.id === 'mindscale' && s.flags.uaeOut ? 1.5 : 1) * (1 - l.comp / 100) * (lead(s) < 3 ? 1.8 : 1) * (1 - 0.5 * det) * (s.labs.some(x => !x.covered) ? 1.3 : 1);
         if (rnd(s) < pd) { l.defect = true; l.defectSince = s.turn; }
       } else if (rnd(s) < det) { s.stats.defectCaught++; s.queue.push({ id: 'defector', lab: l.id }); }
       else if (s.turn - l.defectSince > 4 && rnd(s) < 0.3) { l.defect = false; s.stats.defectMissed++; }
