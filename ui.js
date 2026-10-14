@@ -612,16 +612,16 @@ function showHelp() {
     <p>Each turn you spend ${icon('bolt')} <b>actions</b> and ${icon('coin')} <b>political capital</b>. Moves marked ${icon('star')} need the President, who weighs the cabinet: each principal’s view times their influence, plus your credibility. You get a read on the odds before you commit, and see the dice after. The President wants a trade deal with Xi: hawkish moves are a hard sell until Beijing provokes (a theft, a smuggling bust, a racing posture).</p>
     <h4>The race</h4>
     <p>The track at the top is the game. US and China move right; each tick is a month of US frontier progress. The red band is the IC’s estimate of where recursive self-improvement becomes possible. Danger rises smoothly as anyone doing unconstrained automated research nears it; some escapes are caught in time (warning shots), and the rest are runaways.</p>
-    <ul><li>Unpaced labs move about 1 tick a month. Paced labs move 0.12 with automation limits, 0.40 without.</li>
+    <ul><li>Unpaced labs move about a tick a month. Paced labs crawl, especially with automation limits.</li>
     <li>China’s speed depends on its compute (home, offshore, smuggled, legal) and on copying US models. Your levers cut both, and Beijing gets angrier.</li>
-    <li>Some of your moves slow US labs too. Slower US labs reach the danger zone later, but the lead shrinks, markets sag and the labs resent it. Security is the big one: SL4 costs 8% of their speed, SL5 costs 20%. In exchange a theft attempt succeeds 50% (SL4) or 4% (SL5) of the time instead of 90%. A theft puts China 0.6 months behind.</li></ul>
+    <li>Some of your moves slow US labs too. Slower US labs reach the danger zone later, but the lead shrinks, markets sag and the labs resent it. Security is the big one: SL4 slows them somewhat and SL5 a lot, in exchange for making stolen weights much rarer. A theft nearly erases the lead.</li></ul>
     <h4>Three phases</h4>
     <ul><li><b>Phase 0</b> (monthly): prepare, win policies, cultivate the cabinet, watch the RSI bars. Ask for the emergency meeting when the evidence and your credibility can carry it.</li>
     <li><b>The scramble</b> (2-day turns, 14 days): choose a mechanism, threshold, automation limits and trigger; get the labs to sign; launch.</li>
     <li><b>Phase 1</b> (monthly): hold pacing support above 25 against fatigue, catch cheaters, make Beijing an offer, build verification, then call the Phase 2 summit.</li></ul>
     <h4>Winning</h4>
     <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, 67 Senate votes, and the compute overhang under control.</p>
-    <h4>Every number</h4><p>Click any stat at the top, or the Glossary button below, to see what it does, what moves it and its effect right now. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
+    <h4>Every number</h4><p>Click any stat at the top, or the Glossary button below, to see what it does, what moves it and where it stands now. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
     <h4>Keys</h4><p><span class="kbd">E</span> end turn · <span class="kbd">1</span>–<span class="kbd">4</span> event choices · <span class="kbd">Esc</span> close</p>
     <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button><button class="ghost" id="hgloss">Glossary: what every number does</button></div></div>`, true);
   $('#mclose').onclick = () => { closeModal(); if (S) afterChange(); };
