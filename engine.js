@@ -297,6 +297,17 @@ function icEstimate(s) {
   const mid = Math.max(0, (s.T - F + bias + (s.icBias || 0)) / rate);
   return { mid, lo: Math.max(0, mid - err / rate), hi: mid + err / rate, err };
 }
+// The IC's read on Beijing: each figure carries its own slowly drifting error, which shrinks with intelligence quality.
+function cnEstimate(s) {
+  const c = s.cn, rel = (0.05 + 0.3 * (1 - s.intelQ / 100)) * (s.flags.assessUntil >= s.turn ? 0.5 : 1);
+  const k = Math.floor(s.turn / 3), fr = (s.turn % 3) / 3;
+  const noise = key => ((hash01(s.seed, 'cn' + key, k) * (1 - fr) + hash01(s.seed, 'cn' + key, k + 1) * fr) - 0.5) * 2 * rel;
+  const src = { domestic: 0.45 * (0.8 + 0.2 * c.sme), offshore: 0.25 * c.remote, smuggled: 0.08 * c.smuggle, legal: 0.12 * c.legal, other: 0.10 };
+  for (const key in src) src[key] = Math.max(0, src[key] * (1 + noise(key)));
+  const comp = cnComp(s) * (1 + noise('comp')), sum = Object.values(src).reduce((a, x) => a + x, 0) || 1;
+  for (const key in src) src[key] *= comp / sum;
+  return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, cnRate(s) * (1 + noise('rate'))), rel };
+}
 function leadEstimate(s) {
   const err = 0.3 + 2.4 * (1 - s.intelQ / 100);
   const k = Math.floor(s.turn / 3), fr = (s.turn % 3) / 3;
@@ -1703,7 +1714,7 @@ function view(s) {
     phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)),
     F: frontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
-    risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s), drag: usDrag(s), cnComp: cnComp(s), detection: detection(s), cnVis: cnVisibility(s),
+    risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
     rObs: rObserved(s), pauseMood: pauseMood(s), inZone,
   };

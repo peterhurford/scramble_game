@@ -221,7 +221,7 @@ function raceStrip(v) {
   g += `<circle cx="${X(cn)}" cy="${Y}" r="11" fill="var(--cn)"/><text x="${X(cn)}" y="${Y + 3.5}" text-anchor="middle" class="tok">CN</text>`;
   g += `<circle cx="${X(F)}" cy="${Y}" r="11" fill="var(--us)"/><text x="${X(F)}" y="${Y + 3.5}" text-anchor="middle" class="tok">${S.pacing.active ? '⏸' : 'US'}</text>`;
   // Where the lead is headed at today's speeds, six months out.
-  const ahead = le.mid + 6 * (v.usRate - v.cnRate);
+  const ahead = le.mid + 6 * (v.usRate - v.cnEst.rate);
   const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : Math.abs(ahead - le.mid) < 0.3 ? `Lead <b>steady</b> at this pace` : ahead <= 0 ? `At this pace China <b>catches up within 6 months</b>` : `In 6 months at this pace: <b>~${f1(ahead)} mo</b> lead`;
   const rsi = v.ic.lo > 24 ? 'RSI: 24+ months away' : `RSI possible in <b>${Math.round(v.ic.lo)}–${v.ic.hi > 24 ? '24+' : Math.round(v.ic.hi)} mo</b>`;
   return `<section class="panel race"><div class="ph"><h2>The race</h2><div class="readouts">
@@ -266,7 +266,7 @@ function roomPanel(v) {
   const mood = v.pauseMood;
   return `<div class="sb"><div class="row"><b>${mood > 0.15 ? 'Leans toward pacing' : mood < -0.15 ? 'Leans against pacing' : 'Split on pacing'}</b><span class="sp"></span><span class="sub">by influence</span></div>
     <div class="split"><i style="width:${sF}%;background:var(--good)"></i><i style="width:${sO}%;background:var(--faint)"></i><i style="width:${sA}%;background:var(--bad)"></i></div>
-    <div class="legend"><span><i style="background:var(--good)"></i>for ${sF}%</span><span><i style="background:var(--faint)"></i>open ${sO}%</span><span><i style="background:var(--bad)"></i>against ${sA}%</span></div></div>
+    <div class="legend"><span><i style="background:var(--good)"></i>for</span><span><i style="background:var(--faint)"></i>open</span><span><i style="background:var(--bad)"></i>against</span></div></div>
     ${ps.map(({ p, d, st }) => {
       const ask = E.currentAsk(S, p.id); const fav = E.availability(S, 'favor', { who: p.id });
       return `<div class="pc"><button class="av" data-who="${p.id}" style="background:${stanceCol(st)}" title="${st > 0.25 ? 'For' : st < -0.25 ? 'Against' : 'Open on'} pacing · influence ${Math.round(p.infl)}. Click to meet.">${SEAT[p.id]}</button>
@@ -277,15 +277,16 @@ function roomPanel(v) {
 function chinaPanel(v) {
   const c = S.cn, f = c.f;
   const post = { diffuse: ['Diffusing', 'muted', 'Cheap, open, everywhere. Not chasing the frontier.'], race: ['Racing', 'bad', 'State-directed push for the frontier. Theft risk is up.'], engage: ['Open to a deal', 'good', 'The science faction has the floor.'] }[c.posture];
-  const segs = [['Domestic', 0.45 * (0.8 + 0.2 * c.sme), '#6B7C93'], ['Offshore', 0.25 * c.remote, '#B8323A'], ['Smuggled', 0.08 * c.smuggle, '#D9822B'], ['Legal', 0.12 * c.legal, '#3B8A7E'], ['Other', 0.10, '#9AA7B4']];
+  const est = v.cnEst, src = est.src, pm = x => '±' + Math.max(1, Math.round(100 * x));
+  const segs = [['Domestic', src.domestic, '#6B7C93'], ['Offshore', src.offshore, '#B8323A'], ['Smuggled', src.smuggled, '#D9822B'], ['Legal', src.legal, '#3B8A7E'], ['Other', src.other, '#9AA7B4']];
   const deal = c.deal ? `<div class="okbox">${icon('flag')} Interim deal in force since ${esc(E.monthLabel(c.deal.since))}</div>` : '';
   return `<div class="sb"><div class="row"><span class="pill ${post[1]}">${post[0]}</span><span class="sub">${post[2]}</span></div>${deal}</div>
     <div class="sb"><div class="lbl">Who has the floor</div>
       <div class="fac"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div></div>
-    <div class="sb"><div class="lbl">Training compute: ${Math.round(100 * v.cnComp)}% of baseline</div>
-      <div class="stack">${segs.map(sg => `<i style="width:${100 * sg[1]}%;background:${sg[2]}" title="${sg[0]} ${Math.round(100 * sg[1])}%"></i>`).join('')}</div>
+    <div class="sb"><div class="row"><div class="lbl">Training compute: ~${Math.round(100 * est.comp)}% of baseline</div><span class="sp"></span><span class="sub" title="IC estimate. Better intelligence narrows the error.">${pm(est.rel * est.comp)}</span></div>
+      <div class="stack">${segs.map(sg => `<i style="width:${100 * sg[1] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]} ~${Math.round(100 * sg[1])}%"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">${Math.round(100 * c.dist)}%</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">${f1(v.cnRate)} mo/mo</span></div></div>
+      <div class="kv" style="margin-top:10px"><span>Copying US models</span><span class="v">~${Math.round(100 * est.dist)}% <span class="sub">${pm(0.6 * est.rel)}</span></span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">~${f1(est.rate)} mo/mo</span></div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
 function labPanel(v) {
