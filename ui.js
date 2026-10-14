@@ -109,7 +109,7 @@ function snap() {
   put('sl', 'Security level', S.sl, 1); put('intel', 'Intelligence', S.intelQ, 1); put('apMax', 'Actions per turn', S.apMax, 1); put('warp', 'Verification funding', S.warp, 1);
   const gain = n => ['Beijing\u2019s ' + n + ' faction gaining ground', 'Beijing\u2019s ' + n + ' faction losing ground'];
   put('trust', 'Beijing trust', S.cn.trust, 1, ['Beijing trusts Washington more', 'Beijing trusts Washington less']); put('sci', '', S.cn.f.sci, 1, gain('science')); put('secf', '', S.cn.f.sec, -1, gain('security')); put('mktf', '', S.cn.f.m, 0, gain('market'));
-  put('drag', 'US labs slowed (%)', 100 * v.drag.total, 0); put('cov', 'Coverage (%)', v.coverage, 1);
+  put('drag', '', 100 * v.drag.total, 0, ['Our moves slow US labs more', 'Our moves slow US labs less']); put('cov', 'Coverage (%)', v.coverage, 1);
   S.principals.forEach(p => { const n = E.PD(S, p.id).name; put('r_' + p.id, n + ' (with you)', p.rel, 1); put('s_' + p.id, '', 100 * pStance(p.id), 1, [n + ' warming to pacing', n + ' cooling on pacing']); put('i_' + p.id, '', p.infl, 0, [n + ' gaining influence', n + ' losing influence']); });
   E.LABS.forEach(l => { const L = E.L(S, l.id); put('lr_' + l.id, l.name + ' (with you)', L.rel, 1); if (E.covered(S, L)) put('lc_' + l.id, '', L.comp, 1, [l.name + ' more compliant', l.name + ' less compliant']); });
   return o;
@@ -253,6 +253,10 @@ function historyChart(v) {
   g += `<path d="${h.map((p, i) => (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p.F - p.cnEst).toFixed(1)).join(' ')}" fill="none" stroke="var(--cn)" stroke-width="2" stroke-dasharray="5 3"/>`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="US and China capability over time">${g}</svg>`;
 }
+// Engine rates the advisor can only gauge roughly.
+const dragWord = d => d < 0.005 ? 'not at all' : d < 0.04 ? 'slightly' : d < 0.12 ? 'somewhat' : d < 0.2 ? 'a lot' : 'badly';
+const theftWord = t => t < 0.005 ? 'very low' : t < 0.015 ? 'low' : t < 0.03 ? 'moderate' : t < 0.06 ? 'high' : 'very high';
+const catchWord = p => p < 0.15 ? 'rarely' : p < 0.35 ? 'sometimes' : p < 0.6 ? 'often' : 'almost always';
 const stanceCol = st => st > 0.25 ? 'var(--good)' : st < -0.25 ? 'var(--bad)' : 'var(--faint)';
 function roomPanel(v) {
   const ps = S.principals.map(p => ({ p, d: E.PD(S, p.id), st: pStance(p.id) }));
@@ -298,11 +302,11 @@ function labPanel(v) {
         const behind = F - l.cap;
         return `<div class="lab" title="${Math.round(ld.share * 100)}% of compute · safety ${ld.safety}"><div class="lt"><b>${esc(ld.name)}</b><span class="sub">${behind < 0.05 ? 'at the frontier' : f1(behind) + ' mo back'}${E.covered(S, l) ? ' · compliance ' + (l.comp < 40 ? 'shaky' : l.comp < 70 ? 'mixed' : 'solid') : ''}</span></div><span class="rel ${l.rel >= 0 ? 'up' : 'dn'}">${l.rel > 0 ? '+' : ''}${Math.round(l.rel)}</span>${status}</div>`;
       }).join('')}
-      <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0] + ': ' + Math.round(100 * x[1]) + '%').join('; ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${Math.round(100 * v.drag.total)}%</span>
-        <span title="Beijing tries to steal weights ${Math.round(100 * v.theft.attempt)}% of months; an attempt succeeds ${Math.round(100 * v.theft.success)}% of the time at SL${S.sl}.">Security SL${S.sl} · theft risk</span><span class="v">${(100 * v.theft.net).toFixed(1)}%/mo</span></div></div>
+      <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0]).join(', ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${dragWord(v.drag.total)}</span>
+        <span title="Beijing tries to steal weights now and then; SL4 and SL5 make an attempt much likelier to fail.">Security SL${S.sl} · theft risk</span><span class="v">${theftWord(v.theft.net)}</span></div></div>
     <div class="sb"><div class="row"><div class="lbl">Verification</div><span class="sp"></span><span class="sub">funding ${S.warp}/2</span></div>
       ${E.COMPONENTS.map(c => `<div class="vrow" title="${esc(c.desc)}"><span>${esc(c.short)}${c.trusted ? '' : '*'}</span>${meter(S.verify[c.id], S.verify[c.id] >= 65 ? 'good' : S.verify[c.id] < 35 ? 'warn' : '', [65])}<span class="v">${Math.round(S.verify[c.id])}</span></div>`).join('')}
-      <div class="sub" style="margin-top:6px">Phase 2 needs all three at 65. Cheating labs caught <b>${pct(v.detection)}</b>/month. *Not trusted until Phase 2.</div></div>`;
+      <div class="sub" style="margin-top:6px">Phase 2 needs all three at 65. Cheating labs get caught <b>${catchWord(v.detection)}</b>. *Not trusted until Phase 2.</div></div>`;
 }
 function logPanel() {
   return `<div class="cables">${S.log.slice(-60).reverse().map(l => `<div class="cab ${l.tone}"><span class="d">${esc(E.dateLabel(l.t))}</span><span class="x">${esc(l.text)}</span></div>`).join('')}</div>`;
