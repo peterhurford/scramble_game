@@ -350,6 +350,7 @@ function objective(v) {
       [r.min >= 65, 'Verification 65 each', E.COMPONENTS.map(c => Math.round(S.verify[c.id])).join(' / ')],
       [S.coalition >= 50, 'Coalition 50', Math.round(S.coalition)],
       [v.senate >= 67, 'Senate 67 <button class="whylink" data-why="senate">why?</button>', v.senate],
+      [S.intelQ >= E.TUNE.intelP2, 'Intelligence ' + E.TUNE.intelP2, Math.round(S.intelQ)],
       [S.overhang <= 8 || S.policies.hardware, 'Overhang', f1(S.overhang) + ' mo'],
       [S.t - S.pacing.since >= 6, 'Pause held 6 months', f1(S.t - S.pacing.since) + ' mo'],
     ];
@@ -627,7 +628,7 @@ function showHelp() {
     <li><b>The scramble</b> (2-day turns, 14 days): choose a mechanism, threshold, automation limits and trigger; get the labs to sign; launch.</li>
     <li><b>Phase 1</b> (monthly): hold pacing support above 25 against fatigue, catch cheaters, make Beijing an offer, build verification, then call the Phase 2 summit.</li></ul>
     <h4>Winning</h4>
-    <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, 67 Senate votes, and the compute overhang under control.</p>
+    <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, 67 Senate votes, intelligence quality 60 (the IC must be able to certify Chinese compliance), and the compute overhang under control.</p>
     <h4>Every number</h4><p>Click any stat at the top, or the Glossary button below, to see what it does, what moves it and where it stands now. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
     <h4>Keys</h4><p><span class="kbd">E</span> end turn · <span class="kbd">1</span>–<span class="kbd">4</span> event choices · <span class="kbd">Esc</span> close</p>
     <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button><button class="ghost" id="hgloss">Glossary: what every number does</button></div></div>`, true);

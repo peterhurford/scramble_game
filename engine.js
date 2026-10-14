@@ -87,7 +87,7 @@ const COMPONENTS = [
 const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12 };
+const TUNE = { hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, intelP2: 60 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -271,10 +271,12 @@ function monthlyRisk(s) { return 1 - hazards(s).reduce((a, x) => a * (1 - x.h), 
 
 /* ================= indicators ================= */
 function trueIndicators(s, F) {
-  const c = s.cal || {}; const Tk = k => s.T * (1 + (c[k] || 0));
+  const c = s.cal || {}, m = calMult(s); const Tk = k => s.T * (1 + m * (c[k] || 0));
   const r = k => Math.max(0.02, F / Tk(k));
   return { uplift: 1 + 9 * Math.pow(r('uplift'), 2.5), cobench: Math.min(99, 85 * Math.pow(r('cobench'), 1.2)), horizon: 174 * Math.pow(2, (F - Tk('horizon')) / 5), arr: 1000 * Math.pow(2, (F - Tk('arr')) / 4.5) };
 }
+// Better intelligence corrects the game's standing miscalibration: the indicator markers and the IC's bias sit closer to the truth.
+function calMult(s) { return clamp(1.2 - 0.8 * s.intelQ / 100, 0.4, 1.2); }
 function recordIndicators(s) {
   const F = frontier(s);
   const sig = 0.3 * (1 - s.intelQ / 150) * (s.flags.assessUntil >= s.turn ? 0.5 : 1);
@@ -294,7 +296,7 @@ function icEstimate(s) {
   // error grows as the frontier nears the threshold: nobody has seen this regime before
   const err = (2.5 + 5 * (1 - s.intelQ / 100) * (s.flags.assessUntil >= s.turn ? 0.45 : 1)) + 4 * Math.max(0, F / s.T - 0.6);
   const bias = (hash01(s.seed, 'Test', Math.floor(s.turn / 3)) - 0.5) * err;
-  const mid = Math.max(0, (s.T - F + bias + (s.icBias || 0)) / rate);
+  const mid = Math.max(0, (s.T - F + bias + calMult(s) * (s.icBias || 0)) / rate);
   return { mid, lo: Math.max(0, mid - err / rate), hi: mid + err / rate, err };
 }
 // The IC's read on Beijing: each figure carries its own slowly drifting error, which shrinks with intelligence quality.
@@ -876,6 +878,7 @@ function phase2Check(s) {
   if (r.min < 65) m.push('every verification component at 65 (weakest: ' + Math.round(r.min) + ')');
   if (s.coalition < 50) m.push('coalition ' + Math.round(s.coalition) + '/50');
   const sv = senateVotes(s); if (sv < 67) m.push('Senate ' + sv + '/67');
+  if (s.intelQ < TUNE.intelP2) m.push('intelligence quality ' + Math.round(s.intelQ) + '/' + TUNE.intelP2 + ' (the IC must be able to certify Chinese compliance)');
   if (s.overhang > 8 && !s.policies.hardware) m.push('compute overhang ' + r1(s.overhang) + ' (needs hardware pacing or 8 or less)');
   return { ok: m.length === 0, missing: m };
 }
