@@ -45,7 +45,8 @@ async function evalMany(Gs, seeds) {
 const batch = b => Array.from({ length: GAMES }, (_, i) => 100000 + RUN * 50000 + b * GAMES + i);
 
 (async () => {
-  let parent = S.expertGenome();
+  // START=genome.json seeds the search from an earlier winner; genes it lacks keep the expert's values.
+  let parent = process.env.START ? Object.assign(S.expertGenome(), require(require('path').resolve(process.env.START))) : S.expertGenome();
   let b = 0, seeds = batch(b);
   let pr = (await evalMany([parent], seeds))[0];
   const start = pr;

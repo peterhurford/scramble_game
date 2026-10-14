@@ -140,7 +140,7 @@ function renderTitle() {
       <li><span><b>Phase 0.</b> Prepare, win allies in the cabinet, read the indicators.</span></li>
       <li><span><b>The scramble.</b> Fourteen days to decide how America paces.</span></li>
       <li><span><b>Phase 1.</b> Hold the pause, catch cheaters, bring Beijing in.</span></li>
-      <li><span><b>Phase 2.</b> A verified treaty. That’s the win.</span></li></ol></div></div>
+      <li><span><b>Phase 2.</b> A verified, enforceable agreement. That’s the win.</span></li></ol></div></div>
     <div class="tbody">
       <div><div class="lbl">Difficulty</div><div class="diffs">${diffs}</div></div>
       <div class="row"><button class="btn" id="newgame">New game</button>${saved && !saved.ending ? `<button class="ghost" id="cont">Continue · ${esc(E.dateLabel(saved.t))}</button>` : ''}<button class="ghost" id="howto">How to play</button></div>
@@ -349,14 +349,13 @@ function objective(v) {
       [!!S.cn.deal && (S.t - S.cn.deal.since) >= 3 && S.cn.deal.terms.inspect, 'Deal with inspections, 3 months', S.cn.deal ? (S.cn.deal.terms.inspect ? f1(S.t - S.cn.deal.since) + ' mo' : 'no inspections') : 'none'],
       [r.min >= 65, 'Verification 65 each', E.COMPONENTS.map(c => Math.round(S.verify[c.id])).join(' / ')],
       [S.coalition >= 50, 'Coalition 50', Math.round(S.coalition)],
-      [v.senate >= 67, 'Senate 67 <button class="whylink" data-why="senate">why?</button>', v.senate],
-      [S.intelQ >= E.TUNE.intelP2, 'Intelligence ' + E.TUNE.intelP2, Math.round(S.intelQ)],
       [S.overhang <= 8 || S.policies.hardware, 'Overhang', f1(S.overhang) + ' mo'],
       [S.t - S.pacing.since >= 6, 'Pause held 6 months', f1(S.t - S.pacing.since) + ' mo'],
     ];
     body = `<h3>Hold the pause, build Phase 2</h3>
       <div class="obrow"><span>Pacing support <button class="whylink" data-why="support">why?</button></span>${meter(v.support, v.support < 30 ? 'bad' : v.support < 45 ? 'warn' : 'good', [25])}<b class="mono">${v.support}</b></div>
-      <div class="ticks">${rows.map(it => `<span class="${it[0] ? 'ok' : ''}">${it[0] ? '✓' : '○'} ${it[1]}: <b>${esc(String(it[2]))}</b></span>`).join('')}</div>`;
+      <div class="ticks">${rows.map(it => `<span class="${it[0] ? 'ok' : ''}">${it[0] ? '✓' : '○'} ${it[1]}: <b>${esc(String(it[2]))}</b></span>`).join('')}</div>
+      <div class="ticks"><span>Confidence Beijing will comply <button class="whylink" data-why="comply">why?</button>: <b>${E.betrayWord(S)}</b></span><span>Legal footing <button class="whylink" data-why="law">why?</button>: <b>${S.flags.statute ? 'law' : S.flags.billDue ? 'bill moving, executive meanwhile' : 'executive orders'}</b></span><span>Senate <button class="whylink" data-why="senate">why?</button>: <b>${v.senate}</b></span></div>`;
   }
   return `<div class="obj"><div class="goal">${body}</div><div class="pres"><span>The President</span>“${esc(presidentLine(v))}”</div></div>`;
 }
@@ -572,7 +571,7 @@ function openOffer() {
 }
 
 /* ---- ending: the front page ---- */
-const HEADLINES = { phase2: 'U.S., CHINA SIGN AI TREATY', uneasy: 'AI PAUSE HOLDS, BARELY', alone: 'U.S. PAUSES AI ALONE', race: 'AI RACE ROARS ON', overtaken: 'CHINA TAKES AI LEAD', loc: 'SYSTEMS DARK; ORIGIN UNKNOWN', war: 'SHOTS FIRED IN TAIWAN STRAIT', fired: 'AI ADVISER OUSTED' };
+const HEADLINES = { phase2: 'U.S., CHINA SIGN AI AGREEMENT', betrayed: 'DEFECTOR REVEALS SECRET CHINESE AI PROGRAM', uneasy: 'AI PAUSE HOLDS, BARELY', alone: 'U.S. PAUSES AI ALONE', race: 'AI RACE ROARS ON', overtaken: 'CHINA TAKES AI LEAD', loc: 'SYSTEMS DARK; ORIGIN UNKNOWN', war: 'SHOTS FIRED IN TAIWAN STRAIT', fired: 'AI ADVISER OUSTED' };
 function showEnding() {
   const en = E.ENDINGS[S.ending]; const sc = E.score(S);
   closeModal();
@@ -627,8 +626,12 @@ function showHelp() {
     <ul><li><b>Phase 0</b> (monthly): prepare, win policies, cultivate the cabinet, watch the RSI bars. Ask for the emergency meeting when the evidence and your credibility can carry it.</li>
     <li><b>The scramble</b> (2-day turns, 14 days): choose a mechanism, threshold, automation limits and trigger; get the labs to sign; launch.</li>
     <li><b>Phase 1</b> (monthly): hold pacing support above 25 against fatigue, catch cheaters, make Beijing an offer, build verification, then call the Phase 2 summit.</li></ul>
+    <h4>Legal authority</h4>
+    <p>The pause starts on executive authority, which courts can enjoin: each month there is a chance of an injunction (highest under the DPA, lowest under the Charter; the legal authorities study cuts it). Ask Congress for a pacing statute instead: work the Hill to 60 Senate votes, send the bill, and it passes two months later if 55 votes still stand. Once it is law, courts cannot touch the pause and every lab is covered. Without it, a court can also void Phase 2 after Beijing signs.</p>
+    <h4>Intelligence and cheating</h4>
+    <p>Cheating alerts come with the IC’s confidence, and weak intelligence produces false alarms: publishing or interdicting on a false one costs Beijing’s trust and your credibility, while dismissing a real one lets the cheating run. At the summit, if your intelligence and verification are too weak to see a hidden program, Beijing may sign and cheat anyway, and you lose.</p>
     <h4>Winning</h4>
-    <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, 67 Senate votes, intelligence quality 60 (the IC must be able to certify Chinese compliance), and the compute overhang under control.</p>
+    <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, and the compute overhang under control. The Phase 2 checklist also shows your confidence that Beijing will comply and whether pacing is law.</p>
     <h4>Every number</h4><p>Click any stat at the top, or the Glossary button below, to see what it does, what moves it and where it stands now. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
     <h4>Keys</h4><p><span class="kbd">E</span> end turn · <span class="kbd">1</span>–<span class="kbd">4</span> event choices · <span class="kbd">Esc</span> close</p>
     <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button><button class="ghost" id="hgloss">Glossary: what every number does</button></div></div>`, true);

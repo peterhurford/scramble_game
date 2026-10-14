@@ -24,6 +24,7 @@ g('trig', 'choice', ['200c', '200', '425', 'none']); g('seq', 'choice', ['first'
 g('dealBelow', 'real', 0, 1); g('dealMinShare', 'real', 0, 0.3); g('waitFull', 'bool'); g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']); g('scrOffer', 'bool');
 ['inspect', 'lane', 'institute', 'relief', 'visas', 'freeze', 'chips'].forEach(t => g('o.' + t, 'bool'));
 g('threatLead', 'real', 4, 15); g('fundFirst', 'bool'); g('hwOver', 'real', 2, 10); g('speechSup', 'real', 15, 60); g('alliesCoal', 'real', 30, 80); g('senateT', 'real', 55, 90);
+g('statute', 'bool'); g('hillP0', 'bool'); g('cheatDismiss', 'choice', ['never', 'low', 'moderate']); g('summitConf', 'choice', ['low', 'moderate', 'high']); g('intelTarget', 'real', 0, 100);
 g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70); g('covertWithin', 'real', 0, 5); g('gofirstIc', 'real', 0, 8); g('p1proj', 'bool');
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 
@@ -36,7 +37,7 @@ function expertGenome() {
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
     mech: 'charter', thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
-    threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true });
+    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips'].forEach(t => G['o.' + t] = false);
   EVENTS.forEach(e => G['ev.' + e] = PREF[e] || 0);
@@ -71,7 +72,8 @@ function seen(s) {
   return Object.assign(src, { dist: t ? c.dist : Math.min(1, c.distT) });
 }
 const gated = (s, G, p) => { const gt = G['gate.' + p]; if (!gt) return false; const x = seen(s)[GATE[p][0]]; return x < gt ? x : false; };
-function chooser(G) { return (s, ev) => { const k = G['ev.' + ev.id]; return k == null ? 0 : k % ev.choices.length; }; }
+const CONF = ['low', 'moderate', 'high'];
+function chooser(G) { return (s, ev) => { if (ev.id === 'cn_cheat' && G.cheatDismiss !== 'never' && CONF.indexOf(s.queue[0].conf) <= CONF.indexOf(G.cheatDismiss)) return 3; const k = G['ev.' + ev.id]; return k == null ? 0 : k % ev.choices.length; }; }
 function resolve(s, G) { let n = 0; const ch = chooser(G); while (s.queue.length && !s.ending && n++ < 25) { const ev = E.currentEvent(s); const i = ch(s, ev); note(s, 'event', ev.title + ' \u2192 ' + ev.choices[i].label, 'event gene ev.' + ev.id + '=' + G['ev.' + ev.id]); E.chooseEvent(s, i); } }
 
 function turn(s, G) {
@@ -93,6 +95,7 @@ function turn(s, G) {
       if (G.meetEvery && s.turn % G.meetEvery === 2 % G.meetEvery && tryAct(s, 'meet', { who: s.turn % (2 * G.meetEvery) < G.meetEvery ? G.meetA : G.meetB }, G, 'meets every ' + G.meetEvery + ' turns, alternating')) { step(); continue; }
       const next = projs.find(p => !s.done[p] && avail(s, 'proj_' + p));
       if (next && tryAct(s, 'proj_' + next, {}, G, 'next project in priority order')) { step(); continue; }
+      if (G.hillP0 && tryAct(s, 'hill', {}, G, 'spare action: work the Hill early')) { step(); continue; }
       if (G.alliesIdle && tryAct(s, 'allies', {}, G, 'spare action: build the coalition')) { step(); continue; }
       break;
     }
@@ -122,13 +125,16 @@ function turn(s, G) {
   if (s.phase === 'p1') {
     while (s.ap > 0 && guard++ < 14 && !s.ending) {
       const v = E.view(s);
-      if (tryAct(s, 'summit', {}, G, 'every Phase 2 requirement is met')) { step(); continue; }
+      const confOk = CONF.indexOf(E.betrayWord(s)) >= CONF.indexOf(G.summitConf);
+      if (confOk && tryAct(s, 'summit', {}, G, 'every Phase 2 requirement is met and confidence Beijing will comply is ' + E.betrayWord(s))) { step(); continue; }
+      if (s.intelQ < G.intelTarget && tryAct(s, 'assess', {}, G, 'intelligence below ' + Math.round(G.intelTarget))) { step(); continue; }
       if (s.pacing.armed && !s.pacing.active && v.ic.mid < G.gofirstIc && tryAct(s, 'gofirst', {}, G, 'on standby and IC says RSI within ' + G.gofirstIc.toFixed(1) + ' months')) { step(); continue; }
       if (G.covertWithin > 0.5 && v.leadEst.mid < G.covertWithin && tryAct(s, 'covert', {}, G, 'China within ' + G.covertWithin.toFixed(1) + ' months')) { step(); continue; }
       if (G.auto && !s.pacing.automation && tryAct(s, 'automation', {}, G, 'automation limits still missing')) { step(); continue; }
       if (G.trig !== 'none' && !s.pacing.trigger && tryAct(s, 'trigger', { variant: G.trig }, G, 'monitoring trigger still missing')) { step(); continue; }
       if (s.labs.some(l => !l.covered) && tryAct(s, 'convene', {}, G, 'a lab is still outside the regime')) { step(); continue; }
       if (!s.cn.deal && avail(s, 'offer')) { const t = offerTerms(s, G); const r = E.makeOffer(s, t); note(s, 'act', 'Offer to Beijing: ' + Object.keys(t).join(', ') + (!r.pass ? ' [VETOED by the President]' : r.accepted ? ' [ACCEPTED]' : ' [REJECTED by Beijing]'), 'no deal yet; offers every time Beijing will take a call'); step(); continue; }
+      if (G.statute && !s.flags.statute && !s.flags.billDue && (tryAct(s, 'authorize', {}, G, '60 Senate votes: send the pacing bill') || tryAct(s, 'hill', {}, G, 'building votes for a pacing statute'))) { step(); continue; }
       if (G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
       if (s.overhang > G.hwOver && tryAct(s, 'hardware', {}, G, 'overhang above ' + G.hwOver.toFixed(1) + ' months')) { step(); continue; }
       if (v.support < G.speechSup && tryAct(s, 'speech', {}, G, 'pacing support below ' + Math.round(G.speechSup))) { step(); continue; }
