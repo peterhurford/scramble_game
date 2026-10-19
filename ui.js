@@ -4,7 +4,7 @@
 const E = window.ScrambleEngine;
 const KEY = 'scramble.save.v2';
 let S = null;
-const ui = { side: null, sel: null, params: {}, result: null, charter: null, offer: null, prev: null };
+const ui = { side: null, sel: null, params: {}, cat: 'all', result: null, charter: null, offer: null, prev: null };
 const $ = s => document.querySelector(s);
 const app = $('#app');
 const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -36,6 +36,15 @@ const IC = {
 const icon = (n, cls) => `<svg class="ico ${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`;
 const CATS = [['all', 'All', 'grid'], ['crisis', 'Decisions', 'alert'], ['prep', 'Prepare', 'tool'], ['policy', 'Policy', 'doc'], ['politics', 'Politics', 'users'], ['diplo', 'Diplomacy', 'globe'], ['intel', 'Intel', 'eye'], ['verify', 'Verify', 'search'], ['labs', 'Labs', 'cpu'], ['covert', 'Covert', 'cross']];
 const CAT_ICON = {}; CATS.forEach(c => CAT_ICON[c[0]] = c[2]);
+const CAT_NAME = {}; CATS.forEach(c => CAT_NAME[c[0]] = c[1]);
+// Desk order per phase. Decisions lead every phase so the list only reorders when the phase changes.
+const CAT_ORDER = {
+  p0: ['crisis', 'prep', 'intel', 'policy', 'politics', 'diplo', 'labs', 'verify', 'covert'],
+  scramble: ['crisis', 'policy', 'diplo', 'politics', 'labs', 'intel', 'verify', 'covert', 'prep'],
+  p1: ['crisis', 'verify', 'politics', 'diplo', 'labs', 'policy', 'intel', 'prep', 'covert'],
+};
+// Lock reasons that mean finished, not pending; those skip the "Coming up" preview.
+const DONE_RE = /^(Done|Decided|Already|Fully funded|Pacing is already law|A deal is already|Every lab is covered|You have done all)/;
 const FACTION_COLOR = { Populist: '#8A5A2B', Politics: '#5B5F97', Dealmaker: '#2E7D5B', Ambition: '#A35A1F', Hawk: '#9B2C2C', Agencies: '#3D5368', Builder: '#7D6A12', Industry: '#A35A1F' };
 const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WAR', dni: 'DNI' };
 const EVTYPE = {
@@ -91,7 +100,7 @@ function hintChips(h) {
     return t + wordify(p);
   }), true);
 }
-function costHtml(c, room) { return `<span class="cost">${c.ap ? `<span title="Actions">${icon('bolt')}${c.ap}</span>` : ''}${c.pc ? `<span title="Political capital">${icon('coin')}${c.pc}</span>` : ''}${room ? `<span title="Needs the President">${icon('star')}</span>` : ''}${!c.ap && !c.pc ? 'free' : ''}</span>`; }
+function costHtml(c, room, lack) { const k = x => lack && lack[x] ? ' class="lack"' : ''; return `<span class="cost">${c.ap ? `<span title="Actions"${k('ap')}>${icon('bolt')}${c.ap}</span>` : ''}${c.pc ? `<span title="Political capital"${k('pc')}>${icon('coin')}${c.pc}</span>` : ''}${room ? `<span title="Needs the President"${k('room')}>${icon('star')}</span>` : ''}${!c.ap && !c.pc ? 'free' : ''}</span>`; }
 function bannerLevel() { if (!S) return 'U'; if (S.phase === 'scramble') return 'TS'; if (S.phase === 'p1') return 'S'; return 'U'; }
 function stats() { return S ? { cred: S.cred, pc: S.pc, sal: S.salience, mk: S.markets, tens: S.tension } : null; }
 
@@ -359,22 +368,71 @@ function objective(v) {
   }
   return `<div class="obj"><div class="goal">${body}</div><div class="pres"><span>The President</span>“${esc(presidentLine(v))}”</div></div>`;
 }
+// Locked by the game state, as opposed to short on actions, capital or the President's time this turn.
+function gate(id) {
+  const a = E.ACT[id];
+  if (a.once && S.policies[id]) return 'Already in place';
+  const r = a.avail ? a.avail(S, {}) : true;
+  return r === true || /^The President has no more time/.test(r) ? true : r;
+}
+// Actions that unlock mid-phase stay pinned under "New this turn" until used or the turn ends.
+// Kept on S so it survives a reload; a phase change resets it without flagging anything.
+function trackNew(acts) {
+  const open = acts.filter(a => gate(a.id) === true).map(a => a.id);
+  const t = S._seen;
+  if (!t || t.phase !== S.phase) { S._seen = { phase: S.phase, open, fresh: {} }; ui.cat = 'all'; return []; }
+  const added = open.filter(id => t.open.indexOf(id) < 0);
+  added.forEach(id => { t.fresh[id] = S.turn; });
+  for (const id in t.fresh) if (t.fresh[id] < S.turn || open.indexOf(id) < 0) delete t.fresh[id];
+  t.open = open;
+  return added;
+}
 function deskPanel(v) {
   const acts = E.listActions(S);
+  const added = trackNew(acts);
+  const order = CAT_ORDER[S.phase] || CATS.slice(1).map(c => c[0]);
+  const rank = a => order.indexOf(a.cat);
+  const fresh = S._seen.fresh, isNew = a => fresh[a.id] != null;
+  // Half-finished projects and the standby-only "Go first" lead their group.
+  const urgent = a => (a.project && (S.projects[a.project] || 0) > 0) || a.id === 'gofirst' ? 1 : 0;
+  const open = acts.filter(a => gate(a.id) === true).sort((x, y) => rank(x) - rank(y) || urgent(y) - urgent(x));
+  const locked = acts.filter(a => gate(a.id) !== true).sort((x, y) => rank(x) - rank(y));
+  if (ui.cat !== 'all' && !open.some(a => a.cat === ui.cat)) ui.cat = 'all';
+  const shown = a => ui.cat === 'all' || a.cat === ui.cat;
+  const pinned = open.filter(a => isNew(a) && shown(a));
+  if (added.length) { const a = pinned.find(x => x.avail === true) || pinned[0]; if (a) { ui.sel = a.id; ui.params = defaultParams(a.id); } }
   if (ui.sel && !acts.some(a => a.id === ui.sel)) ui.sel = null;
-  const ready = acts.filter(a => a.avail === true), later = acts.filter(a => a.avail !== true);
-  if (!ui.sel && acts.length) { const first = ready[0] || acts[0]; ui.sel = first.id; ui.params = defaultParams(first.id); }
+  if (!ui.sel && acts.length) { const first = open.find(a => a.avail === true) || open[0] || acts[0]; ui.sel = first.id; ui.params = defaultParams(first.id); }
   const row = a => {
-    const off = a.avail !== true;
+    const lock = gate(a.id), ok = a.avail === true;
     const pr = a.project ? E.PROJECTS.find(p => p.id === a.project) : null;
     const prog = pr ? `<span class="pips">${Array.from({ length: pr.need }, (_, i) => `<i class="${i < (S.projects[a.project] || 0) ? 'on' : ''}"></i>`).join('')}</span>` : '';
-    return `<button class="act ${off ? 'off' : ''} ${ui.sel === a.id ? 'on' : ''}" data-act="${a.id}"><span class="at"><span class="t">${esc(a.name)} ${prog}</span>${off ? `<span class="why">${esc(a.avail)}</span>` : chipList(E.chips(S, a.id, defaultParams(a.id)).slice(0, 2), true)}</span>${costHtml(a.cost, a.room)}</button>`;
+    const lack = ok || lock !== true ? null : { ap: S.ap < a.cost.ap, pc: S.pc < a.cost.pc, room: a.room && v.roomLeft <= 0 };
+    const why = lock !== true ? `${icon('lock')}${esc(lock)}` : ok ? '' : esc(a.avail);
+    return `<button class="act ${ok ? '' : 'off'} ${lock !== true ? 'lock' : ok ? '' : 'short'} ${ui.sel === a.id ? 'on' : ''}" data-act="${a.id}"><span class="at"><span class="t">${esc(a.name)} ${prog}</span>${why ? `<span class="why">${why}</span>` : ''}</span>${costHtml(a.cost, a.room, lack)}</button>`;
   };
-  const groups = CATS.filter(c => ready.some(a => a.cat === c[0])).map(c => `<div class="agrp">${c[1]}</div>${ready.filter(a => a.cat === c[0]).map(row).join('')}`).join('');
-  const rest = later.length ? `<details class="later" ${later.some(a => a.id === ui.sel) ? 'open' : ''}><summary>Not available now (${later.length})</summary>${later.map(row).join('')}</details>` : '';
+  const cats = order.filter(c => open.some(a => a.cat === c));
+  const chip = (c, label, list) => `<button class="cat ${ui.cat === c ? 'on' : ''}" data-cat="${c}">${label} <b>${list.length}</b>${list.some(isNew) ? '<i class="dot" title="New this turn"></i>' : ''}</button>`;
+  const bar = cats.length > 1 ? `<div class="cats">${chip('all', 'All', open)}${cats.map(c => chip(c, CAT_NAME[c], open.filter(a => a.cat === c))).join('')}</div>` : '';
+  let list = pinned.length ? `<div class="agrp new">New this turn</div>${pinned.map(row).join('')}` : '';
+  list += cats.filter(c => shown({ cat: c })).map(c => { const rs = open.filter(a => a.cat === c && !isNew(a)); return rs.length ? `<div class="agrp">${CAT_NAME[c]}</div>${rs.map(row).join('')}` : ''; }).join('');
+  const lk = locked.filter(shown), soon = lk.filter(a => !DONE_RE.test(gate(a.id))), rest = soon.slice(3).concat(lk.filter(a => DONE_RE.test(gate(a.id))));
+  const ahead = soon.length ? `<div class="agrp">Coming up</div>${soon.slice(0, 3).map(row).join('')}` : '';
+  const more = rest.length ? `<details class="later" ${rest.some(a => a.id === ui.sel) ? 'open' : ''}><summary>${rest.length} more locked or done</summary>${rest.map(row).join('')}</details>` : '';
   return `<section class="panel">${objective(v)}${ui.result ? resultCard() : ''}
-    <div class="deskgrid"><div class="alist">${groups || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${rest}</div><div class="detail">${detailPane()}</div></div></section>`;
+    <div class="deskgrid"><div class="alist">${bar}${list || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${ahead}${more}<button class="more" hidden></button></div><div class="detail">${detailPane()}</div></div></section>`;
 }
+// "N more below" pill for open rows past the bottom of the screen or of the list's own scroll box.
+function updateMore() {
+  const list = app.querySelector('.alist'), pill = list && list.querySelector('.more'); if (!pill) return;
+  const bottom = Math.min(window.innerHeight, list.getBoundingClientRect().bottom) - 8;
+  const below = [...list.querySelectorAll('.act:not(.lock)')].filter(r => r.getBoundingClientRect().top > bottom);
+  pill.hidden = !below.length;
+  pill.textContent = '↓ ' + below.length + ' more option' + (below.length > 1 ? 's' : '') + ' below';
+  pill.onclick = () => below[0] && below[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+window.addEventListener('scroll', updateMore, { passive: true });
+window.addEventListener('resize', updateMore);
 function resultCard() { const r = ui.result; return `<div class="result ${r.tone}"><button class="x" data-dismiss title="Dismiss">×</button><b>${esc(r.head)}</b> ${r.text}</div>`; }
 function defaultParams(id) {
   const a = E.ACT[id]; if (!a.params) return {};
@@ -421,6 +479,9 @@ function bindGame() {
   $('#help').onclick = showHelp;
   $('#menu').onclick = showMenu;
   app.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { ui.side = b.dataset.side; renderGame(); });
+  app.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { ui.cat = b.dataset.cat; renderGame(); });
+  const al = app.querySelector('.alist'); if (al) al.onscroll = updateMore;
+  updateMore();
   app.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => { ui.result = null; renderGame(); });
   app.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { ui.sel = b.dataset.act; ui.params = defaultParams(ui.sel); renderDetail(); app.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
   app.querySelectorAll('[data-favor]').forEach(b => b.onclick = () => { ui.sel = 'favor'; ui.params = { who: b.dataset.favor }; renderGame(); });
@@ -441,6 +502,7 @@ function doAction() {
   const before = snap();
   const res = E.act(S, id, Object.assign({}, ui.params));
   if (res.error) { toast(res.error); return; }
+  if (S._seen) delete S._seen.fresh[id];
   if (res.modal === 'offer') { openOffer(); return; }
   if (res.modal === 'charter') { ui.before = before; save(); openCharter(); return; }
   if (a.room) { ui.result = null; save(); showVote(a, res, diffList(before, snap())); return; }
