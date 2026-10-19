@@ -11,6 +11,8 @@ if (!isMainThread) {
 const fs = require('fs');
 const GENS = +(process.argv[2] || 300), GAMES = +(process.argv[3] || 600), DIFF = process.argv[4] || 'advisor';
 const LAMBDA = 12, ROTATE = 15, RUN = +(process.argv[5] || 0);
+// PIN='{"seq":"together"}' holds genes fixed through the search.
+const PIN = process.env.PIN ? JSON.parse(process.env.PIN) : {};
 let rs = 12345 + 7919 * RUN; const rand = () => { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; };
 const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
 
@@ -24,7 +26,7 @@ function mutate(G) {
     else if (gene.type === 'bool') C[gene.key] = !C[gene.key];
     else C[gene.key] = gene.a[Math.floor(rand() * gene.a.length)];
   }
-  return C;
+  return Object.assign(C, PIN);
 }
 const fit = r => r.win + r.score / 1e5;
 
@@ -47,6 +49,7 @@ const batch = b => Array.from({ length: GAMES }, (_, i) => 100000 + RUN * 50000 
 (async () => {
   // START=genome.json seeds the search from an earlier winner; genes it lacks keep the expert's values.
   let parent = process.env.START ? Object.assign(S.expertGenome(), require(require('path').resolve(process.env.START))) : S.expertGenome();
+  Object.assign(parent, PIN);
   let b = 0, seeds = batch(b);
   let pr = (await evalMany([parent], seeds))[0];
   const start = pr;
