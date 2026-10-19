@@ -376,12 +376,23 @@ function gate(id) {
   return r === true || /^The President has no more time/.test(r) ? true : r;
 }
 // Actions that unlock mid-phase stay pinned under "New this turn" until used or the turn ends.
-// Kept on S so it survives a reload; a phase change resets it without flagging anything.
+// At a phase start only actions never open before this game pin, minus Decisions (already on top)
+// and Covert (pinning a strike would nudge toward it). Kept on S so it survives a reload.
 function trackNew(acts) {
   const open = acts.filter(a => gate(a.id) === true).map(a => a.id);
   const t = S._seen;
-  if (!t || t.phase !== S.phase) { S._seen = { phase: S.phase, open, fresh: {} }; ui.cat = 'all'; return []; }
-  const added = open.filter(id => t.open.indexOf(id) < 0);
+  let added;
+  if (!t || t.phase !== S.phase) {
+    const ever = t ? t.ever || t.open : open;
+    added = t ? open.filter(id => ever.indexOf(id) < 0 && !/^(crisis|covert)$/.test(E.ACT[id].cat)) : [];
+    S._seen = { phase: S.phase, open, fresh: {}, ever: ever.concat(open.filter(id => ever.indexOf(id) < 0)) };
+    added.forEach(id => { S._seen.fresh[id] = S.turn; });
+    ui.cat = 'all';
+    return []; // pinned but not auto-selected, so the phase's first Decision keeps the selection
+  }
+  t.ever = t.ever || t.open.slice();
+  open.forEach(id => { if (t.ever.indexOf(id) < 0) t.ever.push(id); });
+  added = open.filter(id => t.open.indexOf(id) < 0);
   added.forEach(id => { t.fresh[id] = S.turn; });
   for (const id in t.fresh) if (t.fresh[id] < S.turn || open.indexOf(id) < 0) delete t.fresh[id];
   t.open = open;
