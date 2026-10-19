@@ -386,7 +386,7 @@ function trackNew(acts) {
     const ever = t ? t.ever || t.open : open;
     added = t ? open.filter(id => ever.indexOf(id) < 0 && !/^(crisis|covert)$/.test(E.ACT[id].cat)) : [];
     S._seen = { phase: S.phase, open, fresh: {}, ever: ever.concat(open.filter(id => ever.indexOf(id) < 0)) };
-    added.forEach(id => { S._seen.fresh[id] = S.turn; });
+    added.forEach(id => { S._seen.fresh[id] = S.turn + 1; }); // phases usually start mid-turn, so these last through the next full turn
     ui.cat = 'all';
     return []; // pinned but not auto-selected, so the phase's first Decision keeps the selection
   }
