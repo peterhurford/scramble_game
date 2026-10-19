@@ -108,13 +108,13 @@ function turn(s, G) {
     if (G.trig !== 'none') plan.push(['trigger', { variant: G.trig }]);
     plan.push(['convene', {}], ['launch', {}]);
     while (s.ap > 0 && guard++ < 12 && !s.ending && s.phase === 'scramble') {
+      if (G.scrOffer && !s.cn.deal && avail(s, 'offer')) { const r = E.makeOffer(s, offerTerms(s, G)); note(s, 'act', 'Offer to Beijing ' + JSON.stringify(Object.keys(offerTerms(s, G))) + (r.accepted ? ' ACCEPTED' : ' rejected'), 'offers early during the scramble, ahead of the plan'); step(); continue; }
       let did = false;
       for (const [id, prm] of plan) {
         if (id === 'launch' && G.waitFull && !((s.pacing.automation || !G.auto) && (s.pacing.trigger || G.trig === 'none')) && s.scramble.turn < 6) continue;
         if (tryAct(s, id, prm, G, 'scramble plan, in order')) { did = true; step(); break; }
       }
       if (did) continue;
-      if (G.scrOffer && !s.cn.deal && avail(s, 'offer')) { const r = E.makeOffer(s, offerTerms(s, G)); note(s, 'act', 'Offer to Beijing ' + JSON.stringify(Object.keys(offerTerms(s, G))) + (r.accepted ? ' ACCEPTED' : ' rejected'), 'offers early during the scramble'); step(); continue; }
       if (G.scrIdle === 'remote' && tryAct(s, 'remote', {}, G, 'spare scramble action')) { step(); continue; }
       if ((G.scrIdle === 'meet' || G.scrIdle === 'remote') && tryAct(s, 'meet', { who: 'doc' }, G, 'spare scramble action: work on the Commerce Secretary')) { step(); continue; }
       if ((G.scrIdle === 'allies' || G.scrIdle === 'remote') && tryAct(s, 'allies', {}, G, 'spare scramble action')) { step(); continue; }

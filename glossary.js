@@ -75,6 +75,9 @@ const G = [
   { group: 'Beijing', items: [
     { key: 'seq', name: 'Going first or waiting', does: ['Decided in the scramble. Go first: the pause starts now; Beijing’s trust and its scientists warm to you; hawks (VP, State, War, Commerce) are furious; markets dip; pacing support suffers until Beijing joins; Beijing is more willing to deal.', 'Deadline: the pause starts now but lapses in six months unless Beijing joins; smaller goodwill and anger; at the deadline you extend it, make it permanent, or snap back.', 'Only together: nothing stops until Beijing signs. Hawks are pleased, markets calm, the lead holds; but the labs keep racing toward the RSI threshold, and Beijing is a little insulted. You can still go first later.'],
       up: '—', down: '—', now: s => s.pacing.seq ? ({ first: 'America went first.', deadline: 'America went first with a deadline' + (s.pacing.deadline ? ' (' + E.monthLabel(s.pacing.deadline) + ').' : '.'), together: s.pacing.active ? 'Waited for Beijing; both sides are now paused.' : 'Waiting for Beijing; the labs are still racing.' })[s.pacing.seq] : 'Not decided yet.' },
+    { key: 'deal', name: 'Will Beijing deal?', does: ['Beijing weighs each offer on the situation and on the package. The situation: who has the floor (Science and Market help, Security hurts), the size of your lead, whether America is pacing (going first counts most, standby a little less, not pacing hurts a lot), temperature, trust, and a recently exposed covert operation.', 'The package: chip sales and a market lane are the big carrots, then sanctions relief, a joint institute (more with a strong Science faction) and visas. Inspections cost more the stronger Security is; a frozen ratio costs some; a threat helps only with a lead over 7 months.', 'A rejection costs trust and raises temperature, so each offer after a no starts lower.'],
+      up: 'Pacing (going first most), Track 2, a joint institute, taking meetings, cooling temperature.', down: 'Covert ops, controls on China, rejected offers, a Pentagon carve-out.',
+      now: s => `For a bare compute cap, the IC reads Beijing as ${E.oddsWord(E.cnAcceptEstimate(s, {}).mid)} to accept:` + parts(E.cnParts(s, {}).map(p => [p[0], 10 * p[1]])) },
     { key: 'beg', name: 'Beijing’s asks', does: ['Every few months Beijing asks you to lift a specific export control. Lifting it buys goodwill but gives China back that compute or distillation, angers the hawks, and costs coalition, credibility and Senate votes. You can also try to trade it for a skipped Chinese training run, or refuse.'],
       up: '—', down: '—', now: s => 'Controls you could be asked about: ' + (['chips', 'remote', 'distill', 'smuggle'].filter(k => s.policies[k]).join(', ') || 'none in force') + '.' },
     { key: 'tens', name: 'Beijing temperature', does: ['How hostile Beijing is. The hotter it runs, the less likely a deal, and the more Beijing leans toward racing.', '62+: rare-earth and mineral curbs become possible. 78+: drills around Taiwan. 100: a military crisis.', 'Cools slowly on its own.'],
@@ -95,5 +98,5 @@ const G = [
   ] },
 ];
 const CHIPKEY = { 'c-ap': 'ap', 'c-pc': 'pc', 'c-oval': 'oval', 'c-cred': 'cred', 'c-sal': 'sal', 'c-mk': 'mk', 'c-tens': 'tens' };
-root.ScrambleGlossary = { G, CHIPKEY };
+root.ScrambleGlossary = { G, CHIPKEY, parts };
 })(typeof self !== 'undefined' ? self : this);

@@ -286,7 +286,7 @@ function chinaPanel(v) {
     <div class="sb"><div class="row"><div class="lbl">Training compute: ${rd.comp}</div></div>
       <div class="stack">${segs.map(sg => `<i style="width:${100 * src[sg[1]] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]}: ${rd.src[sg[1]]}"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Growth</span><span class="v">${rd.rate}</span></div>
+      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Takes a bare cap <button class="whylink" data-why="deal">why?</button></span><span class="v">${c.deal ? 'deal in force' : E.oddsWord(E.cnAcceptEstimate(S, {}).mid)}</span><span>Growth</span><span class="v">${rd.rate}</span></div>
       <div class="sub" style="margin-top:8px">${rd.note}${rd.tier < 2 ? ' Sharpen with the GEOINT baseline, verification funding or an IC assessment.' : ''}</div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
@@ -550,9 +550,11 @@ function openOffer() {
     <div class="sub" style="margin-bottom:10px">Market wants a lane for its models; Security hates inspections; Science responds to shared evaluations. ${S.pacing.active ? 'America is already pacing.' : 'America is not pacing: Beijing will ask why it should stop first.'}</div>
     <div class="terms">${terms}</div>
     <div class="twoodds"><div><div class="lbl">President approves</div>${oddsBar(pv.room.p)}</div><div><div class="lbl">Beijing accepts (IC read)</div>${oddsBar(pv.cn.mid)}</div></div>
+    <details id="owhy" class="sub" style="margin:4px 0 10px" ${ui.offerWhy ? 'open' : ''}><summary>What Beijing weighs in this package</summary>${window.ScrambleGlossary.parts(E.cnParts(S, t).map(p => [p[0], 10 * p[1]]))}</details>
     ${whip(pv.room.positions, true)}
     <div class="row"><button class="btn" id="osend">Send it (${icon('bolt')}1 ${icon('coin')}2)</button><button class="ghost" id="ocancel">Not yet</button></div></div>`, true);
   $('#modal').querySelectorAll('[data-term]').forEach(c => c.onchange = () => { t[c.dataset.term] = c.checked; openOffer(); });
+  $('#owhy').ontoggle = e => { ui.offerWhy = e.target.open; };
   $('#ocancel').onclick = () => { closeModal(); };
   $('#osend').onclick = () => {
     const before = snap();

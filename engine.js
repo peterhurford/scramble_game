@@ -798,32 +798,31 @@ function offerTags(terms) {
   if (terms.threat) add({ hawk: 1, deal: -0.3 });
   return t;
 }
-function cnUtility(s, terms) {
+// Beijing's willingness to take an offer, as labeled parts so the UI can show where it comes from; 0 is even odds.
+function cnParts(s, terms) {
   const f = s.cn.f, ld = lead(s);
-  let u = -1.3;
-  u += 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30);
-  if (ld > 5) u += 0.07 * Math.min(ld - 5, 10);
-  if (ld < 2) u -= 0.6;
+  const P_ = [['Base reluctance', -1.55], ['Who has the floor in Beijing', 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30)]];
+  if (ld > 5) P_.push(['A big US lead', 0.07 * Math.min(ld - 5, 10)]);
+  if (ld < 2) P_.push(['China is nearly level', -0.6]);
   const closed = s.cn.legalT < 0.3 && s.cn.distT < 0.5 && s.cn.remoteT < 0.5;
-  if (closed && !terms.lane && f.sec > 40) u -= 0.4;
-  u += paced(s) ? 0.5 : (s.pacing.armed ? 0.35 : -0.7);
-  if (s.flags.wentFirst) u += 0.15; else if (s.pacing.seq === 'deadline' && paced(s)) u += 0.08;
-  u -= (s.tension - 30) * 0.018;
-  u += (s.cn.trust - 10) * 0.012;
-  u -= 0.25;
-  if (terms.freeze) u -= 0.3;
-  if (terms.inspect) u -= 0.25 + 0.012 * f.sec;
-  if (terms.lane) u += 0.55;
-  if (terms.relief) u += 0.4;
-  if (terms.visas) u += 0.15;
-  if (terms.institute) u += 0.2 + 0.01 * f.sci;
-  if (terms.chips) u += 0.6;
-  if (terms.threat) u += ld > 7 ? 0.35 : -0.25;
-  if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) u -= 0.8;
-  if (s.flags.dodCarve) u -= 0.15;
-  if (s.flags.uaeOut && paced(s)) u -= TUNE.uaeDeal; // Beijing sees an American loophole
-  return u;
+  if (closed && !terms.lane && f.sec > 40) P_.push(['Every channel closed, and no market lane', -0.4]);
+  P_.push([paced(s) ? 'America is pacing' : s.pacing.armed ? 'America’s labs signed, but nothing stops until Beijing does' : 'America is not pacing', paced(s) ? 0.5 : (s.pacing.armed ? 0.35 : -0.7)]);
+  if (s.flags.wentFirst) P_.push(['America went first', 0.15]); else if (s.pacing.seq === 'deadline' && paced(s)) P_.push(['America went first, with a deadline', 0.08]);
+  P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
+  if (terms.freeze) P_.push(['Freeze the current ratio', -0.3]);
+  if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
+  if (terms.lane) P_.push(['Market lane', 0.55]);
+  if (terms.relief) P_.push(['Entity List relief', 0.4]);
+  if (terms.visas) P_.push(['Eased visas', 0.15]);
+  if (terms.institute) P_.push(['Joint safety institute (Science likes it)', 0.2 + 0.01 * f.sci]);
+  if (terms.chips) P_.push(['Legal chip sales', 0.6]);
+  if (terms.threat) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
+  if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 turns', -0.8]);
+  if (s.flags.dodCarve) P_.push(['A Pentagon carve-out for one lab', -0.15]);
+  if (s.flags.uaeOut && paced(s)) P_.push(['The UAE loophole', -TUNE.uaeDeal]);
+  return P_;
 }
+function cnUtility(s, terms) { return cnParts(s, terms).reduce((a, x) => a + x[1], 0); }
 function cnAcceptP(s, terms) { return logistic(2.2 * cnUtility(s, terms)); }
 function cnAcceptEstimate(s, terms) { const p = cnAcceptP(s, terms); const err = 0.25 * (1 - s.intelQ / 100) + 0.04; const b = (hash01(s.seed, s.turn, 'cnest', JSON.stringify(terms)) - 0.5) * 2 * err; return { mid: clamp(p + b, 0.01, 0.99), err }; }
 function offerPreview(s, terms) { const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms)); return { room: rp, cn: cnAcceptEstimate(s, terms) }; }
@@ -831,7 +830,7 @@ function roomPreviewTags(s, id, tags, key) { ACT._tmp = { tags, pres: s2 => (lea
 def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramble', 'p1'], ap: 1, pc: 2, modal: 'offer',
   desc: 'Build a package. The President has to approve it, then Beijing decides. Rejection costs trust and temperature.',
   effect: () => 'Opens the offer table.',
-  avail(s) { if (s.cn.deal) return 'A deal is already in force'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + s.cn.cooldown + ' more turn' + (s.cn.cooldown > 1 ? 's' : '') + ')'; return true; },
+  avail(s) { if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + s.cn.cooldown + ' more turn' + (s.cn.cooldown > 1 ? 's' : '') + ')'; return true; },
   apply() { return ''; },
 });
 function makeOffer(s, terms) {
@@ -1801,7 +1800,7 @@ function view(s) {
 const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
-  score, lessons, dateLabel, monthLabel, currentAsk, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  score, lessons, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
