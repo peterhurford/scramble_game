@@ -68,7 +68,7 @@ const SIGHT = process.env.SIGHT || 'readout';
 function seen(s) {
   if (SIGHT === 'readout') return E.view(s).cnRead.seen;
   const e = E.view(s).cnEst; const t = SIGHT === 'truth' ? e : null;
-  const c = s.cn, src = t ? { domestic: 0.45 * (0.8 + 0.2 * c.sme), offshore: 0.25 * c.remote, smuggled: 0.08 * c.smuggle, legal: 0.12 * c.legal } : { offshore: 0.25 * Math.min(1, c.remoteT), smuggled: 0.08 * Math.min(1, c.smuggleT), legal: 0.12 * c.legalT };
+  const c = s.cn, b = E.cnSources({ sme: 1, remote: 1, smuggle: 1, legal: 1 }), src = t ? E.cnSources(c) : { offshore: b.offshore * Math.min(1, c.remoteT), smuggled: b.smuggled * Math.min(1, c.smuggleT), legal: b.legal * c.legalT };
   return Object.assign(src, { dist: t ? c.dist : Math.min(1, c.distT) });
 }
 const gated = (s, G, p) => { const gt = G['gate.' + p]; if (!gt) return false; const x = seen(s)[GATE[p][0]]; return x < gt ? x : false; };

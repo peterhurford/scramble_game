@@ -159,7 +159,10 @@ function lead(s) { return frontier(s) - s.cn.cap; }
 function paced(s) { return !!s.pacing.active; }
 function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
 function coverage(s) { return Math.round(100 * s.labs.reduce((a, l) => a + (covered(s, l) ? LD(l.id).share * (l.id === 'mindscale' && s.flags.uaeOut ? 1 - TUNE.uaeShare : 1) : 0), 0)); }
-function cnComp(s) { const c = s.cn; return (0.45 * (0.8 + 0.2 * c.sme) + 0.08 * c.smuggle + 0.12 * c.legal + 0.25 * c.remote + 0.10) * (1 + 0.25 * c.race); }
+// China's compute by channel at baseline: IFP's end-2026 stocks (Fist, Adamson & Pilz, Oct 2026) scaled to 90%, plus 10% no rule reaches.
+// HBM and tool curbs (sme) trim at most 5% of domestic within the game: the servicing ban bites only once the fleet falls below China's HBM-limited output.
+function cnSources(c) { return { domestic: 0.34 * (0.95 + 0.05 * c.sme), offshore: 0.20 * c.remote, smuggled: 0.20 * c.smuggle, legal: 0.16 * c.legal, other: 0.10 }; }
+function cnComp(s) { const src = cnSources(s.cn); return (src.domestic + src.offshore + src.smuggled + src.legal + src.other) * (1 + 0.25 * s.cn.race); }
 function trigMult(s) { return { '425': 0.55, '200': 0.8, '200c': 1.0, '100': 0.92 }[s.pacing.trigger] || 0.5; }
 function ready1(s) { const v = s.verify; return (v.survey + v.inspect) / 2; }
 function ready2(s) { const v = s.verify; const xs = COMPONENTS.map(c => v[c.id]); return { avg: xs.reduce((a, b) => a + b, 0) / xs.length, min: Math.min.apply(null, xs) }; }
@@ -312,7 +315,7 @@ function cnEstimate(s) {
   const c = s.cn, rel = (0.05 + 0.3 * (1 - s.intelQ / 100)) * (s.flags.assessUntil >= s.turn ? 0.5 : 1);
   const k = Math.floor(s.turn / 3), fr = (s.turn % 3) / 3;
   const noise = key => ((hash01(s.seed, 'cn' + key, k) * (1 - fr) + hash01(s.seed, 'cn' + key, k + 1) * fr) - 0.5) * 2 * rel;
-  const src = { domestic: 0.45 * (0.8 + 0.2 * c.sme), offshore: 0.25 * c.remote, smuggled: 0.08 * c.smuggle, legal: 0.12 * c.legal, other: 0.10 };
+  const src = cnSources(c);
   for (const key in src) src[key] = Math.max(0, src[key] * (1 + noise(key)));
   const comp = cnComp(s) * (1 + noise('comp')), sum = Object.values(src).reduce((a, x) => a + x, 0) || 1;
   for (const key in src) src[key] *= comp / sum;
@@ -387,10 +390,10 @@ function newGame(opts) {
   s.queue.push({ id: 'intro' });
   return s;
 }
-// Hidden per-game starting point for China's offshore compute, smuggling and distillation (1 = the note's baseline). Drawn from hash01 so the main random stream is untouched.
+// Hidden per-game starting point for China's offshore compute, smuggling and distillation (1 = baseline). Smuggling is log-uniform 0.4-2.4x, skewed like IFP's range. Drawn from hash01 so the main random stream is untouched.
 function cnStart(s) {
   const c = s.cn, u = k => hash01(s.seed, 'cnstart', k);
-  c.base = { remote: 0.5 + u('remote'), smuggle: 0.4 + 1.2 * u('smuggle'), dist: 0.6 + 0.4 * u('dist') };
+  c.base = { remote: 0.5 + u('remote'), smuggle: 0.4 * Math.pow(6, u('smuggle')), dist: 0.6 + 0.4 * u('dist') };
   c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
 }
 const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
@@ -516,8 +519,8 @@ def({ id: 'assess', cat: 'intel', name: 'Commission an IC assessment', phases: [
 def({ id: 'distill', cat: 'policy', name: 'Anti-distillation crackdown', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.5, industry: 0.6, commerce: 0.5 },
   desc: 'KYC for frontier APIs, a cutoff for resellers, lawsuits against account farms, detection shared across labs.',
-  effect: s => 'Chinese distillation falls by about 85% over three months. Worth the most early: much of its value is a one-time boost already baked into where China stands. Costs US labs about 1.5% of their pace (customer friction).',
-  apply(s) { s.cn.distT = Math.min(s.cn.distT, 0.15); s.tension += 5; shiftCN(s, { sec: 3, m: -3 }); return 'Commerce and the labs announce the crackdown together, including a cutoff for resellers. Three Chinese labs lose 24,000 accounts overnight.'; },
+  effect: s => 'The US-model outputs China harvests fall by about 95% over three months. Each 10x of harvested data is worth only about a quarter of the gain, so China keeps about two-thirds of its distillation boost. Worth the most early: much of its value is a one-time boost already baked into where China stands. Costs US labs about 1.5% of their pace (customer friction).',
+  apply(s) { s.cn.distT = Math.min(s.cn.distT, 0.68 * cnBase(s).dist); s.tension += 5; shiftCN(s, { sec: 3, m: -3 }); return 'Commerce and the labs announce the crackdown together, including a cutoff for resellers. Three Chinese labs lose 24,000 accounts overnight.'; },
 });
 def({ id: 'remote', cat: 'policy', name: 'Close the remote-access loophole', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.8, markets: -0.4, allies: -0.5, commerce: 1 },
@@ -535,8 +538,8 @@ def({ id: 'smuggle', cat: 'policy', name: 'Chip smuggling enforcement surge', ph
 def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { hawk: 1.6, markets: -1.2, industry: -0.6, deal: -0.8, allies: -0.4 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
-  desc: 'Pull the licenses for chips sold legally to Chinese firms, and get the Dutch and Japanese to stop servicing chipmaking tools in China. The big, expensive lever.',
-  effect: s => 'China loses legal chips now (−12% compute); its domestic output degrades over a year (up to −7% more) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets -3, Beijing temperature +12, Treasury unhappy. US labs 3% slower, and Beijing may answer with mineral export curbs that slow them much more.',
+  desc: 'Pull the licenses for chips sold legally to Chinese firms, close the smuggled-HBM channel, and get the Dutch and Japanese to stop servicing chipmaking tools in China. The big, expensive lever, and nearly all of it comes from the legal chips.',
+  effect: s => 'China loses legal chips now (−16% compute); HBM curbs trim its domestic output over a year (up to −2% more; the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets -3, Beijing temperature +12, Treasury unhappy. US labs 3% slower, and Beijing may answer with mineral export curbs that slow them much more.',
   apply(s) { const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12; shiftCN(s, { m: -5, sec: 7 }); rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
 });
 def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
@@ -943,7 +946,7 @@ const CHIPS = {
   allies: () => ['+Coalition grows', '+Some Senate votes'],
   labmeet: () => ['+Relationship with the lab up'],
   assess: () => ['+Sharper readings for a while'],
-  distill: () => ['+Much harder for China to distill US models', '-Slows US labs slightly', '-Beijing annoyed'],
+  distill: () => ['+Cuts China’s distillation boost by about a third', '-Slows US labs slightly', '-Beijing annoyed'],
   remote: () => ['+Cuts China’s compute', '-Slows US labs slightly', '-Beijing angry'],
   smuggle: () => ['+Trims China’s compute', '~Beijing mildly annoyed'],
   chips: () => ['+Cuts China’s compute, mostly over a year', '-Slows US labs a little', '-Markets dip', '-Beijing very angry', '-Risk of retaliation'],
@@ -1096,7 +1099,7 @@ ev({ id: 'trade_summit', p: 0.55, once: true, phases: ['p0'], when: s => s.t > 3
   title: 'The trade summit', stamp: 'Treasury',
   body: () => `<p>The Treasury Secretary wants a deal before the leaders’ summit: soybeans and rare earths for Beijing, and in return, licenses to sell Verdant’s next-generation accelerators to Chinese firms. The President likes deals. The hawks are already leaking against it.</p>`,
   choices: [
-    { label: 'Back Treasury', hint: 'Treasury +20. China’s legal chip supply resumes: China compute +12%; Beijing temperature -6; State -10.', fx: s => { rel(s, 'tsy', 20); s.cn.legalT = 1; s.policies.chips = false; s.tension -= 6; rel(s, 'sec', -10); s.markets += 3; return 'The deal is signed in Busan. Verdant’s stock jumps 9%.'; } },
+    { label: 'Back Treasury', hint: 'Treasury +20. China’s legal chip supply resumes: China compute +16%; Beijing temperature -6; State -10.', fx: s => { rel(s, 'tsy', 20); s.cn.legalT = 1; s.policies.chips = false; s.tension -= 6; rel(s, 'sec', -10); s.markets += 3; return 'The deal is signed in Busan. Verdant’s stock jumps 9%.'; } },
     { label: 'Fight it in the room', hint: 'A roll weighted by the hawks’ influence. Win: chip sales stay off. Lose: they resume and you look weak.', fx: s => { const hawks = (P(s, 'sec').infl + P(s, 'vp').infl + P(s, 'war').infl) / 3; const p = clamp((hawks - P(s, 'tsy').infl * 0.6 + s.cred * 0.3) / 100, 0.15, 0.85); if (rnd(s) < p) { rel(s, 'tsy', -15); rel(s, 'sec', 10); s.cred += 3; return 'The chips come out of the package. The Treasury Secretary signs the rest and doesn’t speak to you for a week.'; } s.cn.legalT = 1; rel(s, 'tsy', -10); s.cred -= 4; return 'You lose. The licenses go through.'; } },
     { label: 'Stay out of it', hint: 'Treasury -5. Even odds it goes through.', fx: s => { rel(s, 'tsy', -5); if (rnd(s) < 0.5) { s.cn.legalT = 1; return 'The licenses go through without you.'; } return 'The hawks kill it without you.'; } },
   ] });
@@ -1293,7 +1296,7 @@ ev({ id: 'deadline_up', forced: true, title: 'The deadline', stamp: 'Six months 
     { label: 'Snap back: restart the labs until Beijing signs', hint: 'The pause goes on standby. Markets +4; hawks +6; Beijing trust -10; temperature +5.', fx: s => { s.pacing.active = false; s.pacing.armed = true; s.pacing.seq = 'together'; s.markets += 4; HAWKS.forEach(id => rel(s, id, 6)); s.cn.trust -= 10; s.tension += 5; log(s, 'The pause snaps back to standby. The labs resume.', 'bad'); return 'The labs restart their largest runs within the hour.'; } },
   ] });
 const BEG = {
-  chips: { name: 'the ban on chip sales and tool servicing', lift(s) { s.cn.legalT = 1; s.cn.smeT = 1; }, cost: 'China compute +19% (+12% right away)' },
+  chips: { name: 'the ban on chip sales and tool servicing', lift(s) { s.cn.legalT = 1; s.cn.smeT = 1; }, cost: 'China compute +18% (+16% right away)' },
   remote: { name: 'the remote-access rule', lift(s) { s.cn.remoteT = cnBase(s).remote; }, cost: 'China’s offshore compute comes back over two months' },
   distill: { name: 'the API cutoff', lift(s) { s.cn.distT = cnBase(s).dist; }, cost: 'China’s distillation of US models back to where it was' },
   smuggle: { name: 'the smuggling crackdown', lift(s) { s.cn.smuggleT = Math.max(s.cn.smuggleT, cnBase(s).smuggle); }, cost: 'Smuggled compute back up' },
@@ -1482,7 +1485,7 @@ ev({ id: 'ipo', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
 ev({ id: 'quake', p: 0.05, once: true, phases: ['p0', 'scramble', 'p1'],
   title: 'Hsinchu', stamp: 'USGS',
   body: () => `<p>A magnitude-7 earthquake hits northern Taiwan. TSMC loses a month of output and several fabs need recalibration.</p>`,
-  choices: [{ label: 'Note it', hint: 'US labs 12% slower for 2 months; markets -5; China compute -3%.', fx: s => { s.flags.strait = s.turn + 2; s.markets -= 5; s.cn.smuggle = Math.max(0, s.cn.smuggle - 0.4); return 'Chip prices double for a quarter.'; } }] });
+  choices: [{ label: 'Note it', hint: 'US labs 12% slower for 2 months; markets -5; China compute -8%.', fx: s => { s.flags.strait = s.turn + 2; s.markets -= 5; s.cn.smuggle = Math.max(0, s.cn.smuggle - 0.4); return 'Chip prices double for a quarter.'; } }] });
 ev({ id: 'bill', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 5,
   title: 'A bill', stamp: 'House floor',
   body: () => `<p>A bipartisan bill requiring federal licenses for training runs above 1e26 FLOP passes the House, 288 to 140.</p>`,
@@ -1800,7 +1803,7 @@ function view(s) {
 const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
-  score, lessons, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  score, lessons, cnSources, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
