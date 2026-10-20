@@ -21,7 +21,7 @@ function run(lv, seed, extra) {
   for (let i = 0; i < 40; i++) {
     if (s.t >= 0.4 + lv.at - 1e-9 && !s._applied) { for (const k in lv) if (k !== 'at' && k !== 'pol') s.cn[k] = k === 'distT' ? lv[k] * s.cn.base.dist : lv[k]; (lv.pol || []).forEach(x => s.policies[x] = true); if (lv.W) { s.sl = 5; s.W = 92; } s._applied = true; }
     if (Math.abs(s.t - 9.4) < 1e-6) { // pacing begins
-      s.pacing.active = true; s.pacing.threshold = '1e21'; s.pacing.automation = true; s.phase = 'p1';
+      s.pacing.active = true; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, E.lead(s)); s.pacing.threshold = '1e21'; s.pacing.automation = true; s.phase = 'p1';
       s.labs.forEach(l => { l.covered = l.signed = true; l.comp = 100; });
       s._leadAtPace = E.lead(s);
       if (extra === 'deal') s.cn.deal = { terms: {}, since: s.t };

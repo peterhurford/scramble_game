@@ -84,10 +84,10 @@ const COMPONENTS = [
 ]
 
 // Weight security ladder. Each level replaces the one below: its theft odds and its cost to US labs.
-const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
+const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.60, drag: 0.08 }, 5: { W: 92, theft: 0.25, drag: 0.20 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
+const TUNE = { theftBase: 0.06, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -98,7 +98,7 @@ const PROJECTS = [
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court.', done: 'Emergency orders are far less likely to be enjoined, and the DPA threat becomes credible.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 5, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 20% (instead of SL4\u2019s 8%).', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 6); } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 5, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 25% of the time instead of 60%. Nothing stops a determined state for sure. Air gaps and vetting slow US labs 20% (instead of SL4\u2019s 8%).', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 6); } },
 ];
 
 const ASKS = {
@@ -206,9 +206,11 @@ function cnRate(s) {
   const p = paced(s);
   // metr_graph's split of China's pace, in US-pace units: own research 0.26, compute 0.15, distillation 0.27, leaked methods 0.22.
   // Compute is raised to 0.25 (own research down to 0.16) as a hedge: the split measures compute at its growth rate, not a sudden cut.
-  // Copying shrinks when the US is paced and there is little left to copy.
-  const copy = (0.34 * c.dist + 0.22 * (c.leak == null ? 1 : c.leak)) * (p ? 0.4 : 1) * (gap > 0.5 ? 1 : 0.3);
-  let r = 0.16 + 0.25 * cnComp(s) + copy;
+  // Under a pause, as in metr_graph: distillation keeps copying the paused frontier, falling with the gap left (gap / gap at the pause);
+  // leaked methods fade as China absorbs what already leaked, over a year. Copying shrinks when there is little left to copy.
+  const gap0 = s.pacing.gap0 || Math.max(0.5, gap), pm = p ? Math.max(0, s.t - (s.pacing.since == null ? s.t : s.pacing.since)) : 0;
+  const copy = (0.34 * c.dist * (p ? clamp(gap / gap0, 0, 1) : 1) + 0.22 * (c.leak == null ? 1 : c.leak) * (p ? Math.max(0, 1 - pm / 12) : 1)) * (gap > 0.5 ? 1 : 0.3);
+  let r = (c.inno == null ? 0.16 : c.inno) + 0.25 * cnComp(s) + copy;
   if (c.deal && !c.cheat) r = Math.min(r, 0.12);
   if (c.deal && c.cheat) r = Math.min(r, 0.12) + 0.45;
   return r;
@@ -278,7 +280,7 @@ function warningShotP(s, who) { const cap = who === 'china' ? s.cn.cap : L(s, wh
 // Weight theft: Beijing attempts more when racing, when the US is paced, and when far behind; success depends on weight security.
 function theftRisk(s) {
   const c = s.cn;
-  const attempt = 0.045 * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
+  const attempt = TUNE.theftBase * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -401,6 +403,9 @@ function cnStart(s) {
   // starting lag: lognormal, median 6 months (80% range ~4.1-8.8), around metr_graph's 4.4-6.5 months
   const z = Math.sqrt(-2 * Math.log(Math.max(1e-9, u('lag1')))) * Math.cos(2 * Math.PI * u('lag2'));
   c.cap = -clamp(6 * Math.exp(0.3 * z), 3.5, 11); s.stats.peakLead = -c.cap;
+  // own research: lognormal around 0.16, 80% range ~0.07-0.35, inside metr_graph's 0.05-0.48 band for China's pure innovation
+  const z2 = Math.sqrt(-2 * Math.log(Math.max(1e-9, u('inno1')))) * Math.cos(2 * Math.PI * u('inno2'));
+  c.inno = clamp(0.16 * Math.exp(0.6 * z2), 0.04, 0.5);
   c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
 }
 const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
@@ -559,7 +564,7 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3.',
-  effect: () => 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 8%. Labs -5.',
+  effect: () => 'Security SL4: a theft attempt succeeds 60% of the time instead of 90%. Overhead slows US labs 8%. Labs -5.',
   apply(s) { setSL(s, 4); s.labs.forEach(l => l.rel -= 5); return 'The order is signed. The labs complain about cost and comply.'; },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
@@ -728,7 +733,7 @@ function launchPhase1(s) {
   return 'The President signs at 9:40p. Phase 1 begins at midnight. Coverage: ' + coverage(s) + '% of US frontier compute.';
 }
 function activatePacing(s) {
-  s.pacing.active = true; s.pacing.armed = false; s.pacing.since = s.t; s.pacing.low = 0;
+  s.pacing.active = true; s.pacing.armed = false; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, lead(s)); s.pacing.low = 0;
   s.labs.forEach(l => { if (l.covered) l.comp = complianceBase(s, l); });
   s.markets -= s.flags.marketPlan ? 4 : 8;
   s.salience += 4;
