@@ -224,7 +224,9 @@ function phasePlate() {
     : `<span>${S.pacing.collapsed ? 'Aftermath: pacing collapsed' : 'Getting in position'}</span>`;
   const crisis = S.war ? `<span class="crisis war" title="At 100 the war goes nuclear and the game ends.">At war ${meter(S.war.esc, 'bad', [100])} ${Math.round(S.war.esc)}</span>`
     : S.blockade ? `<span class="crisis quar">Taiwan quarantined</span>` : '';
-  return `<div class="plate"><span class="pname">${PHASES[S.phase] ? PHASES[S.phase][0] : ''}</span><span class="pclock">${clock}</span>${crisis}</div>`;
+  // a failing pause says so: three months under 25 support breaks it, and under 12 it breaks at once
+  const left = 3 - (S.pacing.low || 0), breaking = S.phase === 'p1' && S.pacing.active && S.pacing.low > 0 ? `<span class="crisis war" title="Three months with pacing support under 25 breaks the pause; support under 12 breaks it at once.">Pause breaks in ${left} month${left === 1 ? '' : 's'} unless support recovers</span>` : '';
+  return `<div class="plate"><span class="pname">${PHASES[S.phase] ? PHASES[S.phase][0] : ''}</span><span class="pclock">${clock}</span>${crisis}${breaking}</div>`;
 }
 // A title card when the phase changes, once the inbox is clear.
 function phaseCard() {
