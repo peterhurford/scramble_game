@@ -72,8 +72,8 @@ function charter(s, G) {
 const SIGHT = process.env.SIGHT || 'readout';
 function seen(s) {
   const extra = { courts: SIGHT === 'truth' ? s.courts : SIGHT === 'readout' ? E.courtRead(s).seen : 1, sci: s.cn.f.sci };
-  if (SIGHT === 'readout') return Object.assign({}, E.view(s).cnRead.seen, extra);
-  const e = E.view(s).cnEst; const t = SIGHT === 'truth' ? e : null;
+  if (SIGHT === 'readout') return Object.assign({}, E.quickView(s).cnRead.seen, extra);
+  const e = E.quickView(s).cnEst; const t = SIGHT === 'truth' ? e : null;
   const c = s.cn, b = E.cnSources({ sme: 1, remote: 1, smuggle: 1, legal: 1 }), src = t ? E.cnSources(c) : { offshore: b.offshore * Math.min(1, c.remoteT), smuggled: b.smuggled * Math.min(1, c.smuggleT), legal: b.legal * c.legalT };
   return Object.assign(src, extra, { dist: t ? c.dist : Math.min(1, c.distT), cyber: t ? c.cyber : 1, hide: t ? c.hide : 1 });
 }
@@ -95,13 +95,13 @@ function turn(s, G) {
   while (G.ceasefire && s.war && !s.ending && guard++ < 3 && tryAct(s, 'ceasefire', {}, G, 'at war, escalation ' + Math.round(s.war.esc))) step();
   guard = 0;
   if (s.phase === 'p0') {
-    const v0 = E.view(s);
+    const v0 = E.quickView(s);
     const saving = v0.ic.mid < G.saveIc;
     if (v0.ic.mid < G.speechIc && v0.briefOdds < 0.5 && tryAct(s, 'speech', {}, G, 'IC says RSI within ' + G.speechIc.toFixed(1) + ' months and the meeting is not yet winnable')) step();
     const pols = POL0.filter(p => G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a]);
     for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { step(); break; } }
     if (s.phase !== 'p0') return;
-    const v1 = E.view(s);
+    const v1 = E.quickView(s);
     const wantBrief = (v1.rObs > G.briefR && v1.briefOdds > G.briefOdds) || (v1.ic.mid < G.briefIc && v1.briefOdds > G.briefIcOdds);
     if (wantBrief && tryAct(s, 'brief', {}, G, 'indicators ' + Math.round(100 * v1.rObs) + '% of the way and odds ' + Math.round(100 * v1.briefOdds) + '% (asks only above ' + Math.round(100 * G.briefOdds) + '%)')) { step(); return; }
     for (const p of PEOPLE) { if (G['fav.' + p] && s.pc - E.currentAsk(s, p).pc >= G.favReserve && tryAct(s, 'favor', { who: p }, G, 'grants this principal\u2019s asks whenever capital stays at ' + G.favReserve + '+')) step(); }
@@ -117,7 +117,7 @@ function turn(s, G) {
     return;
   }
   if (s.phase === 'scramble') {
-    const seqV = G.seq === 'adaptive' ? (E.view(s).ic.mid >= G.seqIc ? 'together' : 'first') : G.seq;
+    const seqV = G.seq === 'adaptive' ? (E.quickView(s).ic.mid >= G.seqIc ? 'together' : 'first') : G.seq;
     const mv = s.pacing.mech || mechFor(s, G);
     const plan = [['mech', { variant: mv }], ['threshold', { variant: G.thr }], ['sequence', { variant: seqV }]];
     if (G.auto) plan.push(['automation', {}]);
@@ -140,7 +140,7 @@ function turn(s, G) {
   }
   if (s.phase === 'p1') {
     while (s.ap > 0 && guard++ < 14 && !s.ending) {
-      const v = E.view(s);
+      const v = E.quickView(s);
       const confOk = CONF.indexOf(E.betrayWord(s)) >= CONF.indexOf(G.summitConf);
       if (confOk && tryAct(s, 'summit', {}, G, 'every Phase 2 requirement is met and confidence Beijing will comply is ' + E.betrayWord(s))) { step(); continue; }
       if (s.intelQ < G.intelTarget && tryAct(s, 'assess', {}, G, 'intelligence below ' + Math.round(G.intelTarget))) { step(); continue; }
@@ -169,7 +169,7 @@ function turn(s, G) {
 function offerTerms(s, G) {
   const t = {};
   ['inspect', 'lane', 'institute', 'relief', 'visas', 'freeze', 'chips'].forEach(k => { if (G['o.' + k]) t[k] = true; });
-  if (E.view(s).leadEst.mid > G.threatLead) t.threat = true; // the IC estimate, not the hidden truth
+  if (E.quickView(s).leadEst.mid > G.threatLead) t.threat = true; // the IC estimate, not the hidden truth
   return t;
 }
 function play(G, seed, diff) {

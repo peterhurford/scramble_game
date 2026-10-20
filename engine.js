@@ -403,7 +403,7 @@ function icEstimate(s) {
 function cnEstimate(s) {
   const c = s.cn, rel = (0.05 + 0.3 * (1 - s.intelQ / 100)) * (s.flags.assessUntil >= s.turn ? 0.5 : 1);
   const k = Math.floor(s.turn / 3), fr = (s.turn % 3) / 3;
-  const noise = key => ((hash01(s.seed, 'cn' + key, k) * (1 - fr) + hash01(s.seed, 'cn' + key, k + 1) * fr) - 0.5) * 2 * rel;
+  const noise = key => ((cnHash(s, key, k) * (1 - fr) + cnHash(s, key, k + 1) * fr) - 0.5) * 2 * rel;
   const src = cnSources(c);
   for (const key in src) src[key] = Math.max(0, src[key] * (1 + noise(key)));
   const comp = cnComp(s) * (1 + noise('comp')), sum = Object.values(src).reduce((a, x) => a + x, 0) || 1;
@@ -411,6 +411,9 @@ function cnEstimate(s) {
   return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, cnRate(s) * (1 + noise('rate'))), rel,
     cyber: Math.max(0.2, (c.cyber || 1) * (1 + noise('cyber'))), hide: Math.max(0.2, (c.hide || 1) * (1 + noise('hide'))) };
 }
+// hash01(seed, 'cn' + key, k), cached per game: the readout asks for the same draws many times a turn.
+const CN_HASH = new WeakMap();
+function cnHash(s, key, k) { let c = CN_HASH.get(s); if (!c || c.seed !== s.seed) { c = { seed: s.seed }; CN_HASH.set(s, c); } const id = key + '|' + k; const v = c[id]; return v !== undefined ? v : (c[id] = hash01(s.seed, 'cn' + key, k)); }
 // How precisely the advisor can read Beijing: words while intelligence is patchy, ranges once decent, numbers once sharp. An IC assessment counts as +20.
 function cnReadout(s) {
   const e = cnEstimate(s), q = s.intelQ + (s.flags.assessUntil >= s.turn ? 20 : 0), tier = q < 45 ? 0 : q < 70 ? 1 : 2;
@@ -1748,9 +1751,11 @@ function eligible(s, e) {
   if (e.when && !e.when(s)) return false;
   return true;
 }
+let EV_LIST = null; // every event, in definition order, built on first use
 function rollEvents(s) {
   const max = s.phase === 'scramble' ? 1 : 2;
-  const pool = Object.keys(EV).map(k => EV[k]).filter(e => eligible(s, e));
+  if (!EV_LIST) EV_LIST = Object.keys(EV).map(k => EV[k]);
+  const pool = EV_LIST.filter(e => eligible(s, e));
   // shuffle deterministically through the rng
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd(s) * (i + 1)); const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp; }
   let n = 0;
@@ -2060,8 +2065,14 @@ function view(s) {
   };
 }
 
+// The parts of view() bots read, each computed only when asked for.
+function quickView(s) {
+  return { get ic() { return icEstimate(s); }, get leadEst() { return leadEstimate(s); }, get briefOdds() { return s.phase === 'p0' ? briefOdds(s) : null; }, get rObs() { return rObserved(s); },
+    get support() { return pacingSupport(s); }, get senate() { return senateVotes(s); }, get cnRead() { return cnReadout(s); }, get cnEst() { return cnEstimate(s); } };
+}
+
 const API = {
-  newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view,
+  newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view, quickView,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,

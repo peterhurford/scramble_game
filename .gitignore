@@ -1,3 +1,4 @@
 .DS_Store
 sim/*.out
 sim/*.log
+sim/.search.lock
