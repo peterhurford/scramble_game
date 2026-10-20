@@ -115,7 +115,7 @@ function snap() {
   if (S.phase === 'p0') put('alarm', 'Alarm', S.alarm, 1);
   put('senate', 'Senate votes', v.senate, 1); if (S.pacing.active) put('sup', 'Pacing support', v.support, 1);
   E.COMPONENTS.forEach(c => put('v_' + c.id, 'Verification: ' + c.short, S.verify[c.id], 1));
-  put('sl', 'Security level', S.sl, 1); put('intel', 'Intelligence', S.intelQ, 1); put('apMax', 'Actions per turn', S.apMax, 1); put('warp', 'Verification funding', S.warp, 1);
+  put('sl', 'Security level', S.sl, 1); put('intel', 'Intelligence', S.intelQ, 1); put('apMax', 'Actions per turn', E.apFor(S), 1); put('warp', 'Verification funding', S.warp, 1);
   const gain = n => ['Beijing\u2019s ' + n + ' faction gaining ground', 'Beijing\u2019s ' + n + ' faction losing ground'];
   put('trust', 'Beijing trust', S.cn.trust, 1, ['Beijing trusts Washington more', 'Beijing trusts Washington less']); put('sci', '', S.cn.f.sci, 1, gain('science')); put('secf', '', S.cn.f.sec, -1, gain('security')); put('mktf', '', S.cn.f.m, 0, gain('market'));
   put('drag', '', 100 * v.drag.total, 0, ['Our moves slow US labs more', 'Our moves slow US labs less']); put('cov', 'Coverage (%)', v.coverage, 1);
@@ -190,7 +190,7 @@ function showDeltas() {
   }
 }
 function topBar(v) {
-  const dots = '●'.repeat(S.ap) + '○'.repeat(Math.max(0, S.apMax - S.ap));
+  const dots = '●'.repeat(S.ap) + '○'.repeat(Math.max(0, E.apFor(S) - S.ap));
   const stat = (id, lab, val, tip, cls) => `<button class="stat ${cls || ''}" id="${id}" title="${esc(tip)}"><span>${lab}</span><b>${val}</b></button>`;
   return `<div class="top"><div class="top-in">
     <div class="mark">The Scramble<small>${esc(v.date)}</small></div>

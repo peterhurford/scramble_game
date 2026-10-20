@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, eventsPerTurn: 1, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -468,7 +468,7 @@ function newGame(opts) {
   const D = DIFFS[dk];
   const s = {
     v: 1, seed, rs: seed, diff: dk, t: START_T, turn: 1, phase: 'p0',
-    ap: D.ap, apMax: D.ap, pc: 4, cred: D.cred, alarm: 8, salience: 28, markets: 100, tension: D.tension, coalition: 30,
+    ap: D.ap + TUNE.p0Ap, apMax: D.ap, pc: 4, cred: D.cred, alarm: 8, salience: 28, markets: 100, tension: D.tension, coalition: 30,
     W: 25, sl: 3, intelQ: 30, senateLobby: 0, overhang: 0, riskExposure: 0, warp: 0,
     verify: { survey: 15, inspect: 8, novel: 5 },
     projects: {}, done: {}, policies: {}, flags: { cooldowns: {} },
@@ -1861,8 +1861,10 @@ function normalize(s) {
 function snapshot(s) {
   return { lead: lead(s), F: frontier(s), cn: s.cn.cap, cred: s.cred, pc: s.pc, salience: s.salience, markets: s.markets, tension: s.tension, coalition: s.coalition, alarm: s.alarm, coverage: coverage(s), ready1: ready1(s), ready2: ready2(s).avg, senate: senateVotes(s), support: pacingSupport(s), W: s.W, risk: monthlyRisk(s) };
 }
-// Months a turn covers: two in Phase 0, and in Phase 1 once a deal is in force; one otherwise, and in wartime. The scramble runs two days a turn.
-function turnMonths(s) { return s.phase === 'scramble' || s.war ? 1 : s.phase === 'p0' || (s.phase === 'p1' && s.cn.deal) ? TUNE.slowMonths : 1; }
+// Months a turn covers: two in Phase 0 (outside wartime), one otherwise. The scramble runs two days a turn.
+function turnMonths(s) { return s.phase === 'p0' && !s.war ? TUNE.slowMonths : 1; }
+// Actions a turn: Phase 0's two-month turns get TUNE.p0Ap more.
+function apFor(s) { return s.apMax + (s.phase === 'p0' ? TUNE.p0Ap : 0); }
 // events that cut a two-month turn short, so the player answers them before another month passes
 const STRAIT_STOP = ['blockade', 'war_begins', 'war', 'knock', 'runaway'];
 function endTurn(s) {
@@ -1874,7 +1876,7 @@ function endTurn(s) {
   for (let i = 0; i < n && !s.ending && !s.queue.some(q => STRAIT_STOP.indexOf(q.id) >= 0); i++) tick(s);
   // once a turn, not once a month: the event roll, fresh actions and capital
   rollEvents(s);
-  s.ap = s.apMax; s.roomUsed = 0;
+  s.ap = apFor(s); s.roomUsed = 0;
   s.pcCarry = (s.pcCarry || 0) + capitalIncome(s); const whole = Math.trunc(s.pcCarry); s.pc += whole; s.pcCarry -= whole;
   normalize(s);
   checkEnd(s);
@@ -2156,7 +2158,7 @@ const API = {
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, standbyCred, standbyParts, termRead, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
-  EVENTS: EV, recentFavors, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
+  EVENTS: EV, recentFavors, apFor, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
 })(typeof self !== 'undefined' ? self : this);
