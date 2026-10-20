@@ -2,7 +2,7 @@
 // and splits the win rates by the game's hidden court climate. Usage: node sim/mechs.js [genome.json] [games]
 const S = require('./strategy.js'), E = require('../engine.js');
 const file = process.argv[2] || __dirname + '/best_genome.json';
-const G = Object.assign(S.expertGenome(), require(file.startsWith('/') ? file : process.cwd() + '/' + file));
+const G = Object.assign(S.expertGenome(), S.loadGenome(file));
 const seeds = Array.from({ length: +(process.argv[3] || 1500) }, (_, i) => 900000 + i);
 const climate = c => c < 0.83 ? 'friendly' : c < 1.17 ? 'mixed' : 'hostile';
 const pct = (a, n) => n ? (100 * a / n).toFixed(1) + '%' : '-';

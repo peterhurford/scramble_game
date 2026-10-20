@@ -82,9 +82,10 @@ async function search(RUN) {
   // genes a START genome lacks keep the expert's values
   // START may list one genome per run, in RUNS order
   const starts = (process.env.START || '').split(',').filter(Boolean), start = starts[RUNS.indexOf(RUN)] || starts[0];
-  let parent = start ? Object.assign(S.expertGenome(), require(path.resolve(start))) : S.expertGenome();
+  let parent = start ? Object.assign(S.expertGenome(), S.loadGenome(start)) : S.expertGenome();
+  delete parent._rules;
   Object.assign(parent, PIN);
-  const T0 = Date.now();
+  const T0 = Date.now(), stamp = S.rulesStamp();
   let b = 0, seeds = batch(b);
   let pr = (await evalMany([parent], seeds))[0];
   console.log(`run ${RUN} gen 0  parent win ${(100 * pr.win).toFixed(1)}%  score ${pr.score.toFixed(0)}`);
@@ -99,7 +100,7 @@ async function search(RUN) {
       parent = kids[bi]; pr = res[bi];
       const line = `run ${RUN} gen ${gen}  win ${(100 * pr.win).toFixed(1)}%  score ${pr.score.toFixed(0)}  loc ${(100 * pr.loc).toFixed(1)}%  changed: ${changed.join(', ')}`;
       console.log(line); fs.appendFileSync(logf, line + '\n');
-      fs.writeFileSync(out, JSON.stringify(parent, null, 1));
+      fs.writeFileSync(out, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1));
     }
   }
   const secs = ((Date.now() - T0) / 1000).toFixed(0);

@@ -184,4 +184,19 @@ function evaluate(G, seeds, diff) {
   for (const sd of seeds) { const s = play(G, sd, diff); if (s.ending === 'phase2') wins++; if (s.ending === 'loc') loc++; score += E.score(s).score; }
   return { win: wins / seeds.length, score: score / seeds.length, loc: loc / seeds.length };
 }
-module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE, PGATE };
+// Which rules a genome was searched under: a hash of engine.js and the gene list (what the genome means), plus the commit for people.
+function rulesStamp() {
+  const fs = require('fs'), path = require('path'), cp = require('child_process'), root = path.join(__dirname, '..');
+  const hash = require('crypto').createHash('sha1').update(fs.readFileSync(path.join(root, 'engine.js'))).update(JSON.stringify(GENES)).digest('hex').slice(0, 12);
+  let commit = 'unknown'; try { commit = cp.execSync('git rev-parse --short HEAD', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() + (cp.execSync('git status --porcelain engine.js', { cwd: root }).toString().trim() ? '+dirty' : ''); } catch (e) {}
+  return { hash, commit, at: new Date().toISOString() };
+}
+// Load a genome and warn when the rules have changed since it was searched. Keys starting with _ are metadata, not genes.
+function loadGenome(file) {
+  const abs = require('path').resolve(file), G = JSON.parse(require('fs').readFileSync(abs, 'utf8')), now = rulesStamp();
+  if (!G._rules) console.warn(`warning: ${file} has no rules stamp; its numbers may predate the current rules (${now.commit})`);
+  else if (G._rules.hash !== now.hash) console.warn(`warning: ${file} was searched under ${G._rules.commit}; the rules have changed since (now ${now.commit})`);
+  return G;
+}
+const genes = G => Object.keys(G).filter(k => k[0] !== '_');
+module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE, PGATE, rulesStamp, loadGenome, genes };

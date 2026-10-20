@@ -3,7 +3,7 @@
 const E = require('../engine.js');
 const S = require('./strategy.js');
 const file = process.argv[2] || __dirname + '/best_genome_advisor_v2.json';
-const G = require(file.startsWith('/') ? file : process.cwd() + '/' + file);
+const G = S.loadGenome(file);
 const X = S.expertGenome();
 const out = [];
 const P = x => out.push(x);
@@ -14,10 +14,10 @@ const name = id => E.PD(E.newGame({ seed: 1 }), id).name;
 const seeds = Array.from({ length: 800 }, (_, i) => 600000 + i);
 const base = S.evaluate(G, seeds);
 const worth = {};
-Object.keys(G).filter(k => JSON.stringify(G[k]) !== JSON.stringify(X[k])).forEach(k => { worth[k] = base.win - S.evaluate(Object.assign({}, G, { [k]: X[k] }), seeds).win; });
+S.genes(G).filter(k => JSON.stringify(G[k]) !== JSON.stringify(X[k])).forEach(k => { worth[k] = base.win - S.evaluate(Object.assign({}, G, { [k]: X[k] }), seeds).win; });
 const w = k => worth[k] == null ? '' : ` _(worth ${worth[k] >= 0 ? '+' : ''}${(100 * worth[k]).toFixed(1)} pts vs the expert's choice)_`;
 
-P(`# The optimized strategy\n\nWins ${pct(base.win)} of 800 fresh Advisor games (loss of control ${pct(base.loc)}). "Worth" = how many points of win rate are lost if that one rule is switched back to the scripted expert's choice.\n`);
+P(`# The optimized strategy\n\n_Genome ${file}, searched under ${G._rules ? G._rules.commit : 'unstamped rules'}; narrated under ${S.rulesStamp().commit}._\n\nWins ${pct(base.win)} of 800 fresh Advisor games (loss of control ${pct(base.loc)}). "Worth" = how many points of win rate are lost if that one rule is switched back to the scripted expert's choice.\n`);
 
 P('## Phase 0 (monthly turns)\n');
 const projs = S.PROJ.filter(p => G['proj.' + p] >= 0).sort((a, b) => G['proj.' + b] - G['proj.' + a]);
