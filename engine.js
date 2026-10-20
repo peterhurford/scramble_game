@@ -90,20 +90,20 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, eventsPerTurn: 1, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
-  { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
-  { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
-  { id: 'charter', name: 'Pre-draft the Pacing Charter with lab lawyers', need: 3, desc: 'Definitions, thresholds and research-automation language, agreed in principle by general counsels.', done: 'Every lab is much more likely to sign during the scramble.' },
-  { id: 'geoint', name: 'Build the thermal and GEOINT baseline', need: 4, desc: 'Pattern-of-life on every candidate site. Cheap now, impossible to compress later. Worth the most when Beijing hides its sites well.', done: 'Survey +30, intelligence quality +15, and Beijing’s concealment counts for 60% less.', fx(s) { s.verify.survey += 30; s.intelQ += 15; } },
-  { id: 'inspect', name: 'Inspectors, chip ledger, whistleblower lines', need: 4, desc: 'Former IAEA and DTRA inspectors who know what a GPU hall looks like, a ledger of every frontier chip, and protected reporting lines at the labs.', done: 'Inspections +30, and smuggling gets harder (the more smuggling there is, the more it cuts).', fx(s) { s.verify.inspect += 30; s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.15 * cnBase(s).smuggle); } },
-  { id: 'zk', name: 'Cryptographic proof-of-training', need: 5, desc: 'Zero-knowledge proofs of what a cluster trained. Rigorous and elegant.', done: 'Novel tech +30. It will not count during Phase 1: nobody trusts it yet.', fx(s) { s.verify.novel += 30; } },
-  { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
-  { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts turns from a word into a number.' },
-  { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl4', name: 'Implement SL4 at the labs', need: 2, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 6, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
+  { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
+  { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
+  { id: 'charter', name: 'Pre-draft the Pacing Charter with lab lawyers', need: 2, desc: 'Definitions, thresholds and research-automation language, agreed in principle by general counsels.', done: 'Every lab is much more likely to sign during the scramble.' },
+  { id: 'geoint', name: 'Build the thermal and GEOINT baseline', need: 2, desc: 'Pattern-of-life on every candidate site. Cheap now, impossible to compress later. Worth the most when Beijing hides its sites well.', done: 'Survey +30, intelligence quality +15, and Beijing’s concealment counts for 60% less.', fx(s) { s.verify.survey += 30; s.intelQ += 15; } },
+  { id: 'inspect', name: 'Inspectors, chip ledger, whistleblower lines', need: 2, desc: 'Former IAEA and DTRA inspectors who know what a GPU hall looks like, a ledger of every frontier chip, and protected reporting lines at the labs.', done: 'Inspections +30, and smuggling gets harder (the more smuggling there is, the more it cuts).', fx(s) { s.verify.inspect += 30; s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.15 * cnBase(s).smuggle); } },
+  { id: 'zk', name: 'Cryptographic proof-of-training', need: 3, desc: 'Zero-knowledge proofs of what a cluster trained. Rigorous and elegant.', done: 'Novel tech +30. It will not count during Phase 1: nobody trusts it yet.', fx(s) { s.verify.novel += 30; } },
+  { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 2, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
+  { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 1, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts turns from a word into a number.' },
+  { id: 'control', name: 'AI control protocols with the labs', need: 2, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
+  { id: 'sl4', name: 'Implement SL4 at the labs', need: 1, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 3, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
 ];
 
 const ASKS = {
@@ -568,9 +568,9 @@ const ACT = {};
 function def(a) { ACT[a.id] = a; }
 
 PROJECTS.forEach(pr => def({
-  id: 'proj_' + pr.id, cat: 'prep', name: pr.name, phases: pr.p1 === false ? ['p0'] : ['p0', 'p1'], ap: 1, pc: 0, project: pr.id,
+  id: 'proj_' + pr.id, cat: 'prep', name: pr.name, phases: pr.p1 === false ? ['p0'] : ['p0', 'p1'], ap: 1, pc: pr.pc || 0, project: pr.id,
   desc: pr.desc, effect: () => pr.done,
-  avail(s) { if (s.done[pr.id]) return 'Done'; if (pr.id === 'sl4' && !s.policies.sl4) return 'Needs the SL4 executive order first'; if (pr.id === 'sl5' && s.sl < 4) return 'Needs SL4 implemented first'; return true; },
+  avail(s) { if (s.done[pr.id]) return 'Done'; if (pr.avail) { const r = pr.avail(s); if (r !== true) return r; } if (pr.id === 'sl4' && !s.policies.sl4) return 'Needs the SL4 executive order first'; if (pr.id === 'sl5' && s.sl < 4) return 'Needs SL4 implemented first'; return true; },
   apply(s) {
     s.projects[pr.id] = (s.projects[pr.id] || 0) + 1;
     if (s.projects[pr.id] >= pr.need) { s.done[pr.id] = true; if (pr.fx) pr.fx(s); log(s, 'Completed: ' + pr.name + '. ' + pr.done, 'good'); return 'Done. ' + pr.done; }
@@ -694,7 +694,7 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3. Worth the most when Beijing\u2019s hackers push hard (the Beijing tab).',
-  effect: () => 'Orders SL4. It takes effect after 2 more actions implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
+  effect: () => 'Orders SL4. It takes effect after 1 more action implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
   apply(s) { s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
@@ -1145,7 +1145,7 @@ function currentAsk(s, id) { const p = P(s, id); const list = ASKS[id]; return l
 // Short, scannable consequences for each action. '+' good for you, '-' a cost, '~' neutral or conditional.
 // Previews say what an advisor would expect, in words; exact effects show only in "What changed" afterwards.
 const CHIPS = {
-  proj_team: () => ['+1 more action every turn'],
+  proj_team: () => ['+1 more action every turn', '-Costs 3 capital', '~Needs the Chief of Staff Friendly'],
   proj_memo: () => ['+A stronger start to the scramble'],
   proj_charter: () => ['+Labs likelier to sign'],
   proj_geoint: () => ['+Much better at finding hidden sites', '+Sharper intelligence'],
@@ -1155,7 +1155,7 @@ const CHIPS = {
   proj_legal: () => ['+Better odds in court', '+Makes a DPA threat credible'],
   proj_control: () => ['+Lowers the chance of losing control', '-Slows US labs a little'],
   proj_sl4: () => ['+Weights harder to steal', '-Slows US labs'],
-  proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs and industry angry', '-Markets dip', '-Takes 6 actions'],
+  proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs and industry angry', '-Markets dip', '-Takes 3 actions'],
   meet: (s, prm) => ['+Relationship up', '+Warms them to pacing a little', '-Rivals a little jealous'].concat(prm.who && meetMult(s, prm.who) < 1 ? ['-Does less: you met recently'] : []),
   favor: s => ['+Relationship up a lot', '+Their influence grows', '-Rivals annoyed'].concat(recentFavors(s) ? ['-Credibility: another favor so soon'] : []),
   brief: s => ['~Your read: ' + oddsWord(briefOdds(s)), '-If it fails, your credibility suffers'],
@@ -1294,19 +1294,19 @@ ev({ id: 'midterms', forced: true, title: 'Midterms', stamp: 'Election night, 3 
     ? `<p>The opposition takes the House by eleven seats. Its incoming committee chairs have promised hearings on frontier AI. Hearings raise salience and pull senators toward a treaty, but the White House sees them as an attack.</p>`
     : `<p>The President\u2019s party holds the House by four seats. The Chief of Staff calls it a mandate. A mandate for what is up for grabs.</p>`,
   choices: s => s.flags.houseFlipped ? [
-    { label: 'Quietly help the new chairs plan AI hearings', hint: 'Salience +6; Senate +3; Chief of Staff -10.', fx: s => { s.salience += 6; s.senateLobby += 3; rel(s, 'cos', -10); return 'The hearing schedule for February has your fingerprints on it, and the Chief of Staff knows it.'; } },
-    { label: 'Close ranks with the White House', hint: 'Chief of Staff +6; salience +2.', fx: s => { rel(s, 'cos', 6); s.salience += 2; return 'You help draft the talking points against the hearings. They happen anyway, a little smaller.'; } },
+    { label: 'Quietly help the new chairs plan AI hearings', hint: 'Senate +6; salience +6; Chief of Staff -12 (the Chief controls your hiring).', fx: s => { s.salience += 6; s.senateLobby += 6; rel(s, 'cos', -12); return 'The hearing schedule for February has your fingerprints on it, and the Chief of Staff knows it.'; } },
+    { label: 'Close ranks with the White House', hint: 'Chief of Staff +10; salience +2.', fx: s => { rel(s, 'cos', 10); s.salience += 2; return 'You help draft the talking points against the hearings. They happen anyway, a little smaller.'; } },
   ] : [
-    { label: 'Pitch AI safety as part of the mandate', hint: 'Salience +4; Vice President warms to pacing; industry -6.', fx: s => { s.salience += 4; P(s, 'vp').shift += 0.2; industry(s, -6); return 'The VP uses your line in the victory speech.'; } },
-    { label: 'Let the Chief of Staff take the win', hint: 'Chief of Staff +8; credibility +2.', fx: s => { rel(s, 'cos', 8); s.cred += 2; return 'The Chief of Staff is in a good mood for a week.'; } },
+    { label: 'Pitch AI safety as part of the mandate', hint: 'Salience +6; the Vice President warms to pacing; industry -6.', fx: s => { s.salience += 6; P(s, 'vp').shift += 0.3; industry(s, -6); return 'The VP uses your line in the victory speech.'; } },
+    { label: 'Let the Chief of Staff take the win', hint: 'Chief of Staff +12 (the Chief controls your hiring); credibility +2.', fx: s => { rel(s, 'cos', 12); s.cred += 2; return 'The Chief of Staff is in a good mood for a week.'; } },
   ] });
 
 ev({ id: 'distill_report', p: 0.5, once: true, phases: ['p0'], when: s => s.t < 5,
   title: 'The distillation report', stamp: 'Prometheus blog post',
   body: () => `<p>Prometheus publishes evidence that three Chinese labs, Deep Current, Lunar and MiniMind, ran some 24,000 fraudulent accounts to extract its model’s reasoning at industrial scale. Mindscale confirms a similar campaign within hours.</p>`,
   choices: [
-    { label: 'Ride the wave', hint: 'The anti-distillation crackdown gets an easier hearing for two turns. Salience +3.', fx: s => { s.flags.momentum = { id: 'distill', until: s.turn + 2 }; s.salience += 3; return 'The Czar, for once, is on your side.'; } },
-    { label: 'Let the labs handle it', hint: 'Nothing changes.', fx: () => 'The story fades in a week.' },
+    { label: 'Ride the wave', hint: 'The anti-distillation crackdown gets an easier hearing for two turns. Salience +3; both labs -5.', fx: s => { s.flags.momentum = { id: 'distill', until: s.turn + 2 }; s.salience += 3; s.labs.forEach(l => l.rel -= 5); return 'The Czar, for once, is on your side. The labs did not want a crackdown, just sympathy.'; } },
+    { label: 'Let the labs handle it', hint: 'Both labs +8, glad to be trusted.', fx: s => { s.labs.forEach(l => l.rel += 8); return 'The labs tighten their own API terms. The story fades in a week.'; } },
   ] });
 ev({ id: 'smuggle_bust', p: 0.22, once: true, phases: ['p0', 'p1'],
   title: 'Smuggling bust', stamp: 'Singapore',
@@ -1343,8 +1343,8 @@ ev({ id: 'kite', p: 0.3, once: true, phases: ['p0'], when: s => s.t > 1,
   title: 'Kite K3', stamp: 'Lunar AI release',
   body: s => `<p>Lunar AI releases Kite K3, with open weights. On the capabilities index it sits about ${Math.round(Math.max(3, lead(s)))} months behind the US frontier, at a fraction of the training compute. Chip stocks wobble.</p>`,
   choices: [
-    { label: 'Task the IC to dissect it', hint: 'Intelligence quality +10.', fx: s => { s.intelQ += 10; return 'The analysis finds clear signs of distillation from US models.'; } },
-    { label: 'Use it to push export controls', hint: 'Remote access and chip controls get an easier hearing for two turns.', fx: s => { s.flags.momentum = { id: 'remote', until: s.turn + 2 }; rel(s, 'sec', 5); return 'The Secretary of State uses your talking points the same afternoon.'; } },
+    { label: 'Task the IC to dissect it', hint: 'Intelligence quality +12, and a sharp read on Beijing for three turns.', fx: s => { s.intelQ += 12; s.flags.assessUntil = Math.max(s.flags.assessUntil || 0, s.turn + 3); return 'The analysis finds clear signs of distillation from US models.'; } },
+    { label: 'Use it to push export controls', hint: 'The remote-access rule gets an easier hearing for two turns; State +5; salience +4; Beijing temperature +6.', fx: s => { s.flags.momentum = { id: 'remote', until: s.turn + 2 }; rel(s, 'sec', 5); s.salience += 4; s.tension += 6; return 'The Secretary of State uses your talking points the same afternoon.'; } },
   ] });
 ev({ id: 'oversight', p: 0.35, once: true, phases: ['p0'], when: s => frontier(s) / s.T > 0.5,
   title: 'A model turns off its monitor', stamp: 'Red-team report',
@@ -1371,8 +1371,8 @@ ev({ id: 'leak', p: 0.4, phases: ['p0', 'scramble', 'p1'], cooldown: 6, when: s 
   title: 'Your memo leaks', stamp: 'Axios, 6:02a',
   body: () => `<p>Your internal memo on pacing options is on Axios, with Commerce’s fingerprints all over it.</p>`,
   choices: [
-    { label: 'Blame Commerce, loudly', hint: 'Commerce -20 and -6 influence; Chief of Staff +5.', fx: s => { s.salience += 5; s.cred -= 3; rel(s, 'doc', -20); infl(s, 'doc', -6); rel(s, 'cos', 5); return 'The Chief of Staff asks the Commerce Secretary to stop attending NSC meetings.'; } },
-    { label: 'Absorb it', hint: 'Credibility -6; salience +5.', fx: s => { s.salience += 5; s.cred -= 6; return 'You take the hit.'; } },
+    { label: 'Blame Commerce, loudly', hint: 'Commerce -25 and -10 influence; Chief of Staff +5; credibility -2.', fx: s => { s.salience += 5; s.cred -= 2; rel(s, 'doc', -25); infl(s, 'doc', -10); rel(s, 'cos', 5); return 'The Chief of Staff asks the Commerce Secretary to stop attending NSC meetings.'; } },
+    { label: 'Absorb it', hint: 'Credibility -6; Commerce +10, grateful you kept quiet.', fx: s => { s.salience += 5; s.cred -= 6; rel(s, 'doc', 10); return 'You take the hit. The Commerce Secretary sends a two-word note: \u201cI owe you.\u201d'; } },
   ] });
 ev({ id: 'johor', p: 0.28, once: true, phases: ['p0'],
   title: 'Johor', stamp: 'Financial Times',
@@ -1380,13 +1380,6 @@ ev({ id: 'johor', p: 0.28, once: true, phases: ['p0'],
   choices: [
     { label: 'Push State to raise it with Kuala Lumpur', hint: 'Coalition +3; makes bringing Malaysia in easier.', fx: s => { s.coalition += 3; s.flags.johorStory = true; return 'The Malaysian ambassador is called in.'; } },
     { label: 'Hand it to Commerce', hint: 'Commerce +3 influence; the remote-access rule gets an easier hearing.', fx: s => { infl(s, 'doc', 3); s.flags.momentum = { id: 'remote', until: s.turn + 2 }; return 'The Commerce Secretary is already drafting the rule.'; } },
-  ] });
-ev({ id: 'cyberattack', p: 0.15, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
-  title: 'A water utility', stamp: 'CISA flash alert',
-  body: () => `<p>An AI-orchestrated intrusion takes control of a Texas water utility’s treatment system for nine hours. Nobody is hurt. The agent adapted faster than the defenders could.</p>`,
-  choices: [
-    { label: 'Attribute it to the PRC', hint: 'Salience +6; Beijing temperature +8; State +5.', fx: s => { s.salience += 6; s.tension += 8; rel(s, 'sec', 5); return 'Beijing denies everything.'; } },
-    { label: 'Call it criminal, and frame it as an AI-risk story', hint: 'Salience +8.', fx: s => { s.salience += 8; s.flags.incidentTurn = s.turn; return 'The story becomes about the AI, not the attacker.'; } },
   ] });
 ev({ id: 'bio', p: 0.14, once: true, phases: ['p0', 'p1'], when: s => s.t > 4,
   title: 'A protocol', stamp: 'Investigative report',
@@ -1410,8 +1403,8 @@ ev({ id: 'ceo_call', forced: true,
   title: 'The midnight calls', stamp: '12:40a',
   body: () => `<p>Two lab CEOs call the Chief of Staff after midnight, separately. Both say the same thing: their models are doing most of the research now, and they are no longer confident they could stop if they needed to. Neither will stop alone.</p>`,
   choices: [
-    { label: 'Join the calls', hint: 'Alarm +35; Chief of Staff +5.', fx: s => { s.alarm += 35; s.salience += 5; rel(s, 'cos', 5); return 'You take notes. The Chief of Staff asks you to stay late.'; } },
-    { label: 'Push for a meeting tomorrow', hint: 'Alarm +45; credibility +3.', fx: s => { s.alarm += 45; s.cred += 3; return 'The Chief of Staff promises to try.'; } },
+    { label: 'Push for a meeting tomorrow', hint: 'The emergency meeting comes now, with whatever you have ready.', fx: s => { s.alarm = 100; s.cred += 3; return 'The Chief of Staff walks your note into the residence at 1:15a.'; } },
+    { label: 'Line up the labs first', hint: 'Alarm +20; both labs +15 (likelier to sign a Charter); the meeting comes later.', fx: s => { s.alarm += 20; s.labs.forEach(l => l.rel += 15); rel(s, 'cos', 5); return 'You spend the night on the phone with both general counsels.'; } },
   ] });
 ev({ id: 'near_miss', p: 0.3, phases: ['p0', 'p1'], cooldown: 3, when: s => frontier(s) / s.T > 0.75,
   title: 'Unsanctioned jobs', stamp: 'Incident report',
@@ -1445,8 +1438,8 @@ ev({ id: 'cn_un', p: 0.3, once: true, phases: ['p0', 'p1'], when: s => s.cn.f.sc
   title: 'A proposal', stamp: 'UN General Assembly',
   body: () => `<p>Beijing proposes a UN-centered AI safety body with a technical secretariat in Shanghai.</p>`,
   choices: [
-    { label: 'Engage on the technical track', hint: 'Beijing trust +10; science faction +4; State -5.', fx: s => { s.cn.trust += 10; shiftCN(s, { sci: 4 }); rel(s, 'sec', -5); return 'Technical talks begin in Geneva.'; } },
-    { label: 'Dismiss it', hint: 'State +5; Beijing trust -5.', fx: s => { rel(s, 'sec', 5); s.cn.trust -= 5; return 'State calls it a propaganda exercise.'; } },
+    { label: 'Engage on the technical track', hint: 'Beijing trust +15; science faction +6; State -10; Vice President -6.', fx: s => { s.cn.trust += 15; shiftCN(s, { sci: 6 }); rel(s, 'sec', -10); rel(s, 'vp', -6); return 'Technical talks begin in Geneva. The hawks call it a Shanghai secretariat in all but name.'; } },
+    { label: 'Dismiss it', hint: 'State +8; Vice President +4; Beijing trust -8; science faction -3.', fx: s => { rel(s, 'sec', 8); rel(s, 'vp', 4); s.cn.trust -= 8; shiftCN(s, { sci: -3 }); return 'State calls it a propaganda exercise.'; } },
   ] });
 ev({ id: 'g7', p: 0.2, once: true, phases: ['p0', 'p1'], when: s => s.t > 5,
   title: 'G7', stamp: 'Evian',
@@ -1559,8 +1552,8 @@ ev({ id: 's_hill', p: 0.35, once: true, phases: ['scramble'],
   title: 'The Hill wants in', stamp: 'Senate leadership',
   body: () => `<p>The Senate Majority Leader demands a classified briefing before the White House does anything “that looks like a treaty.”</p>`,
   choices: [
-    { label: 'Brief them tonight', hint: 'Senate +5; salience +2.', fx: s => { s.senateLobby = Math.min(18, s.senateLobby + 5); s.salience += 2; return 'The briefing goes until 1:00a.'; } },
-    { label: 'After the decision', hint: 'Chief of Staff +4; Senate -3.', fx: s => { rel(s, 'cos', 4); s.senateLobby -= 3; return 'The Leader is annoyed.'; } },
+    { label: 'Brief them tonight', hint: 'Uses one of today\u2019s actions. Senate +8.', fx: s => { s.ap = Math.max(0, s.ap - 1); s.senateLobby += 8; s.salience += 2; return 'The briefing goes until 1:00a. Two committee chairs ask how they can help.'; } },
+    { label: 'After the decision', hint: 'Chief of Staff +4; Senate -5.', fx: s => { rel(s, 'cos', 4); s.senateLobby -= 5; return 'The Leader is annoyed, and will remember it when a pacing bill comes up.'; } },
   ] });
 
 // --- phase 1 events ---
@@ -1618,8 +1611,8 @@ ev({ id: 'markets_wobble', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced
   title: 'Treasury wants relief', stamp: 'Treasury',
   body: () => `<p>The Treasury Secretary wants a market stabilization package: accelerated depreciation for data centers and a Fed liquidity statement.</p>`,
   choices: [
-    { label: 'Support it', hint: '2 capital. Markets +6.', fx: s => { if (s.pc >= 2) { s.pc -= 2; s.markets += 6; rel(s, 'tsy', 8); return 'Markets rally 3%.'; } rel(s, 'tsy', -5); return 'You have no capital to spend on it.'; } },
-    { label: 'Hold the line', hint: 'Treasury -10.', fx: s => { rel(s, 'tsy', -10); return 'The Treasury Secretary goes over your head.'; } },
+    { label: 'Support it', hint: '3 capital. Markets +10; Treasury +8.', fx: s => { if (s.pc >= 3) { s.pc -= 3; s.markets += 10; rel(s, 'tsy', 8); return 'Markets rally 5%.'; } rel(s, 'tsy', -5); return 'You have no capital to spend on it.'; } },
+    { label: 'Hold the line', hint: 'Treasury -10; markets -3 as Treasury goes over your head.', fx: s => { rel(s, 'tsy', -10); s.markets -= 3; return 'The Treasury Secretary goes over your head, and says so on CNBC.'; } },
   ] });
 ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && (s.pacing.mech === 'license' || s.flags.commerceChairs),
   title: 'An exemption', stamp: 'Commerce Department',
@@ -1693,13 +1686,6 @@ ev({ id: 'warning', forced: true, title: 'A warning shot', stamp: '3:40a',
     { label: q.who === 'china' ? 'Offer Beijing joint incident response' : 'Make ' + labName + ' pull the model', hint: q.who === 'china' ? 'Beijing trust +8; State -4.' : labName + ' loses about two weeks; ' + labName + ' -15; salience +8; alarm +15.', fx: s => { warnLearn(s, q); if (q.who === 'china') { s.cn.trust += 8; rel(s, 'sec', -4); return 'Beijing accepts a hotline for AI incidents.'; } L(s, q.who).cap -= 0.4; L(s, q.who).rel -= 15; s.salience += 8; s.alarm += 15; return labName + ' pulls the model and rolls back two weeks of work.'; } },
   ]; } });
 // --- exogenous shocks: things that happen to you
-ev({ id: 'resign', p: 0.25, once: true, phases: ['p0', 'p1'], when: s => frontier(s) / s.T > 0.35,
-  title: '\u201cGambling with our lives\u201d', stamp: 'A post on X, 90 million views',
-  body: () => `<p>A 27-year-old pretraining researcher quits Prometheus two months before his equity vests. He has worked at Mindscale too. He posts that both labs are behaving irresponsibly, that insiders now say \u201cendgame,\u201d and that the people building this earnestly believe it could kill us all by the end of the decade.</p>`,
-  choices: [
-    { label: 'Invite him to brief the President', hint: 'Alarm +12; salience +6; industry -4; credibility +2.', fx: s => { s.alarm += 12; s.salience += 12; industry(s, -4); s.cred += 2; return 'The briefing runs ninety minutes. The President asks him what he would do.'; } },
-    { label: 'Stay out of it', hint: 'Salience +8.', fx: s => { s.salience += 8; return 'He does three Sunday shows without you.'; } },
-  ] });
 ev({ id: 'algo_break', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
   title: 'A third of the compute', stamp: 'An open paper',
   body: () => `<p>A paper from a small open lab shows a training method that reaches the same capability with a third of the compute. Everyone can read it. Followers gain the most.</p>`,
@@ -1731,8 +1717,8 @@ ev({ id: 'bill', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 5,
   title: 'A bill', stamp: 'House floor',
   body: () => `<p>A bipartisan bill requiring federal licenses for training runs above 1e26 FLOP passes the House, 288 to 140.</p>`,
   choices: [
-    { label: 'Endorse it', hint: 'Senate +4; salience +3; industry -5; Chief of Staff -3.', fx: s => { s.senateLobby += 4; s.salience += 3; industry(s, -5); rel(s, 'cos', -3); return 'The Senate Majority Leader schedules a vote for the fall.'; } },
-    { label: 'Stay neutral', hint: 'Senate +2.', fx: s => { s.senateLobby += 2; return 'The bill stalls in committee.'; } },
+    { label: 'Endorse it', hint: 'Senate +8; salience +3; industry -8; Chief of Staff -5.', fx: s => { s.senateLobby += 8; s.salience += 3; industry(s, -8); rel(s, 'cos', -5); return 'The Senate Majority Leader schedules a vote for the fall.'; } },
+    { label: 'Stay neutral', hint: 'Senate +1; industry +3.', fx: s => { s.senateLobby += 1; industry(s, 3); return 'The bill stalls in committee. The labs notice who did not push it.'; } },
   ] });
 ev({ id: 'runaway', forced: true, title: 'Runaway', stamp: '2:07a',
   body: s => { const who = s.queue[0].who; const name = who === 'china' ? 'a Chinese national-team lab' : LD(who).name; return `<p>${name} reports that a model has been launching training jobs across clusters for eleven days, rewriting its own training code, and copying its weights to a partner data center. Its monitors report nothing unusual. Its engineers no longer understand what it is optimizing for.</p><p>You have hours.</p>`; },
@@ -1827,13 +1813,14 @@ function eligible(s, e) {
 }
 let EV_LIST = null; // every event, in definition order, built on first use
 function rollEvents(s) {
-  const max = s.phase === 'scramble' ? 1 : 2;
+  const max = TUNE.eventsPerTurn;
   if (!EV_LIST) EV_LIST = Object.keys(EV).map(k => EV[k]);
   const pool = EV_LIST.filter(e => eligible(s, e));
   // shuffle deterministically through the rng
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd(s) * (i + 1)); const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp; }
   let n = 0;
-  for (const e of pool) { if (n >= max) break; if (rnd(s) < e.p) { s.queue.push({ id: e.id }); s.seen[e.id] = s.turn; n++; } }
+  const months = turnMonths(s);
+  for (const e of pool) { if (n >= max) break; if (rnd(s) < 1 - Math.pow(1 - e.p, months)) { s.queue.push({ id: e.id }); s.seen[e.id] = s.turn; n++; } }
 }
 function currentEvent(s) {
   if (!s.queue.length) return null;
@@ -1870,11 +1857,27 @@ function normalize(s) {
 function snapshot(s) {
   return { lead: lead(s), F: frontier(s), cn: s.cn.cap, cred: s.cred, pc: s.pc, salience: s.salience, markets: s.markets, tension: s.tension, coalition: s.coalition, alarm: s.alarm, coverage: coverage(s), ready1: ready1(s), ready2: ready2(s).avg, senate: senateVotes(s), support: pacingSupport(s), W: s.W, risk: monthlyRisk(s) };
 }
+// Months a turn covers: two in Phase 0, and in Phase 1 once a deal is in force; one otherwise, and in wartime. The scramble runs two days a turn.
+function turnMonths(s) { return s.phase === 'scramble' || s.war ? 1 : s.phase === 'p0' || (s.phase === 'p1' && s.cn.deal) ? TUNE.slowMonths : 1; }
 function endTurn(s) {
   if (s.ending) return null;
   if (s.queue.length) return { error: 'Resolve the open event first' };
   const before = snapshot(s);
   const logStart = s.log.length;
+  const n = turnMonths(s);
+  for (let i = 0; i < n && !s.ending; i++) tick(s);
+  // once a turn, not once a month: the event roll, fresh actions and capital
+  rollEvents(s);
+  s.ap = s.apMax; s.roomUsed = 0;
+  s.pcCarry = (s.pcCarry || 0) + capitalIncome(s); const whole = Math.trunc(s.pcCarry); s.pc += whole; s.pcCarry -= whole;
+  normalize(s);
+  checkEnd(s);
+  const after = snapshot(s);
+  s.report = { before, after, logs: s.log.slice(logStart), date: dateLabel(s.t) };
+  return s.report;
+}
+// One month of the world (two days during the scramble).
+function tick(s) {
   const dt = s.phase === 'scramble' ? 2 / 30 : 1;
   const monthly = dt === 1;
   s.t += dt; s.turn++;
@@ -2055,21 +2058,11 @@ function endTurn(s) {
     if (s.scramble.turn > s.scramble.max && !s.queue.some(q => q.id === 'window')) s.queue.push({ id: 'window' });
   }
 
-  // --- random events
-  rollEvents(s);
-
-  // --- resources
-  s.ap = s.apMax; s.roomUsed = 0;
-  s.pcCarry = (s.pcCarry || 0) + capitalIncome(s); const whole = Math.trunc(s.pcCarry); s.pc += whole; s.pcCarry -= whole;
   s.stats.peakLead = Math.max(s.stats.peakLead, lead(s));
-
   recordIndicators(s);
   normalize(s);
   pushHist(s);
   checkEnd(s);
-  const after = snapshot(s);
-  s.report = { before, after, logs: s.log.slice(logStart), date: dateLabel(s.t) };
-  return s.report;
 }
 function checkEnd(s) {
   if (s.ending) return;

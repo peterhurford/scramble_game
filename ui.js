@@ -50,7 +50,7 @@ const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WA
 const EVTYPE = {
   crisis: ['war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
   beijing: ['blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un'],
-  labs: ['resign', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'cyberattack'],
+  labs: ['algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
 };
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'] };
@@ -140,7 +140,7 @@ function changedBox(list, title) {
 function renderTitle() {
   const saved = loadSave();
   $('#banner').dataset.level = 'U'; $('#banner').textContent = 'UNCLASSIFIED // FOR EXERCISE ONLY';
-  delete document.body.dataset.phase; delete document.body.dataset.crisis;
+  delete document.body.dataset.phase; delete document.body.dataset.crisis; ui.phaseSeen = null;
   closeModal();
   const diffs = Object.keys(E.DIFFS).map(k => `<button class="opt ${k === 'advisor' ? 'on' : ''}" data-diff="${k}"><b>${E.DIFFS[k].label}</b><small>${E.DIFFS[k].desc}</small></button>`).join('');
   app.innerHTML = `<div class="title"><div class="tcard">
@@ -171,8 +171,9 @@ function renderGame() {
   const v = E.view(S);
   $('#banner').dataset.level = bannerLevel();
   $('#banner').textContent = { U: 'UNCLASSIFIED // FOR EXERCISE ONLY', S: 'SECRET // EXERCISE // NOFORN', TS: 'TOP SECRET // EXERCISE // NOFORN' }[bannerLevel()];
+  if (ui.phaseSeen == null) ui.phaseSeen = S.phase; // a new or loaded game starts without a title card
   document.body.dataset.phase = S.phase; document.body.dataset.crisis = S.war ? 'war' : S.blockade ? 'quarantine' : '';
-  app.innerHTML = `${topBar(v)}<div class="wrap">${phaseRibbon(v)}${raceStrip(v)}<div class="main"><div class="desk">${deskPanel(v)}</div>${sidePanel(v)}</div></div>`;
+  app.innerHTML = `${topBar(v)}<div class="wrap">${raceStrip(v)}<div class="main"><div class="desk">${deskPanel(v)}</div>${sidePanel(v)}</div></div>`;
   bindGame();
   showDeltas();
 }
@@ -188,12 +189,12 @@ function showDeltas() {
     el.classList.add(good ? 'flashg' : 'flashb');
   }
 }
-function phaseLabel() { return ({ p0: 'Phase 0 · Prepare', scramble: 'The scramble', p1: 'Phase 1 · Hold the pause' }[S.phase] || '') + (S.war ? ' · At war' : S.blockade ? ' · Taiwan quarantined' : ''); }
 function topBar(v) {
   const dots = '●'.repeat(S.ap) + '○'.repeat(Math.max(0, S.apMax - S.ap));
   const stat = (id, lab, val, tip, cls) => `<button class="stat ${cls || ''}" id="${id}" title="${esc(tip)}"><span>${lab}</span><b>${val}</b></button>`;
   return `<div class="top"><div class="top-in">
-    <div class="mark">The Scramble<small>${esc(v.date)} · ${phaseLabel()}</small></div>
+    <div class="mark">The Scramble<small>${esc(v.date)}</small></div>
+    ${phasePlate()}
     <div class="stats">
       <div class="sgroup">
         ${stat('c-ap', 'Actions', `<span class="dots">${dots}</span>`, 'Staff actions left this turn. Hire a team to get more.')}
@@ -212,18 +213,27 @@ function topBar(v) {
   </div></div>`;
 }
 
-/* ---- the phase ribbon: the four phases, this phase's clock, and any Strait crisis ---- */
-function phaseRibbon(v) {
-  const at = S.phase === 'p0' ? 0 : S.phase === 'scramble' ? 1 : 2;
-  const names = ['Phase 0 · Prepare', 'The scramble', 'Phase 1 · Hold the pause', 'Phase 2 · Agreement'];
-  const steps = names.map((n, i) => `<li class="${i === at ? 'now' : i < at ? 'done' : ''}"><b>${n}</b></li>`).join('');
+/* ---- the phase plate: the phase name, its clock, and any Strait crisis ---- */
+const PHASES = { p0: ['Prepare', 'Phase 0', 'Get in position before the moment comes: projects, allies in the cabinet, the policies you can win. When the indicators say it is time, ask for the emergency meeting.'],
+  scramble: ['The scramble', 'Fourteen days', 'The President has decided to act. Choose the mechanism, the threshold and the sequencing, sign the labs, and launch before the window closes.'],
+  p1: ['Hold the pause', 'Phase 1', 'Keep the pause standing: catch cheaters, keep the cabinet and the Senate, and bring Beijing to a verified deal. A Phase 2 summit is the win.'] };
+function phasePlate() {
   const sc = S.scramble;
   const clock = S.phase === 'scramble' ? `<span>Day <b>${1 + 2 * (sc.turn - 1)}</b> of 14</span><span class="ticks14">${Array.from({ length: sc.max }, (_, i) => `<i class="${i < sc.turn ? 'on' : ''}"></i>`).join('')}</span>`
-    : S.phase === 'p1' ? (S.pacing.armed && !S.pacing.active ? '<span>Standing by for Beijing</span>' : `<span>Paused <b>${S.flags.monthsInP1 || 0}</b> month${S.flags.monthsInP1 === 1 ? '' : 's'}</span>`)
+    : S.phase === 'p1' ? (S.pacing.armed && !S.pacing.active ? '<span>Standing by for Beijing</span>' : `<span class="pulse" aria-hidden="true"></span><span>Pause in force · <b>${S.flags.monthsInP1 || 0}</b> month${S.flags.monthsInP1 === 1 ? '' : 's'}</span>`)
     : `<span>${S.pacing.collapsed ? 'Aftermath: pacing collapsed' : 'Getting in position'}</span>`;
-  const crisis = S.war ? `<span class="crisis war" title="At 100 the war goes nuclear and the game ends.">At war · escalation ${meter(S.war.esc, 'bad', [100])} ${Math.round(S.war.esc)}</span>`
+  const crisis = S.war ? `<span class="crisis war" title="At 100 the war goes nuclear and the game ends.">At war ${meter(S.war.esc, 'bad', [100])} ${Math.round(S.war.esc)}</span>`
     : S.blockade ? `<span class="crisis quar">Taiwan quarantined</span>` : '';
-  return `<div class="ribbon"><ol class="phases" aria-label="Phases">${steps}</ol>${crisis}<div class="clock">${clock}</div></div>`;
+  return `<div class="plate"><span class="pname">${PHASES[S.phase] ? PHASES[S.phase][0] : ''}</span><span class="pclock">${clock}</span>${crisis}</div>`;
+}
+// A title card when the phase changes, once the inbox is clear.
+function phaseCard() {
+  if (!S || S.ending || S.queue.length || ui.phaseSeen === S.phase) return false;
+  ui.phaseSeen = S.phase;
+  const d = PHASES[S.phase]; if (!d) return false;
+  openModal(`<div class="phasecard"><div class="k">${d[1]} · ${esc(E.dateLabel(S.t))}</div><h2>${d[0]}</h2><p>${d[2]}</p><button class="btn" id="mclose">Begin</button></div>`);
+  $('#mclose').onclick = () => { closeModal(); renderGame(); };
+  return true;
 }
 
 /* ---- the race strip: US, China and the RSI zone on one track ---- */
@@ -581,6 +591,7 @@ function afterChange() {
   const notes = autoNotes();
   if (notes.length) { ui.result = { tone: 'info', head: 'Also today.', text: `<ul class="heads">${notes.map(noteHtml).join('')}</ul>` }; renderGame(); }
   if (S.ending) return showEnding(); if (S.queue.length) return showEvent();
+  phaseCard();
 }
 function eventHeader(id) { const m = EVMETA[evType(id)]; return `<div class="evband" style="--c:${m[2]}">${icon(m[1])}<span>${m[0]}</span></div>`; }
 function showEvent() {
@@ -799,7 +810,7 @@ if (/^#demo/.test(location.hash)) {
   for (let i = 0; i < 60 && !S.ending; i++) {
     if (stopAt === S.phase && (stopAt !== 'p0' || S.turn >= 6) && (stopAt !== 'p1' || S.flags.monthsInP1 >= 3 || want === 'strait' || want === 'blockade' || want === 'war') && (stopAt !== 'scramble' || S.scramble.turn >= 2)) break;
     if (S.phase === 'p0') { for (const id of ['proj_team', 'proj_memo', 'sl4', 'distill', 'proj_charter', 'proj_geoint', 'fund', 'proj_inspect', 'proj_sl4', 'proj_sl5']) { if (E.availability(S, id) === true) { E.act(S, id, {}); clearQ(); } } if (S.turn > 8 && E.availability(S, 'brief') === true) { E.act(S, 'brief', {}); clearQ(); } }
-    if (S.phase === 'scramble') { [['mech', { variant: 'charter' }], ['threshold', { variant: '1e21' }], ['automation', {}], ['trigger', { variant: '200c' }]].forEach(([id, p]) => { if (E.availability(S, id, p) === true) { E.act(S, id, p); clearQ(); } }); if (E.availability(S, 'convene') === true && want !== 'scramble') { E.act(S, 'convene', {}); E.LABS.forEach(l => E.charterDecide(S, l.id, false)); E.finishConvening(S); } if (E.availability(S, 'launch') === true && want !== 'scramble') { E.act(S, 'launch', {}); } }
+    if (S.phase === 'scramble') { [['mech', { variant: 'charter' }], ['threshold', { variant: '1e21' }], ['sequence', { variant: 'first' }], ['automation', {}], ['trigger', { variant: '200c' }]].forEach(([id, p]) => { if (E.availability(S, id, p) === true) { E.act(S, id, p); clearQ(); } }); if (E.availability(S, 'convene') === true && want !== 'scramble') { E.act(S, 'convene', {}); E.LABS.forEach(l => E.charterDecide(S, l.id, false)); E.finishConvening(S); } if (E.availability(S, 'launch') === true && want !== 'scramble') { E.act(S, 'launch', {}); } }
     if (S.phase === 'p1') { for (const id of ['fund', 'automation']) if (E.availability(S, id) === true) { E.act(S, id, {}); clearQ(); } if (E.availability(S, 'offer') === true) E.makeOffer(S, { inspect: true, lane: true, institute: true }); if (E.availability(S, 'surge', { comp: 'novel' }) === true) E.act(S, 'surge', { comp: 'novel' }); }
     clearQ(); E.endTurn(S); clearQ();
   }
