@@ -320,7 +320,7 @@ function chinaPanel(v) {
     <div class="sb"><div class="row"><div class="lbl">Training compute: ${rd.comp}</div></div>
       <div class="stack">${segs.map(sg => `<i style="width:${100 * src[sg[1]] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]}: ${rd.src[sg[1]]}"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Takes a bare cap <button class="whylink" data-why="deal">why?</button></span><span class="v">${c.deal ? 'deal in force' : E.oddsWord(E.cnAcceptEstimate(S, {}).mid)}</span><span>Growth</span><span class="v">${rd.rate}</span><span title="How hard Beijing\u2019s hackers go after US lab weights. SL4 and SL5 matter more the harder they push.">Cyber push on US labs</span><span class="v">${rd.cyber}</span><span title="How well Beijing hides training sites. Raises the odds of cheating and of a hidden program after Phase 2; the GEOINT baseline offsets most of it.">Concealment</span><span class="v">${rd.hide}</span></div>
+      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Takes a bare cap <button class="whylink" data-why="deal">why?</button></span><span class="v">${c.deal ? 'deal in force' : E.oddsWord(E.cnAcceptEstimate(S, {}).mid)}</span>${!c.deal && !S.pacing.active && S.phase !== 'p0' ? `<span>Believes \u201cOnly together\u201d <button class="whylink" data-why="standby">why?</button></span><span class="v">${Math.round(100 * E.standbyCred(S))}%</span>` : ''}<span>Growth</span><span class="v">${rd.rate}</span><span title="How hard Beijing\u2019s hackers go after US lab weights. SL4 and SL5 matter more the harder they push.">Cyber push on US labs</span><span class="v">${rd.cyber}</span><span title="How well Beijing hides training sites. Raises the odds of cheating and of a hidden program after Phase 2; the GEOINT baseline offsets most of it.">Concealment</span><span class="v">${rd.hide}</span></div>
       <div class="sub" style="margin-top:8px">${rd.note}${rd.tier < 2 ? ' Sharpen with the GEOINT baseline, verification funding or an IC assessment.' : ''}</div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
@@ -501,7 +501,7 @@ function paramPicker(a, prm) {
   const k = a.params.kind;
   if (k === 'variant') return `<div class="opts">${a.params.options(S).map(o => `<button class="opt ${prm.variant === o.id ? 'on' : ''}" data-pv="${o.id}"><b>${esc(o.label)}</b><small>${esc(o.desc)}</small>${chipList(E.chips(S, a.id, { variant: o.id }), true)}</button>`).join('')}</div>`;
   if (k === 'principal') return `<div class="opts grid">${S.principals.map(p => { const d = E.PD(S, p.id); const ask = a.id === 'favor' ? `<small>${esc(E.currentAsk(S, p.id).text)} (${E.currentAsk(S, p.id).pc} capital)</small>` : `<small>with you ${Math.round(p.rel)} · ${pStance(p.id) > 0.25 ? 'for pacing' : pStance(p.id) < -0.25 ? 'against pacing' : 'open'}</small>`; return `<button class="opt ${prm.who === p.id ? 'on' : ''}" data-pw="${p.id}"><b>${esc(d.name)}</b>${ask}</button>`; }).join('')}</div>`;
-  if (k === 'lab') return `<div class="opts grid">${E.LABS.filter(l => !a.params.filter || a.params.filter(S, E.L(S, l.id))).map(l => `<button class="opt ${prm.lab === l.id ? 'on' : ''}" data-pl="${l.id}"><b>${esc(l.name)}</b><small>with you ${Math.round(E.L(S, l.id).rel)} · safety ${l.safety}</small></button>`).join('')}</div>`;
+  if (k === 'lab') return `<div class="opts grid">${E.LABS.filter(l => !a.params.filter || a.params.filter(S, E.L(S, l.id))).map(l => `<button class="opt ${prm.lab === l.id ? 'on' : ''}" data-pl="${l.id}"><b>${esc(l.name)}</b><small>with you ${Math.round(E.L(S, l.id).rel)} · safety ${l.safety}${a.params.note ? ' · ' + esc(a.params.note(S, E.L(S, l.id))) : ''}</small></button>`).join('')}</div>`;
   if (k === 'comp') return `<div class="opts grid">${E.COMPONENTS.map(c => `<button class="opt ${prm.comp === c.id ? 'on' : ''}" data-pc="${c.id}"><b>${esc(c.short)} · ${Math.round(S.verify[c.id])}</b><small>${esc(c.name)}</small></button>`).join('')}</div>`;
   return '';
 }
@@ -658,15 +658,20 @@ function openOffer() {
   ui.offer = ui.offer || { inspect: true };
   const t = ui.offer;
   const pv = E.offerPreview(S, t);
-  const terms = E.TERMS.map(x => `<label class="term ${x.fixed || t[x.id] ? 'on' : ''}"><input type="checkbox" id="term_${x.id}" data-term="${x.id}" ${x.fixed || t[x.id] ? 'checked' : ''} ${x.fixed ? 'disabled' : ''}><b>${esc(x.label)}</b><small>${esc(x.desc)}</small></label>`).join('');
+  const ultOk = E.ultimatumOk(S);
+  if (t.ultimatum && ultOk !== true) delete t.ultimatum;
+  if (t.ultimatum) E.CARROT_IDS.forEach(k => delete t[k]);
+  const carrot = id => E.CARROT_IDS.indexOf(id) >= 0;
+  const off = x => x.fixed || (x.id === 'ultimatum' && ultOk !== true) || (carrot(x.id) && t.ultimatum);
+  const terms = E.TERMS.map(x => `<label class="term ${x.fixed || t[x.id] ? 'on' : ''}" ${off(x) && !x.fixed ? 'style="opacity:.45"' : ''}><input type="checkbox" id="term_${x.id}" data-term="${x.id}" ${x.fixed || t[x.id] ? 'checked' : ''} ${off(x) ? 'disabled' : ''}><b>${esc(x.label)}</b><small>${carrot(x.id) ? `Beijing: ${esc(E.termRead(S, x.id).text)}. ` : ''}${x.id === 'ultimatum' && ultOk !== true ? esc(ultOk) + '. ' : ''}${esc(x.desc)}</small></label>`).join('');
   const f = S.cn.f;
   openModal(`<div class="mh"><span>${icon('globe')} Offer to Beijing</span><span>${esc(E.dateLabel(S.t))} · capital ${S.pc}</span></div><div class="mb">
     <h2>The offer table</h2>
     <div class="fac" style="margin-bottom:6px"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div>
-    <div class="sub" style="margin-bottom:10px">Market wants a lane for its models; Security hates inspections; Science responds to shared evaluations. ${S.pacing.active ? 'America is already pacing.' : 'America is not pacing: Beijing will ask why it should stop first.'}</div>
+    <div class="sub" style="margin-bottom:10px">Market wants a lane for its models; Security hates inspections; Science responds to shared evaluations. ${S.pacing.active ? 'America is already pacing.' : S.pacing.armed ? 'America is on standby: Beijing finds it ' + Math.round(100 * E.standbyCred(S)) + '% credible.' : 'America is not pacing: Beijing will ask why it should stop first.'}</div>
     <div class="terms">${terms}</div>
     <div class="twoodds"><div><div class="lbl">President approves</div>${oddsBar(pv.room.p)}</div><div><div class="lbl">Beijing accepts (IC read)</div>${oddsBar(pv.cn.mid)}</div></div>
-    <details id="owhy" class="sub" style="margin:4px 0 10px" ${ui.offerWhy ? 'open' : ''}><summary>What Beijing weighs in this package</summary>${window.ScrambleGlossary.parts(E.cnParts(S, t).map(p => [p[0], 10 * p[1]]))}</details>
+    <details id="owhy" class="sub" style="margin:4px 0 10px" ${ui.offerWhy ? 'open' : ''}><summary>What Beijing weighs in this package</summary>${window.ScrambleGlossary.parts(E.cnParts(S, t, true).map(p => [p[0], 10 * p[1]]))}</details>
     ${whip(pv.room.positions, true)}
     <div class="row"><button class="btn" id="osend">Send it (${icon('bolt')}1 ${icon('coin')}2)</button><button class="ghost" id="ocancel">Not yet</button></div></div>`, true);
   $('#modal').querySelectorAll('[data-term]').forEach(c => c.onchange = () => { t[c.dataset.term] = c.checked; openOffer(); });

@@ -163,6 +163,8 @@ function frontierLab(s) { let b = s.labs[0]; s.labs.forEach(l => { if (l.cap > b
 function lead(s) { return frontier(s) - s.cn.cap; }
 function paced(s) { return !!s.pacing.active; }
 function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
+// A signed lab racing on standby that agreed to keep automation limits: runaway hazard 0.12 instead of 0.30, 8% slower.
+function guarded(s, lab) { return !!lab.guard && !!s.pacing.armed && !paced(s); }
 function coverage(s) { return Math.round(100 * s.labs.reduce((a, l) => a + (covered(s, l) ? LD(l.id).share * (l.id === 'mindscale' && s.flags.uaeOut ? 1 - TUNE.uaeShare : 1) : 0), 0)); }
 // China's compute by channel at baseline: IFP's end-2026 stocks (Fist, Adamson & Pilz, Oct 2026) scaled to 90%, plus 10% no rule reaches.
 // HBM and tool curbs (sme) trim at most 5% of domestic within the game: the servicing ban bites only once the fleet falls below China's HBM-limited output.
@@ -211,7 +213,7 @@ function usRates(s, assumeCompliant) {
   return s.labs.map(l => {
     const d = LD(l.id);
     const drag = usDrag(s).total;
-    if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (1 - drag);
+    if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (guarded(s, l) ? 0.92 : 1) * (1 - drag);
     if (l.defect && !assumeCompliant) return 0.7;
     const th = { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12;
     return (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'mindscale' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
@@ -238,8 +240,10 @@ function senateParts(s) {
   const P_ = [['Base', TUNE.senateBase], ['Salience', 0.35 * s.salience], ['Markets', 0.12 * (s.markets - 100)], ['Coalition of allies', 0.12 * s.coalition], ['Your work on the Hill', s.senateLobby]];
   if (s.cn.deal) P_.push(['A deal with Beijing in force', 6]);
   if (lead(s) >= 6) P_.push(['A lead of 6+ months', 4]);
-  if (s.cn.deal && s.cn.deal.terms.chips) P_.push(['Deal resumes chip sales', -6]);
-  if (s.cn.deal && s.cn.deal.terms.relief) P_.push(['Deal gives sanctions relief', -3]);
+  // offering a carrot costs votes from the day the package goes to Beijing, for 6 months or for as long as a deal holds it
+  const offered = k => (s.cn.deal && s.cn.deal.terms[k]) || (s.flags[k + 'Offered'] != null && s.t - s.flags[k + 'Offered'] < 6);
+  if (offered('chips')) P_.push([s.cn.deal && s.cn.deal.terms.chips ? 'Deal resumes chip sales' : 'You offered Beijing chips', -6]);
+  if (offered('relief')) P_.push([s.cn.deal && s.cn.deal.terms.relief ? 'Deal gives sanctions relief' : 'You offered Beijing sanctions relief', -3]);
   if (s.flags.houseFlipped) P_.push(['Opposition House holding AI hearings', 2]);
   if (s.war) P_.push(['Pausing AI in wartime looks like disarmament', -10]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -5]);
   return P_;
@@ -282,7 +286,7 @@ function hazards(s) {
   s.labs.forEach(l => {
     const d = LD(l.id);
     let h;
-    if (!covered(s, l)) h = 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
+    if (!covered(s, l)) h = guarded(s, l) ? 0.12 : 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
     if (s.done.control && (covered(s, l) || d.safety >= 50)) h *= 0.6;
     if (s.flags.dodCarve) h += 0.01;
     if (l.id === 'mindscale' && s.flags.uaeOut && covered(s, l) && TUNE.uaeHazard) h = (1 - TUNE.uaeShare) * h + TUNE.uaeShare * 0.30; // the UAE share trains unconstrained
@@ -303,7 +307,7 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (s.flags.ultRejected != null && s.turn - s.flags.ultRejected < 6 ? 1.5 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -623,6 +627,19 @@ def({ id: 'authorize', cat: 'politics', name: 'Ask Congress for pacing authority
   effect: () => 'The vote comes in two months. Needs 55 Senate votes on the day, and the whip count is soft: the day\u2019s count can land 9 or more votes off, either way, about one time in three. Labs campaign hard against a moving bill. If it fails, leadership waits 8 months to bring it back.',
   apply(s) { s.flags.billDue = s.t + 2; return 'The bill goes to the floor calendar. Leadership promises a vote in two months.'; },
 });
+def({ id: 'matchlaw', cat: 'politics', name: 'Ask Congress to authorize a matched pause', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2,
+  avail(s) { if (s.flags.statute) return 'Pacing is already law'; if (s.flags.matchLaw) return 'Congress has authorized a matched pause'; if (s.flags.matchDue) return 'The resolution is moving; the vote is in ' + monthLabel(s.flags.matchDue); if (s.flags.matchBack > s.t) return 'Leadership will not bring it back before ' + monthLabel(s.flags.matchBack); const v = senateVotes(s); return v >= 52 ? true : 'Needs 52 Senate votes to start (now ' + v + ')'; },
+  desc: 'Narrower than a pacing statute: it authorizes the President to pause American labs the day China verifiably does the same. It pauses nothing on its own, so it needs fewer votes, and it is what makes \u201cOnly together\u201d believable in Beijing.',
+  effect: () => 'The vote comes in one month and needs 50 Senate votes on the day (the whip count is soft). If it passes, a standby pause is 40 points more credible to Beijing. If it fails, credibility -3 and leadership waits 4 months.',
+  apply(s) { s.flags.matchDue = s.t + 1; return 'The Matched Restraint Act goes on the floor calendar.'; },
+});
+def({ id: 'pledge', cat: 'diplo', name: 'Presidential pledge: we pause the day Beijing does', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
+  tags: { pause: 0.6, deal: 1, hawk: -0.8 },
+  avail(s) { if (s.flags.pledge) return 'The President has pledged it'; if (paced(s)) return 'America is already pacing'; return true; },
+  desc: 'The President says in public that America will stop training above the line the day China verifiably does. It costs little until it is tested, and a lot to break.',
+  effect: () => 'A standby pause is 30 points more credible to Beijing; Beijing trust +4; hawks -4; salience +4. Restarting the labs after the pause begins costs 10 more credibility.',
+  apply(s) { s.flags.pledge = true; s.cn.trust += 4; HAWKS.forEach(id => rel(s, id, -4)); s.salience += 4; return 'At the end of a speech on jobs, the President adds a line nobody in the room expected.'; },
+});
 def({ id: 'allies', cat: 'diplo', name: 'Build the allied coalition', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
   desc: 'Phase 2 is multilateral: it needs allies (London, Tokyo, The Hague, Seoul). Allies also make chip controls stick and win a few Senate votes.',
   effect: s => 'Coalition +' + (s.flags.g7 ? 12 : 8) + ', Senate +' + (s.senateLobby >= 18 ? 0 : 3) + '.',
@@ -786,7 +803,7 @@ def({ id: 'convene', cat: 'crisis', name: 'Convene the CEOs', phases: ['scramble
 const SEQ = {
   first: { label: 'Go first', desc: 'America pauses now, whether or not Beijing follows. The surest way to cut loss-of-control risk and to show Beijing this is real. The lead erodes while China keeps going, and the hawks will call it unilateral disarmament.', tags: { pause: 2, hawk: -1.6, deal: 1, markets: -0.6, military: -0.6 } },
   deadline: { label: 'Go first, with a 6-month deadline', desc: 'Pause now, and announce that the pause lapses in six months unless Beijing joins. Some goodwill, some anger, and a cliff at the end.', tags: { pause: 1.2, hawk: -0.5, deal: 0.8, markets: -0.3 } },
-  together: { label: 'Only together', desc: 'The labs sign, but nobody stops until Beijing signs too. The hawks are happy and markets are calm. The labs keep racing toward the threshold, and Beijing sees no proof that you are serious.', tags: { pause: 0.3, hawk: 1.4, deal: 0.2, military: 0.4 } },
+  together: { label: 'Only together', desc: 'The labs sign, but nobody stops until Beijing signs too. The hawks are happy and markets are calm. The labs keep racing toward the threshold. Beijing believes it only as far as you have prepared: a matched-pause law, verification ready, a presidential pledge.', tags: { pause: 0.3, hawk: 1.4, deal: 0.2, military: 0.4 } },
 };
 const HAWKS = ['vp', 'sec', 'war', 'doc'];
 def({ id: 'sequence', cat: 'crisis', name: 'Go first, or wait for Beijing?', phases: ['scramble'], ap: 1, pc: 1, room: true,
@@ -800,7 +817,7 @@ def({ id: 'sequence', cat: 'crisis', name: 'Go first, or wait for Beijing?', pha
 function seqEffects(s, seq) {
   if (seq === 'first') { HAWKS.forEach(id => rel(s, id, -12)); rel(s, 'dni', 4); s.cn.trust += 10; shiftCN(s, { sci: 6, sec: -3 }); s.tension -= 6; s.markets -= 4; s.salience += 4; s.flags.wentFirst = true; }
   if (seq === 'deadline') { HAWKS.forEach(id => rel(s, id, -4)); s.cn.trust += 8; shiftCN(s, { sci: 5, sec: -2 }); s.tension -= 4; }
-  if (seq === 'together') { HAWKS.forEach(id => rel(s, id, 6)); s.cn.trust -= 5; shiftCN(s, { sci: -3, sec: 2 }); }
+  if (seq === 'together') { const k = 1 - standbyCred(s); HAWKS.forEach(id => rel(s, id, 6)); s.cn.trust -= 5 * k; shiftCN(s, { sci: -3 * k, sec: 2 * k }); }
 }
 def({ id: 'gofirst', cat: 'crisis', name: 'Go first after all', phases: ['p1'], ap: 1, pc: 2, room: true,
   tags: SEQ.first.tags,
@@ -808,6 +825,14 @@ def({ id: 'gofirst', cat: 'crisis', name: 'Go first after all', phases: ['p1'], 
   desc: 'The labs are signed but still racing while you wait for Beijing. Start the pause now, without China.',
   effect: () => 'The pause starts today. Hawks -12, Beijing trust +10, science faction +6, markets -4.',
   apply(s) { s.pacing.seq = 'first'; activatePacing(s); seqEffects(s, 'first'); return 'The President announces that America will pause first. Beijing\u2019s foreign ministry calls it \u201ca serious step.\u201d The hawks call it something else.'; },
+});
+function guardOdds(s, l) { return clamp(logistic(-1.4 + LD(l.id).safety / 35 + l.rel / 35 + (s.done.control ? 0.8 : 0)), 0.05, 0.95); }
+def({ id: 'guard', cat: 'labs', name: 'Ask a lab to keep automation limits while it races', phases: ['p1'], ap: 1, pc: 1,
+  params: { kind: 'lab', filter: (s, l) => l.signed && !l.guard, note: (s, l) => 'agrees ' + oddsWord(guardOdds(s, l)) },
+  avail(s) { if (!(s.pacing.armed && !paced(s))) return 'Only while the pause is on standby'; return s.labs.some(l => l.signed && !l.guard) ? true : 'Every signed lab already keeps them'; },
+  desc: 'On standby the signed labs race at full speed, research automation and all. Ask one to keep human review and control evals on anyway. Safety-minded labs, labs that trust you and labs with AI control protocols say yes more often.',
+  effect: s => 'Chance each lab agrees: ' + s.labs.filter(l => l.signed && !l.guard).map(l => LD(l.id).name + ' ' + Math.round(100 * guardOdds(s, l)) + '%').join(', ') + '. If it agrees, its runaway risk while racing falls from 0.30 to 0.12 at full strength and it runs 8% slower; lab -3, industry -2. A refusal costs the lab -6.',
+  apply(s, prm) { const l = L(s, prm.lab), d = LD(l.id); if (rnd(s) < guardOdds(s, l)) { l.guard = true; l.rel = clamp(l.rel - 3, -100, 100); industry(s, -2); log(s, d.name + ' agrees to keep automation limits while it races.', 'good'); return d.ceo + ' agrees: human review stays on every training job until the pause begins.'; } l.rel = clamp(l.rel - 6, -100, 100); return d.ceo + ' refuses. \u201cWe signed to stop when China stops. Not to slow down while it doesn\u2019t.\u201d'; },
 });
 def({ id: 'launch', cat: 'crisis', name: 'Launch Phase 1', phases: ['scramble'], ap: 1, pc: 0,
   desc: 'End the scramble. Pacing starts now with whatever you have decided. Undecided pieces stay undecided.',
@@ -914,13 +939,38 @@ const TERMS = [
   { id: 'cap', label: 'Mutual compute cap at the threshold', fixed: true, desc: 'The core of any deal. Both sides stop training above the line.' },
   { id: 'inspect', label: 'Mutual on-site inspections', desc: 'Inspectors at each other’s threshold sites. Required for Phase 2. Beijing’s security services hate it.' },
   { id: 'freeze', label: 'Freeze the current ratio', desc: 'The 1922 Washington Naval Treaty clause: lock in today’s gap. Hawks like it; Beijing doesn’t.' },
-  { id: 'lane', label: 'Market lane for Chinese open-weight models', desc: 'The SALT I logic: Chinese sub-frontier models keep selling, including in the US, while they stay below agreed levels.' },
-  { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work.' },
-  { id: 'relief', label: 'Entity List relief', desc: 'Sanctions relief for Chinese AI firms. Hawks object; some of it helps their compute.' },
-  { id: 'visas', label: 'Eased visas for researchers', desc: 'A small carrot with a counterintelligence cost.' },
-  { id: 'chips', label: 'Resume legal chip sales', desc: 'A big carrot that directly feeds their compute.' },
+  { id: 'lane', label: 'Market lane for Chinese open-weight models', desc: 'The SALT I logic: Chinese sub-frontier models keep selling, including in the US, while they stay below agreed levels. Offering it costs industry 3.' },
+  { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work. Costs nothing at home.' },
+  { id: 'relief', label: 'Entity List relief', desc: 'Sanctions relief for Chinese AI firms; some of it helps their compute. Offering it costs State 4 and 3 Senate votes for 6 months.' },
+  { id: 'visas', label: 'Eased visas for researchers', desc: 'A carrot with a counterintelligence cost. Offering it costs the DNI 5.' },
+  { id: 'chips', label: 'Resume legal chip sales', desc: 'A carrot that directly feeds their compute. Offering it costs every hawk 4 and 6 Senate votes for 6 months.' },
   { id: 'threat', label: 'Threaten a full cutoff if they refuse', desc: 'Credible only with a big lead.' },
+  { id: 'ultimatum', label: 'Freeze now or never', desc: 'Sign a cap at today’s gap now, or face a permanent cutoff and an open race. No carrots. Needs a 6-month lead and two of China’s three outside channels closed. Market weighs it more the wider the gap; a refusal hands Beijing to Security, which races and steals.' },
 ];
+const TERM_SHORT = { lane: 'Market lane', relief: 'Entity List relief', visas: 'Eased visas', institute: 'Joint safety institute', chips: 'Legal chip sales' };
+// Beijing's priorities, hidden and drawn per game from the seed: each carrot's worth is its base times 0.3-1.7, and one keystone is worth 1.8x more.
+const CARROTS = { lane: 0.45, relief: 0.4, visas: 0.3, institute: 0.25, chips: 0.5 };
+const CARROT_IDS = Object.keys(CARROTS);
+function keystone(s) { return CARROT_IDS[Math.floor(hash01(s.seed, 'keystone') * CARROT_IDS.length)]; }
+function termMult(s, k) { return (0.3 + 1.4 * hash01(s.seed, 'tw', k)) * (k === keystone(s) ? 1.8 : 1); }
+const worthOf = (s, k, m) => CARROTS[k] * m + (k === 'institute' ? 0.01 * s.cn.f.sci : 0);
+// Your read on a carrot: exact once the envoy confirms it (Track 2 confirms the science side: the institute and visas); otherwise a fixed per-game misread that shrinks with intelligence.
+function termKnown(s, k) { return !!(s.cn.known && s.cn.known[k]) || (!!s.done.track2 && (k === 'institute' || k === 'visas')); }
+function termRead(s, k) {
+  const known = termKnown(s, k), m = termMult(s, k), err = 0.7 * (1 - s.intelQ / 200);
+  const est = known ? m : Math.max(0.1, m * (1 + (hash01(s.seed, 'twn', k) - 0.5) * 2 * err));
+  const word = est < 0.6 ? 'little interest' : est < 1.1 ? 'some interest' : est < 1.6 ? 'strong interest' : 'a top priority';
+  return { est, known, word, worth: worthOf(s, k, est), text: word + (known ? ', confirmed' : ', IC guess') };
+}
+function chanClosed(s) { return s.cn.legalT < 0.3 && s.cn.distT < 0.5 && s.cn.remoteT < 0.5; }
+// The ultimatum needs two of China's three outside channels closed (legal chips, distillation, remote access) and a 6-month lead on the IC's estimate.
+function chansClosed(s) { const c = s.cn; return (c.legalT < 0.3) + (c.distT <= 0.7 * cnBase(s).dist) + (c.remoteT < 0.5); }
+function ultimatumOk(s) { if (chansClosed(s) < 2) return 'Freeze now or never needs two of China’s three outside channels closed: legal chips, distillation, remote access'; if (leadEstimate(s).mid < 6) return 'Freeze now or never needs a lead of 6+ months on the IC’s estimate'; return true; }
+// How believable "Only together" is to Beijing, 0-1, as labeled parts. Standby counts 0.65 x this toward a deal (going first counts 0.65).
+function standbyParts(s) {
+  return [['Congress authorized a matched pause', s.flags.statute || s.flags.matchLaw ? 0.4 : 0], ['Verification ready to watch both sides', 0.3 * clamp((ready1(s) - 15) / 45, 0, 1)], ['The President’s public pledge', s.flags.pledge ? 0.3 : 0]];
+}
+function standbyCred(s) { return standbyParts(s).reduce((a, x) => a + x[1], 0); }
 function offerTags(terms) {
   const t = { deal: 1.5, pause: 0.5, hawk: -0.3 };
   const add = o => { for (const k in o) t[k] = (t[k] || 0) + o[k]; };
@@ -931,82 +981,102 @@ function offerTags(terms) {
   if (terms.relief) add({ hawk: -1.2, markets: 0.5, deal: 0.5 });
   if (terms.visas) add({ hawk: -0.3 });
   if (terms.chips) add({ hawk: -2, markets: 1, industry: 0.8 });
-  if (terms.threat) add({ hawk: 1, deal: -0.3 });
+  if (terms.threat && !terms.ultimatum) add({ hawk: 1, deal: -0.3 });
+  if (terms.ultimatum) add({ hawk: 1.5, deal: -0.4, military: 0.3 });
   return t;
 }
-// Beijing's willingness to take an offer, as labeled parts so the UI can show where it comes from; 0 is even odds.
-function cnParts(s, terms) {
+// Beijing's willingness to take an offer, as labeled parts so the UI can show where they come from; 0 is even odds.
+// pub: the player's view, which reads each carrot's worth off termRead instead of Beijing's hidden priorities.
+function cnParts(s, terms, pub) {
   const f = s.cn.f, ld = lead(s);
   const P_ = [['Base reluctance', -1.55], ['Who has the floor in Beijing', 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30)]];
   if (ld > 5) P_.push(['A big US lead', 0.07 * Math.min(ld - 5, 10)]);
   if (ld < 2) P_.push(['China is nearly level', -0.6]);
-  const closed = s.cn.legalT < 0.3 && s.cn.distT < 0.5 && s.cn.remoteT < 0.5;
-  if (closed && !terms.lane && f.sec > 40) P_.push(['Every channel closed, and no market lane', -0.4]);
-  P_.push([paced(s) ? 'America is pacing' : s.pacing.armed ? 'America’s labs signed, but nothing stops until Beijing does' : 'America is not pacing', paced(s) ? 0.5 : (s.pacing.armed ? 0.35 : -0.7)]);
+  if (chanClosed(s) && !terms.lane && f.sec > 40) P_.push(['Every channel closed, and no market lane', -0.4]);
+  if (paced(s)) P_.push(['America is pacing', 0.5]);
+  else if (s.pacing.armed) P_.push(['America’s labs signed, but nothing stops until Beijing does (' + Math.round(100 * standbyCred(s)) + '% credible)', 0.65 * standbyCred(s)]);
+  else P_.push(['America is not pacing', -0.7]);
   if (s.flags.wentFirst) P_.push(['America went first', 0.15]); else if (s.pacing.seq === 'deadline' && paced(s)) P_.push(['America went first, with a deadline', 0.08]);
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
-  if (terms.freeze) P_.push(['Freeze the current ratio', -0.3]);
+  if (terms.freeze && !terms.ultimatum) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
-  if (terms.lane) P_.push(['Market lane', 0.55]);
-  if (terms.relief) P_.push(['Entity List relief', 0.4]);
-  if (terms.visas) P_.push(['Eased visas', 0.15]);
-  if (terms.institute) P_.push(['Joint safety institute (Science likes it)', 0.2 + 0.01 * f.sci]);
-  if (terms.chips) P_.push(['Legal chip sales', 0.6]);
-  if (terms.threat) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
+  CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
+  if (terms.threat && !terms.ultimatum) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
+  if (terms.ultimatum) P_.push(['Freeze now or never (Market weighs the gap; Security hates it)', 0.11 * (Math.min(ld, 14) - 4) * f.m / 50 - 0.025 * (f.sec - 30)]);
   if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 turns', -0.8]);
   if (s.flags.dodCarve) P_.push(['A Pentagon carve-out for one lab', -0.15]);
   if (s.flags.uaeOut && paced(s)) P_.push(['The UAE loophole', -TUNE.uaeDeal]);
   return P_;
 }
-function cnUtility(s, terms) { return cnParts(s, terms).reduce((a, x) => a + x[1], 0); }
+function cnUtility(s, terms, pub) { return cnParts(s, terms, pub).reduce((a, x) => a + x[1], 0); }
 function cnAcceptP(s, terms) { return logistic(2.2 * cnUtility(s, terms)); }
-function cnAcceptEstimate(s, terms) { const p = cnAcceptP(s, terms); const err = 0.25 * (1 - s.intelQ / 100) + 0.04; const b = (hash01(s.seed, s.turn, 'cnest', JSON.stringify(terms)) - 0.5) * 2 * err; return { mid: clamp(p + b, 0.01, 0.99), err }; }
+function cnAcceptEstimate(s, terms) { const p = logistic(2.2 * cnUtility(s, terms, true)); const err = 0.25 * (1 - s.intelQ / 100) + 0.04; const b = (hash01(s.seed, s.turn, 'cnest', JSON.stringify(terms)) - 0.5) * 2 * err; return { mid: clamp(p + b, 0.01, 0.99), err }; }
 function offerPreview(s, terms) { const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms)); return { room: rp, cn: cnAcceptEstimate(s, terms) }; }
 function roomPreviewTags(s, id, tags, key) { ACT._tmp = { tags, pres: s2 => (lead(s2) > 4 ? 0.1 : 0) }; const r = roomPreview(s, '_tmp', { key }); delete ACT._tmp; return r; }
 def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramble', 'p1'], ap: 1, pc: 2, modal: 'offer',
-  desc: 'Build a package. The President has to approve it, then Beijing decides. Rejection costs trust and temperature.',
+  desc: 'Build a package. The President has to approve it, then Beijing decides. Carrots cost at home as soon as the package goes out; a rejection costs trust and temperature.',
   effect: () => 'Opens the offer table.',
   avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + s.cn.cooldown + ' more turn' + (s.cn.cooldown > 1 ? 's' : '') + ')'; return true; },
   apply() { return ''; },
+});
+def({ id: 'sound', cat: 'diplo', name: 'Sound out Beijing’s envoy', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
+  params: { kind: 'variant', options: s => CARROT_IDS.filter(k => !termKnown(s, k)).map(k => ({ id: k, label: TERM_SHORT[k], desc: 'Your read now: ' + termRead(s, k).text + '.' })) },
+  avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; return CARROT_IDS.some(k => !termKnown(s, k)) ? true : 'You know what Beijing wants'; },
+  desc: 'A quiet lunch with China’s deputy chief of mission. What Beijing wants from a deal differs every game; learn exactly how much it values one term before you pay for it in a package.',
+  effect: () => 'Confirms Beijing’s real interest in one term. Beijing trust +2.',
+  apply(s, prm) { if (!s.cn.known) s.cn.known = {}; s.cn.known[prm.variant] = true; s.cn.trust += 2; return 'Over lunch the envoy is candid about the ' + TERM_SHORT[prm.variant].toLowerCase() + ': ' + termRead(s, prm.variant).word + '.' + (prm.variant === keystone(s) ? ' It is what Beijing wants most.' : ''); },
 });
 function makeOffer(s, terms) {
   const a = ACT.offer;
   if (s.ap < a.ap || s.pc < a.pc) return { error: 'Not enough actions or capital' };
   if (s.roomUsed >= roomMax(s)) return { error: 'The President has no more time for decisions this turn' };
+  if (terms.ultimatum) { const ok = ultimatumOk(s); if (ok !== true) return { error: ok }; if (CARROT_IDS.some(k => terms[k])) return { error: 'Freeze now or never is a demand, not a bargain: no carrots' }; }
   s.ap -= a.ap; s.pc -= a.pc; s.roomUsed++;
   const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms));
   const roll = rnd(s); const pass = roll < rp.p;
   settleRoom(s, rp, pass);
   if (!pass) { log(s, 'The President rejected your China package.', 'bad'); return { pass: false, roll, room: rp, text: 'The President won’t sign off. “It looks weak,” the President says, and moves on.' }; }
   if (s.flags.laneCommit && !terms.lane) rel(s, 'tsy', -15);
+  // carrots cost at home as soon as the package goes out, whatever Beijing says
+  if (terms.chips) { s.flags.chipsOffered = s.t; HAWKS.forEach(id => rel(s, id, -4)); }
+  if (terms.relief) { s.flags.reliefOffered = s.t; rel(s, 'sec', -4); }
+  if (terms.lane) industry(s, -3);
+  if (terms.visas) rel(s, 'dni', -5);
   const p = cnAcceptP(s, terms);
   const cnRoll = rnd(s); const accepted = cnRoll < p;
   s.cn.cooldown = s.phase === 'scramble' ? 2 : 1;
   if (accepted) {
-    s.cn.deal = { terms: Object.assign({}, terms), since: s.t, turn: s.turn };
+    s.cn.deal = { terms: Object.assign({}, terms, terms.ultimatum ? { freeze: true, threat: false } : {}), since: s.t, turn: s.turn };
     s.tension -= 12; s.markets += 4; s.cred += 6;
     if (terms.lane) { rel(s, 'vp', -8); industry(s, -5); rel(s, 'tsy', 10); shiftCN(s, { m: 5 }); }
     if (terms.relief) { s.cn.legalT = Math.max(s.cn.legalT, 0.4); rel(s, 'sec', -10); }
     if (terms.chips) { s.cn.legalT = 1; rel(s, 'sec', -20); rel(s, 'war', -10); }
     if (terms.institute) { s.cn.trust += 15; shiftCN(s, { sci: 6 }); s.verify.inspect += 4; }
     if (terms.inspect) s.verify.inspect += 8;
-    if (terms.freeze) rel(s, 'sec', 8);
+    if (terms.freeze || terms.ultimatum) rel(s, 'sec', 8);
+    if (terms.ultimatum) s.cn.trust -= 5;
     log(s, 'Beijing accepts the interim deal.', 'good');
     if (s.pacing.armed && !s.pacing.active) { activatePacing(s); log(s, 'The pause begins on both sides.', 'good'); }
-    return { pass: true, accepted: true, room: rp, roll, p, cnRoll, text: 'Beijing accepts. The interim deal takes effect on the first of the month. ' + (terms.freeze ? 'Like Japan in 1922, China takes a frozen ratio over an open race.' : terms.lane ? 'Beijing’s “changing lanes to overtake” strategy never needed the frontier.' : 'Both capitals call it a pause for safety.') };
+    return { pass: true, accepted: true, room: rp, roll, p, cnRoll, text: 'Beijing accepts. The interim deal takes effect on the first of the month. ' + (terms.ultimatum ? 'Beijing takes the cap at today’s gap rather than race a widening one.' : terms.freeze ? 'Like Japan in 1922, China takes a frozen ratio over an open race.' : terms.lane ? 'Beijing’s “changing lanes to overtake” strategy never needed the frontier.' : 'Both capitals call it a pause for safety.') };
   }
   s.cn.trust -= 5; s.tension += 4;
   if (terms.threat) { s.flags.threatMade = s.turn; }
+  if (terms.ultimatum) {
+    // a refused ultimatum hands Beijing to Security: racing, theft attempts x1.5 for 6 turns, no talks for 3
+    const c = s.cn; s.flags.ultRejected = s.turn; shiftCN(s, { sec: 10, m: -5 }); c.posture = 'race'; c.race = Math.min(1, c.race + 0.5); s.tension += 10; c.trust -= 10; c.cooldown = 3;
+    log(s, 'Beijing rejects the ultimatum. Its security services take the lead.', 'bad');
+    return { pass: true, accepted: false, room: rp, roll, p, cnRoll, text: 'Beijing says no, publicly. State media calls it “a demand for surrender.” Within the week the security services are running Beijing’s side, and the race is on.' };
+  }
   const hint = counterHint(s, terms);
   log(s, 'Beijing rejects the offer.', 'bad');
   return { pass: true, accepted: false, room: rp, roll, p, cnRoll, text: 'Beijing says no. ' + hint };
 }
+// A rejection that leaves out Beijing's keystone names it, and confirms it.
 function counterHint(s, terms) {
-  const f = s.cn.f;
-  if (!paced(s)) return 'Their envoy: “Why would we stop while you keep running?”';
+  const f = s.cn.f, ks = keystone(s);
+  if (!paced(s) && !(s.pacing.armed && standbyCred(s) >= 0.5)) return s.pacing.armed ? 'Their envoy: “Your labs keep running. Why should we believe they will stop?”' : 'Their envoy: “Why would we stop while you keep running?”';
   if (f.sec > 42) return 'The security services are running Beijing’s side right now. Their envoy talks about “containment.”';
-  if (!terms.lane && f.m >= 45) return 'Their envoy keeps returning to market access for Chinese models.';
-  if (!terms.institute && f.sci >= 28) return 'Their scientists want a joint institute and shared evaluations.';
+  if (!terms[ks]) { if (!s.cn.known) s.cn.known = {}; s.cn.known[ks] = true; return 'Their envoy keeps coming back to one thing: the ' + TERM_SHORT[ks].toLowerCase() + '.'; }
   if (terms.inspect && f.sec > 32) return 'Inspections are the sticking point.';
   if (s.tension > 55) return 'The temperature is too high for anyone in Beijing to be seen saying yes.';
   return 'Their envoy says the gap is not yet large enough to be worth locking in.';
@@ -1108,8 +1178,12 @@ const CHIPS = {
   automation: () => ['+Paced labs much slower', '+Much lower chance of losing control', '-Reckless labs balk'],
   trigger: (s, prm) => ({ '200c': ['+Best detection', '+Catches split runs'], '200': ['~Good detection', '-Split runs slip through'], '425': ['-Misses some of the biggest clusters'] })[prm.variant || '200c'],
   convene: () => ['~Opens the signing table'],
-  sequence: (s, prm) => ({ first: ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious', '-Markets dip', '-Lead erodes'], deadline: ['+Pause starts now', '+Earns some trust in Beijing', '-Hawks uneasy', '~A cliff in six months'], together: ['+Hawks happy', '+Lead holds', '+Beijing sees a fair offer', '-Labs keep racing until Beijing signs', '-Beijing a little insulted'] })[prm.variant || 'first'],
+  sequence: (s, prm) => ({ first: ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious', '-Markets dip', '-Lead erodes'], deadline: ['+Pause starts now', '+Earns some trust in Beijing', '-Hawks uneasy', '~A cliff in six months'], together: ['+Hawks happy', '+Lead holds', '-Labs keep racing until Beijing signs', (standbyCred(s) >= 0.5 ? '+' : '-') + 'Beijing finds it ' + Math.round(100 * standbyCred(s)) + '% credible'] })[prm.variant || 'first'],
   gofirst: () => ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious'],
+  matchlaw: () => ['+Makes \u201cOnly together\u201d believable', '~Senate vote in a month'],
+  pledge: () => ['+Makes \u201cOnly together\u201d believable', '+Beijing trust', '-Hawks uneasy'],
+  guard: () => ['+A racing lab much safer', '~It may refuse', '-Labs grumble'],
+  sound: () => ['+Learn what Beijing wants', '+A little trust'],
   launch: () => ['+Pacing begins', '-Markets fall (less with a Treasury plan)'],
   offer: () => ['~Opens the offer table'],
   summit: s => ['+Win, if Beijing signs (' + oddsWord(summitP(s)) + ')'],
@@ -1440,7 +1514,7 @@ ev({ id: 'deadline_up', forced: true, title: 'The deadline', stamp: 'Six months 
   choices: [
     { label: 'Extend it four months', hint: 'Pacing support -4 for each extension; hawks -6.', fx: s => { s.pacing.deadline = s.t + 4; s.flags.extended = (s.flags.extended || 0) + 1; HAWKS.forEach(id => rel(s, id, -6)); return 'The President extends the deadline. Nobody believes the next one.'; } },
     { label: 'Make it permanent: America stays paused regardless', hint: 'Hawks -8; Beijing trust +2. Counts as going first.', fx: s => { s.pacing.seq = 'first'; s.flags.wentFirst = true; HAWKS.forEach(id => rel(s, id, -8)); s.cn.trust += 2; shiftCN(s, { sci: 1 }); return 'The pause no longer depends on Beijing.'; } },
-    { label: 'Snap back: restart the labs until Beijing signs', hint: 'The pause goes on standby. Markets +4; hawks +6; Beijing trust -10; temperature +5.', fx: s => { s.pacing.active = false; s.pacing.armed = true; s.pacing.seq = 'together'; s.markets += 4; HAWKS.forEach(id => rel(s, id, 6)); s.cn.trust -= 10; s.tension += 5; log(s, 'The pause snaps back to standby. The labs resume.', 'bad'); return 'The labs restart their largest runs within the hour.'; } },
+    { label: 'Snap back: restart the labs until Beijing signs', hint: s => 'The pause goes on standby. Markets +4; hawks +6; Beijing trust -10; temperature +5.' + (s.flags.pledge ? ' Credibility -10: it breaks the President\u2019s pledge.' : ''), fx: s => { s.pacing.active = false; s.pacing.armed = true; s.pacing.seq = 'together'; s.markets += 4; if (s.flags.pledge) s.cred -= 10; HAWKS.forEach(id => rel(s, id, 6)); s.cn.trust -= 10; s.tension += 5; log(s, 'The pause snaps back to standby. The labs resume.', 'bad'); return 'The labs restart their largest runs within the hour.'; } },
   ] });
 const BEG = {
   chips: { name: 'the ban on chip sales and tool servicing', lift(s) { s.cn.legalT = 1; s.cn.smeT = 1; }, cost: 'China compute +18% (+16% right away)' },
@@ -1924,6 +1998,13 @@ function endTurn(s) {
     if (day >= 55) { s.flags.statute = true; s.labs.forEach(l => { if (s.pacing.active || s.pacing.armed) { l.signed = true; l.covered = true; } }); log(s, 'Congress passes the pacing act. The pause is now law.', 'good'); }
     else { s.cred -= 5; s.flags.billBack = s.t + TUNE.billBack; log(s, 'The pacing bill fails on the Senate floor (' + day + ' votes; the whip count said ' + senateVotes(s) + ').', 'bad'); }
   }
+  // --- the matched-pause resolution comes to a vote
+  if (s.flags.matchDue && s.t >= s.flags.matchDue) {
+    s.flags.matchDue = null;
+    const day = senateVotes(s) + Math.round(TUNE.whip * gauss(s));
+    if (day >= 50) { s.flags.matchLaw = true; log(s, 'Congress authorizes a matched pause: America stops the day China does.', 'good'); }
+    else { s.cred -= 3; s.flags.matchBack = s.t + 4; log(s, 'The matched-pause resolution fails on the Senate floor (' + day + ' votes).', 'bad'); }
+  }
   // --- pacing upkeep
   if (s.phase === 'p1' && paced(s) && monthly) {
     s.stats.monthsPaced++;
@@ -2074,7 +2155,7 @@ function quickView(s) {
 const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view, quickView,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
-  score, lessons, cnSources, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  score, lessons, cnSources, standbyCred, standbyParts, termRead, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
   TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
