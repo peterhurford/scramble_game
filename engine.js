@@ -1859,14 +1859,14 @@ function snapshot(s) {
 }
 // Months a turn covers: two in Phase 0, and in Phase 1 once a deal is in force; one otherwise, and in wartime. The scramble runs two days a turn.
 function turnMonths(s) { return s.phase === 'scramble' || s.war ? 1 : s.phase === 'p0' || (s.phase === 'p1' && s.cn.deal) ? TUNE.slowMonths : 1; }
-const STRAIT_STOP = ['blockade', 'war_begins', 'war'];
+// events that cut a two-month turn short, so the player answers them before another month passes
+const STRAIT_STOP = ['blockade', 'war_begins', 'war', 'knock', 'runaway'];
 function endTurn(s) {
   if (s.ending) return null;
   if (s.queue.length) return { error: 'Resolve the open event first' };
   const before = snapshot(s);
   const logStart = s.log.length;
   const n = turnMonths(s);
-  // a Strait crisis cuts a long turn short, so the player answers it before another month passes
   for (let i = 0; i < n && !s.ending && !s.queue.some(q => STRAIT_STOP.indexOf(q.id) >= 0); i++) tick(s);
   // once a turn, not once a month: the event roll, fresh actions and capital
   rollEvents(s);
