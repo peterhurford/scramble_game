@@ -459,12 +459,8 @@ function leadEstimate(s) {
 }
 // Months until China passes the US frontier at today's rates, as Beijing sees it (true gap); Infinity if it isn't closing.
 function cnCatchUp(s) { const gap = lead(s), dr = cnRate(s) - frontierRate(s); return gap <= 0 ? 0 : dr <= 0.01 ? Infinity : gap / dr; }
-function crossoverMonths(s) {
-  const gap = lead(s); const dr = cnRate(s) - frontierRate(s, true);
-  if (gap <= 0) return 0;
-  if (dr <= 0.01) return Infinity;
-  return gap / dr;
-}
+// The same projection as the player can make it: the IC's gap over the IC's estimate of China's pace against the public US pace.
+function crossoverMonths(s) { const gap = seenLead(s), dr = cnEstimate(s).rate - frontierRate(s, true); return gap <= 0 ? 0 : dr <= 0.01 ? Infinity : gap / dr; }
 
 /* ================= new game ================= */
 function newGame(opts) {
@@ -997,10 +993,10 @@ function offerTags(terms) {
 // Beijing's willingness to take an offer, as labeled parts so the UI can show where they come from; 0 is even odds.
 // pub: the player's view, which reads each carrot's worth off termRead instead of Beijing's hidden priorities.
 function cnParts(s, terms, pub) {
-  const f = s.cn.f, ld = lead(s);
+  const f = s.cn.f, ld = pub ? seenLead(s) : lead(s); // the player's preview reads the IC's gap; Beijing decides on the true one
   const P_ = [['Base reluctance', -1.55], ['Who has the floor in Beijing', 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30)]];
   P_.push([ld >= 4 ? 'The US lead' : 'China is close behind', 0.08 * (clamp(ld, -4, 12) - 4)]);
-  const cm = cnCatchUp(s); if (cm < 6) P_.push(['China could overtake within ' + Math.max(1, Math.round(cm)) + ' months', -0.9 * (1 - cm / 6)]);
+  const cm = pub ? crossoverMonths(s) : cnCatchUp(s); if (cm < 6) P_.push(['China could overtake within ' + Math.max(1, Math.round(cm)) + ' months', -0.9 * (1 - cm / 6)]);
   if (chanClosed(s) && !terms.lane && !terms.chips && !terms.relief && f.sec > 40) P_.push(['Every channel closed, and nothing in the offer reopens one', -0.4]);
   if (paced(s)) P_.push(['America is pacing', 0.5]);
   else if (s.pacing.armed) P_.push(['America’s labs signed, but nothing stops until Beijing does (' + Math.round(100 * standbyCred(s)) + '% credible)', 0.65 * standbyCred(s)]);
