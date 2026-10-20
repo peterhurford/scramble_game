@@ -2156,7 +2156,7 @@ const API = {
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, standbyCred, standbyParts, termRead, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
-  EVENTS: EV, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
+  EVENTS: EV, recentFavors, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
 })(typeof self !== 'undefined' ? self : this);

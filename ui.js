@@ -298,6 +298,8 @@ const dragWord = d => d < 0.005 ? 'not at all' : d < 0.04 ? 'slightly' : d < 0.1
 const theftWord = t => t < 0.005 ? 'very low' : t < 0.015 ? 'low' : t < 0.03 ? 'moderate' : t < 0.06 ? 'high' : 'very high';
 const catchWord = p => p < 0.15 ? 'rarely' : p < 0.35 ? 'sometimes' : p < 0.6 ? 'often' : 'almost always';
 const stanceCol = st => st > 0.25 ? 'var(--good)' : st < -0.25 ? 'var(--bad)' : 'var(--faint)';
+// What saying yes to an ask does, beyond the ask itself.
+function grantTip(id, ask) { const n = E.recentFavors(S) * E.TUNE.favorCred; return `Do what they ask now: 1 action and ${ask.pc} capital${n ? `, and ${n} credibility (you granted another favor in the last four months)` : ''}. They warm to you a lot (relationship +25, influence +4); their rivals cool a little. Ignoring an ask for four months costs a little goodwill.`; }
 function roomPanel(v) {
   const ps = S.principals.map(p => ({ p, d: E.PD(S, p.id), st: pStance(p.id) }));
   const tot = ps.reduce((a, x) => a + x.p.infl, 0) || 1;
@@ -308,10 +310,10 @@ function roomPanel(v) {
     <div class="split"><i style="width:${sF}%;background:var(--good)"></i><i style="width:${sO}%;background:var(--faint)"></i><i style="width:${sA}%;background:var(--bad)"></i></div>
     <div class="legend"><span><i style="background:var(--good)"></i>for</span><span><i style="background:var(--faint)"></i>open</span><span><i style="background:var(--bad)"></i>against</span></div></div>
     ${ps.map(({ p, d, st }) => {
-      const ask = E.currentAsk(S, p.id); const fav = E.availability(S, 'favor', { who: p.id });
+      const ask = E.currentAsk(S, p.id); const fav = E.availability(S, 'favor', { who: p.id }), favCred = E.recentFavors(S) * E.TUNE.favorCred;
       return `<div class="pc"><button class="av" data-who="${p.id}" style="background:${stanceCol(st)}" title="${st > 0.25 ? 'For' : st < -0.25 ? 'Against' : 'Open on'} pacing · influence ${Math.round(p.infl)}. Click to meet.">${SEAT[p.id]}</button>
         <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · click to meet">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="Ally 40+: every three Allies give +1 capital a turn. Hostile -40 or less: costs you 2 credibility a month. Every 10 points tilts their vote toward you.">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
-        <div class="ask"><span>Wants: ${esc(ask.text)}</span><button class="ghost sm" data-favor="${p.id}" ${fav === true ? '' : 'disabled title="' + esc(fav) + '"'}>Grant ${icon('coin')}${ask.pc}</button></div></div></div>`;
+        <div class="ask"><span>Asks you: ${esc(ask.text)}</span><button class="ghost sm" data-favor="${p.id}" ${fav === true ? '' : 'disabled'} title="${esc(fav === true ? grantTip(p.id, ask) : fav)}">Say yes ${costHtml({ ap: 1, pc: ask.pc })}${favCred ? `<span class="dn">\u2212${favCred} cred</span>` : ''}</button></div>${fav === true ? '' : `<div class="sub">${esc(fav)}</div>`}</div></div>`;
     }).join('')}`;
 }
 function chinaPanel(v) {
@@ -532,7 +534,7 @@ function bindGame() {
   updateMore();
   app.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => { ui.result = null; renderGame(); });
   app.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { ui.sel = b.dataset.act; ui.params = defaultParams(ui.sel); renderDetail(); app.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
-  app.querySelectorAll('[data-favor]').forEach(b => b.onclick = () => { ui.sel = 'favor'; ui.params = { who: b.dataset.favor }; renderGame(); });
+  app.querySelectorAll('[data-favor]').forEach(b => b.onclick = () => { ui.sel = 'favor'; ui.params = { who: b.dataset.favor }; doAction(); });
   app.querySelectorAll('[data-who]').forEach(g => g.onclick = () => { ui.sel = 'meet'; ui.params = { who: g.dataset.who }; renderGame(); });
   bindDetail();
 }
