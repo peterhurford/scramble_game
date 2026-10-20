@@ -6,7 +6,8 @@
 // OUT=sim/v13 writes sim/v13_run<N>.json instead of best_genome[_runN].json. START=genome.json seeds the search (START=a.json,b.json,c.json: one per run).
 // A lock file (sim/.search.lock) makes a second search wait for the first instead of splitting the cores.
 const { Worker, isMainThread, parentPort } = require('worker_threads');
-const S = require('./strategy.js');
+// The main thread loads the rules only once it holds the lock, so a queued search runs the code current when it starts.
+let S = isMainThread ? null : require('./strategy.js');
 
 if (!isMainThread) {
   parentPort.on('message', m => { const r = S.evaluate(m.G, m.seeds, m.diff); parentPort.postMessage({ id: m.id, r, n: m.seeds.length }); });
@@ -23,7 +24,7 @@ const NW = +(process.env.NW || Math.min(12, Math.max(1, os.cpus().length - 1)));
 const LOCK = path.join(__dirname, '.search.lock');
 
 const fit = r => r.win + r.score / 1e5;
-const workers = Array.from({ length: NW }, () => new Worker(__filename));
+let workers = [];
 // One queue of (genome, seed chunk) jobs shared by every worker, so no core waits for another genome to finish.
 function evalMany(Gs, seeds) {
   const nChunks = Math.max(1, Math.min(seeds.length, Math.ceil(NW * 2 / Gs.length)));
@@ -113,6 +114,8 @@ async function search(RUN) {
 
 (async () => {
   await lock();
+  S = require('./strategy.js');
+  workers = Array.from({ length: NW }, () => new Worker(__filename));
   for (const RUN of RUNS) await search(RUN);
   workers.forEach(w => w.terminate());
   process.exit(0);
