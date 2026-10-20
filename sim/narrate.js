@@ -19,7 +19,7 @@ const w = k => worth[k] == null ? '' : ` _(worth ${worth[k] >= 0 ? '+' : ''}${(1
 
 P(`# The optimized strategy\n\n_Genome ${file}, searched under ${G._rules ? G._rules.commit : 'unstamped rules'}; narrated under ${S.rulesStamp().commit}._\n\nWins ${pct(base.win)} of 800 fresh Advisor games (loss of control ${pct(base.loc)}). "Worth" = how many points of win rate are lost if that one rule is switched back to the scripted expert's choice.\n`);
 
-P('## Phase 0 (monthly turns)\n');
+P('## Phase 0 (two-month turns)\n');
 const projs = S.PROJ.filter(p => G['proj.' + p] >= 0).sort((a, b) => G['proj.' + b] - G['proj.' + a]);
 const skip = S.PROJ.filter(p => G['proj.' + p] < 0);
 const pname = id => E.PROJECTS.find(p => p.id === id).name;
