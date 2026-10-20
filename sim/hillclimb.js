@@ -3,7 +3,7 @@
 // The batch rotates every ROTATE generations to limit overfitting. Usage: node sim/hillclimb.js [gens] [games] [difficulty] [run]
 // Racing: every child plays the first third of the batch; only those within RACE_MARGIN of the parent there play the rest.
 // RUNS=0,1,2 runs several searches in one process, so every run uses the code loaded at the start.
-// OUT=sim/v13 writes sim/v13_run<N>.json instead of best_genome[_runN].json. START=genome.json seeds the search.
+// OUT=sim/v13 writes sim/v13_run<N>.json instead of best_genome[_runN].json. START=genome.json seeds the search (START=a.json,b.json,c.json: one per run).
 // A lock file (sim/.search.lock) makes a second search wait for the first instead of splitting the cores.
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 const S = require('./strategy.js');
@@ -80,7 +80,9 @@ async function search(RUN) {
   const out = process.env.OUT ? path.resolve(process.env.OUT + '_run' + RUN + '.json') : __dirname + '/best_genome' + (RUN ? '_run' + RUN : '') + '.json';
   const logf = process.env.OUT ? path.resolve(process.env.OUT + '_run' + RUN + '.log') : __dirname + '/hillclimb.log';
   // genes a START genome lacks keep the expert's values
-  let parent = process.env.START ? Object.assign(S.expertGenome(), require(path.resolve(process.env.START))) : S.expertGenome();
+  // START may list one genome per run, in RUNS order
+  const starts = (process.env.START || '').split(',').filter(Boolean), start = starts[RUNS.indexOf(RUN)] || starts[0];
+  let parent = start ? Object.assign(S.expertGenome(), require(path.resolve(start))) : S.expertGenome();
   Object.assign(parent, PIN);
   const T0 = Date.now();
   let b = 0, seeds = batch(b);
