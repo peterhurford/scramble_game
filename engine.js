@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -172,7 +172,9 @@ function cnComp(s) { const src = cnSources(s.cn); return (src.domestic + src.off
 function trigMult(s) { return { '425': 0.55, '200': 0.8, '200c': 1.0, '100': 0.92 }[s.pacing.trigger] || 0.5; }
 function ready1(s) { const v = s.verify; return (v.survey + v.inspect) / 2; }
 function ready2(s) { const v = s.verify; const xs = COMPONENTS.map(c => v[c.id]); return { avg: xs.reduce((a, b) => a + b, 0) / xs.length, min: Math.min.apply(null, xs) }; }
-function detection(s) { const v = s.verify; return clamp(0.08 + 0.5 * (v.inspect / 100) * trigMult(s) + (s.pacing.automation ? 0.12 : 0) + (s.flags.surgeTurn === s.turn ? 0.25 : 0) + (s.verify.novel > 50 ? 0.08 : 0), 0, 0.9); }
+// While a court has enjoined the Charter's mandatory verification, detection and inspection growth run at TUNE.enjoinedMult.
+function enjoined(s) { return !!s.flags.verifyEnjoined && !s.flags.statute; }
+function detection(s) { const v = s.verify; return clamp((0.08 + 0.5 * (v.inspect / 100) * trigMult(s) + (s.pacing.automation ? 0.12 : 0) + (s.flags.surgeTurn === s.turn ? 0.25 : 0) + (s.verify.novel > 50 ? 0.08 : 0)) * (enjoined(s) ? TUNE.enjoinedMult : 1), 0, 0.9); }
 // How well Beijing hides sites, as a multiplier on cheating and hidden-program risk; the GEOINT baseline cuts 60% of the departure from typical.
 function concealment(s, h) { if (h == null) h = s.cn.hide || 1; return s.done.geoint ? 1 + 0.4 * (h - 1) : h; }
 function cnVisibility(s) { const v = s.verify; const insp = s.cn.deal && s.cn.deal.terms.inspect; return clamp((0.08 + 0.3 * (v.survey / 100) * trigMult(s) + (insp ? 0.25 * v.inspect / 100 : 0) + 0.35 * s.intelQ / 100) / concealment(s), 0, 0.92); }
@@ -700,7 +702,7 @@ def({ id: 'surge', cat: 'verify', name: 'Surge a verification component', phases
   desc: 'Point the verification program at one component this month.',
   effect: s => 'Find or Inspect +' + surgeAmt(s, true) + ', Novel tech +' + surgeAmt(s, false) + ' at current funding. Surging Inspect also means surprise inspections this month (+25% detection). Two surges a turn.',
   avail(s) { return (s.flags.surges && s.flags.surges.turn === s.turn && s.flags.surges.n >= 2) ? 'Two surges a turn is all the program can absorb' : true; },
-  apply(s, prm) { const cm = COMPONENTS.find(c => c.id === prm.comp); s.verify[prm.comp] += surgeAmt(s, cm.trusted); if (prm.comp === 'inspect' && paced(s)) s.flags.surgeTurn = s.turn; if (!s.flags.surges || s.flags.surges.turn !== s.turn) s.flags.surges = { turn: s.turn, n: 0 }; s.flags.surges.n++; return cm.name + ' moves forward.'; },
+  apply(s, prm) { const cm = COMPONENTS.find(c => c.id === prm.comp); s.verify[prm.comp] += surgeAmt(s, cm.trusted) * (prm.comp === 'inspect' && enjoined(s) ? TUNE.enjoinedMult : 1); if (prm.comp === 'inspect' && paced(s)) s.flags.surgeTurn = s.turn; if (!s.flags.surges || s.flags.surges.turn !== s.turn) s.flags.surges = { turn: s.turn, n: 0 }; s.flags.surges.n++; return cm.name + ' moves forward.'; },
 });
 def({ id: 'malaysia', cat: 'diplo', name: 'Bring Malaysia into the regime', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, once: true,
   desc: 'Johor’s megacenters host Chinese tenants on hardware they cannot import. Get Kuala Lumpur to host inspectors instead of cutting them off.',
@@ -772,6 +774,7 @@ def({ id: 'convene', cat: 'crisis', name: 'Convene the CEOs', phases: ['scramble
     if (s.phase === 'scramble' && (s.pacing.mechTurn === s.turn || s.pacing.thTurn === s.turn)) return 'The lawyers need until tomorrow to turn today\u2019s decisions into text';
     if (s.phase === 'scramble' && s.scramble.convened) return 'Already convened';
     if (s.phase === 'p1' && s.labs.every(l => l.signed)) return 'Every lab has signed';
+    if (s.phase === 'p1' && s.labs.every(l => l.signed || l.lockUntil > s.t)) return 'Labs that walked out will not come back yet';
     return true;
   },
   apply(s) { if (s.scramble) s.scramble.convening = true; s.flags.convening = true; return 'The CEOs are in the Roosevelt Room.'; },
@@ -871,6 +874,7 @@ function charterOdds(s, labId, withDeal) {
 function charterDecide(s, labId, withDeal) {
   const l = L(s, labId), d = LD(labId);
   if (l.signed) return { signed: true, text: d.name + ' has already signed.' };
+  if (l.lockUntil > s.t) return { signed: false, p: 0, text: d.ceo + ' will not take the meeting before ' + monthLabel(l.lockUntil) + '.' };
   let extra = '';
   if (withDeal) { if (s.pc < d.deal.pc) return { error: 'Not enough political capital' }; s.pc -= d.deal.pc; extra = ' ' + d.deal.fx(s); l.dealt = true; }
   const p = charterOdds(s, labId, withDeal);
@@ -1500,9 +1504,10 @@ ev({ id: 'cn_cheat', forced: true, title: 'Two heat signatures', stamp: 'NGA, 11
   ] });
 const COURT = { dpa: 'frontier AI risk does not meet the Defense Production Act’s “national emergency” standard', license: 'Commerce has no statutory authority to license domestic training runs', charter: 'the Charter’s mandatory verification and its DPA backstop exceed executive authority' };
 // Appeals restore the orders half the time, three times in four when it is a statute under challenge.
-function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && l.comp < 70) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : 0.5; return out; }
+// A Charter injunction strikes its mandatory verification, which stays enjoined until an appeal wins or a statute passes.
+function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && l.comp < 70) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : 0.5; if (s.pacing.mech === 'charter' && !s.flags.statute) s.flags.verifyEnjoined = true; return out; }
 ev({ id: 'court', forced: true, title: 'Injunction', stamp: 'D.C. Circuit',
-  body: s => s.flags.statute ? `<p>Mindscale’s lawyers find a sympathetic district judge, who rules that the Pacing Act delegates too much to the executive and enjoins enforcement pending appeal.</p><p>A statute makes this rare. It does not make it impossible.</p>` : `<p>A federal judge rules that ${COURT[s.flags.compelled ? 'dpa' : s.pacing.mech] || COURT.charter}, and enjoins the government’s orders.</p><p>Without a statute, this can happen again.</p>`,
+  body: s => s.flags.statute ? `<p>Mindscale’s lawyers find a sympathetic district judge, who rules that the Pacing Act delegates too much to the executive and enjoins enforcement pending appeal.</p><p>A statute makes this rare. It does not make it impossible.</p>` : `<p>A federal judge rules that ${COURT[s.flags.compelled ? 'dpa' : s.pacing.mech] || COURT.charter}, and enjoins the government’s orders.</p><p>Without a statute, this can happen again.${s.pacing.mech === 'charter' && !s.flags.compelled ? ' Until an appeal wins or Congress acts, the Charter\u2019s inspections lose their teeth: cheating labs get caught half as often, and inspections build half as fast.' : ''}</p>`,
   choices: [
     { label: 'Appeal and ask the labs to comply voluntarily', hint: 'Labs that never signed voluntarily fall out of coverage; every lab’s compliance -10. Even odds the appeal restores it.', fx: s => { const out = injunction(s); return out.length ? out.join(', ') + ' resume training while the appeal runs.' : 'Every lab complies voluntarily while the appeal runs.'; } },
     { label: 'Appeal, and ask Congress to fix it', hint: s => s.flags.statute ? 'As appealing, and if you have 55 Senate votes, Congress tightens the act and the appeal is all but certain.' : 'As appealing, and if you have 55 Senate votes, a pacing bill goes to the floor for a vote in two months.', fx: s => { const out = injunction(s); if (s.flags.statute) { if (senateVotes(s) >= 55) s.flags.appealP = 0.95; return (senateVotes(s) >= 55 ? 'Leadership moves a technical fix to the act. ' : 'Leadership will not reopen the act without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } const go = !s.flags.billDue && !(s.flags.billBack > s.t) && senateVotes(s) >= 55; if (go) s.flags.billDue = s.t + 2; return (go ? 'Leadership schedules a vote on a pacing act. ' : 'Leadership will not take up a bill without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } },
@@ -1561,8 +1566,8 @@ ev({ id: 'walkout', forced: true, title: 'A walkout', stamp: 'Lab general counse
   body: s => `<p>${LD(s.queue[0].lab).name}’s general counsel sends a two-line letter: the lab is withdrawing from the Pacing Charter, effective immediately. ${lead(s) < 3 ? 'China is too close, the board says.' : 'The board says the others are not holding up their end.'}</p>`,
   choices: s => { const id = s.queue[0] && s.queue[0].lab, n = id ? LD(id).name : 'The lab'; return [
     { label: 'Compel it under the DPA', hint: n + ' stays covered at low compliance; ' + n + ' -30; industry -10. From now on the courts treat the pause like a DPA halt.', fx: s => { const l = L(s, id); l.covered = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; industry(s, -10); s.flags.compelled = true; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; return 'Federal marshals deliver the order. ' + LD(id).ceo + ' files suit the same afternoon.'; } },
-    { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (rnd(s) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
-    { label: 'Let them go', hint: n + ' leaves the regime and races; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
+    { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (rnd(s) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
+    { label: 'Let them go', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
   ]; } });
 ev({ id: 'tinder', forced: true, title: 'Dry tinder', stamp: 'Commerce chip data',
   body: s => `<p>Chip production did not pause. Threshold sites have stockpiled about ${Math.round(s.overhang)} months of extra compute. When the pause ends, the first run would be enormous.</p>`,
@@ -1579,7 +1584,7 @@ ev({ id: 'collapse', forced: true, title: 'The pause breaks', stamp: 'Oval Offic
 function endPacing(s) {
   s.pacing.active = false; s.pacing.collapsed++; s.phase = 'p0'; s.alarm = 45; s.cred -= 10;
   s.labs.forEach(l => { l.covered = false; l.defect = false; });
-  s.pacing.mech = null; s.pacing.threshold = null; s.pacing.automation = null; s.pacing.trigger = null; s.pacing.seq = null; s.pacing.armed = false; s.pacing.deadline = null; s.flags.extended = 0; s.flags.wentFirst = false;
+  s.pacing.mech = null; s.pacing.threshold = null; s.pacing.automation = null; s.pacing.trigger = null; s.pacing.seq = null; s.pacing.armed = false; s.pacing.deadline = null; s.flags.extended = 0; s.flags.wentFirst = false; s.flags.verifyEnjoined = false;
   s.labs.forEach(l => { l.signed = false; l.refused = false; });
   s.apMax = Math.max(DIFFS[s.diff].ap + (s.done.team ? 1 : 0), s.apMax - 1);
   if (s.cn.deal) { s.cn.deal = null; s.tension += 10; log(s, 'The China deal lapses with the pause.', 'bad'); }
@@ -1878,7 +1883,7 @@ function endTurn(s) {
   if (monthly) {
     const v = s.verify;
     const base = s.warp === 1 ? 2 : s.warp === 2 ? 4 : 0;
-    COMPONENTS.forEach(cm => { v[cm.id] += base * (!cm.trusted ? (s.phase === 'p0' ? 0.4 : 0.7) : 1); });
+    COMPONENTS.forEach(cm => { v[cm.id] += base * (!cm.trusted ? (s.phase === 'p0' ? 0.4 : 0.7) : 1) * (cm.id === 'inspect' && enjoined(s) ? TUNE.enjoinedMult : 1); });
     if (paced(s)) { s.overhang += s.policies.hardware ? 0.3 : 1; }
   }
 
@@ -1923,7 +1928,7 @@ function endTurn(s) {
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
     if (s.pacing.low >= 3) s.queue.push({ id: 'collapse' });
     if ((s.flags.courtNext || 0) <= s.turn && rnd(s) < courtP(s)) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
-    if (s.flags.appeal === s.turn) { if (rnd(s) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.', 'bad'); }
+    if (s.flags.appeal === s.turn) { if (rnd(s) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
     if (s.overhang >= 5 && !s.seen.tinder) { s.queue.push({ id: 'tinder' }); s.seen.tinder = s.turn; }
     // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
