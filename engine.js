@@ -565,7 +565,7 @@ def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', pha
   effect: s => 'China loses legal chips now (−16% compute); HBM curbs trim its domestic output over a year (up to −2% more; the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets -3, Beijing temperature +12, Treasury unhappy. US labs 3% slower, and Beijing may answer with mineral export curbs that slow them much more.',
   apply(s) { const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12; shiftCN(s, { m: -5, sec: 7 }); rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
 });
-def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
+def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3.',
