@@ -325,14 +325,14 @@ function chinaPanel(v) {
   const st = v.strait;
   const strait = S.war ? `<div class="sb"><div class="row"><span class="pill bad">At war</span><span class="sub">Month ${S.war.months + 1}. Beijing takes a ceasefire ${E.oddsWord(E.ceasefireP(S))}.</span></div><div class="vrow" title="At 100 the war goes nuclear and the game ends."><span>Escalation</span>${meter(S.war.esc, S.war.esc >= 70 ? 'bad' : 'warn', [100])}<span class="v">${Math.round(S.war.esc)}</span></div></div>`
     : `<div class="sb"><div class="row"><div class="lbl">${S.blockade ? 'Taiwan is quarantined' : 'The Strait'}</div><span class="sp"></span>${S.blockade ? '<span class="pill warn">Quarantine</span>' : ''}</div>
-      <div class="kv"><span>${S.blockade ? 'Turns into war within 3 months' : 'Beijing starts a crisis within 6 months'} (IC) <button class="whylink" data-why="strait">why?</button></span><span class="v">${st.text}</span></div></div>`;
+      <div class="kv"><span>${S.blockade ? 'Turns into war within 3 months' : 'Beijing starts a crisis within 6 months'} (IC)</span><span class="v">${st.text}</span></div></div>`;
   return `<div class="sb"><div class="row"><span class="pill ${post[1]}">${post[0]}</span><span class="sub">${post[2]}</span></div>${deal}</div>${strait}
     <div class="sb"><div class="lbl">Who has the floor</div>
       <div class="fac"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div></div>
     <div class="sb"><div class="row"><div class="lbl">Training compute: ${rd.comp}</div></div>
       <div class="stack">${segs.map(sg => `<i style="width:${100 * src[sg[1]] / Math.max(1, est.comp)}%;background:${sg[2]}" title="${sg[0]}: ${rd.src[sg[1]]}"></i>`).join('')}</div>
       <div class="legend">${segs.map(sg => `<span><i style="background:${sg[2]}"></i>${sg[0]}</span>`).join('')}</div>
-      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Takes a bare cap <button class="whylink" data-why="deal">why?</button></span><span class="v">${c.deal ? 'deal in force' : E.oddsWord(E.cnAcceptEstimate(S, {}).mid)}</span>${!c.deal && !S.pacing.active && S.phase !== 'p0' ? `<span>Believes \u201cOnly together\u201d <button class="whylink" data-why="standby">why?</button></span><span class="v">${Math.round(100 * E.standbyCred(S))}%</span>` : ''}<span>Growth</span><span class="v">${rd.rate}</span><span title="How hard Beijing\u2019s hackers go after US lab weights. SL4 and SL5 matter more the harder they push.">Cyber push on US labs</span><span class="v">${rd.cyber}</span><span title="How well Beijing hides training sites. Raises the odds of cheating and of a hidden program after Phase 2; the GEOINT baseline offsets most of it.">Concealment</span><span class="v">${rd.hide}</span></div>
+      <div class="kv" style="margin-top:10px"><span>Distillation of US models</span><span class="v">${rd.dist}</span><span>Trust in Washington</span><span class="v">${c.trust < 20 ? 'none' : c.trust < 40 ? 'low' : c.trust < 60 ? 'guarded' : c.trust < 80 ? 'real' : 'high'}</span><span>Takes a bare cap</span><span class="v">${c.deal ? 'deal in force' : E.oddsWord(E.cnAcceptEstimate(S, {}).mid)}</span>${!c.deal && !S.pacing.active && S.phase !== 'p0' ? `<span>Believes \u201cOnly together\u201d</span><span class="v">${Math.round(100 * E.standbyCred(S))}%</span>` : ''}<span>Growth</span><span class="v">${rd.rate}</span><span title="How hard Beijing\u2019s hackers go after US lab weights. SL4 and SL5 matter more the harder they push.">Cyber push on US labs</span><span class="v">${rd.cyber}</span><span title="How well Beijing hides training sites. Raises the odds of cheating and of a hidden program after Phase 2; the GEOINT baseline offsets most of it.">Concealment</span><span class="v">${rd.hide}</span></div>
       <div class="sub" style="margin-top:8px">${rd.note}${rd.tier < 2 ? ' Sharpen with the GEOINT baseline, verification funding or an IC assessment.' : ''}</div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
@@ -381,7 +381,7 @@ function objective(v) {
   if (S.phase === 'p0') {
     body = `<h3>${S.pacing.collapsed ? 'Rebuild the case' : 'Get in position'}</h3>
       <div class="obrow"><span>Alarm</span>${meter(S.alarm, S.alarm > 70 ? 'bad' : '')}<b class="mono">${Math.round(S.alarm)}<small>/100</small></b></div>
-      <div class="sub">At 100 the President calls the emergency meeting. Ask sooner and your read is it’s <b>${E.oddsWord(v.briefOdds)}</b> to work. <button class="whylink" data-why="alarm">What raises alarm?</button></div>`;
+      <div class="sub">At 100 the President calls the emergency meeting. Ask sooner and your read is it’s <b>${E.oddsWord(v.briefOdds)}</b> to work.</div>`;
   } else if (S.phase === 'scramble') {
     const p = S.pacing;
     const items = [[p.mech, 'Mechanism', p.mech ? E.MECH[p.mech].label : '—'], [p.threshold, 'Threshold', p.threshold ? E.THRESH[p.threshold].label : '—'], [p.automation, 'Automation limits', p.automation ? 'yes' : 'optional'], [p.trigger, 'Monitoring trigger', p.trigger ? E.TRIG[p.trigger].label : 'optional']];
@@ -401,9 +401,9 @@ function objective(v) {
       [S.t - S.pacing.since >= 6, 'Pause held 6 months', f1(S.t - S.pacing.since) + ' mo'],
     ];
     body = `<h3>Hold the pause, build Phase 2</h3>
-      <div class="obrow"><span>Pacing support <button class="whylink" data-why="support">why?</button></span>${meter(v.support, v.support < 30 ? 'bad' : v.support < 45 ? 'warn' : 'good', [25])}<b class="mono">${v.support}</b></div>
+      <div class="obrow"><span>Pacing support</span>${meter(v.support, v.support < 30 ? 'bad' : v.support < 45 ? 'warn' : 'good', [25])}<b class="mono">${v.support}</b></div>
       <div class="ticks">${rows.map(it => `<span class="${it[0] ? 'ok' : ''}">${it[0] ? '✓' : '○'} ${it[1]}: <b>${esc(String(it[2]))}</b></span>`).join('')}</div>
-      <div class="ticks"><span>Confidence Beijing will comply <button class="whylink" data-why="comply">why?</button>: <b>${E.betrayWord(S)}</b></span><span>Legal footing <button class="whylink" data-why="law">why?</button>: <b>${S.flags.statute ? 'law' : S.flags.billDue ? 'bill moving, executive meanwhile' : 'executive orders'}</b>, courts ${esc(E.courtRead(S).text)}</span><span>Senate <button class="whylink" data-why="senate">why?</button>: <b>${v.senate}</b></span></div>`;
+      <div class="ticks"><span>Confidence Beijing will comply: <b>${E.betrayWord(S)}</b></span><span>Legal footing: <b>${S.flags.statute ? 'law' : S.flags.billDue ? 'bill moving, executive meanwhile' : 'executive orders'}</b>, courts ${esc(E.courtRead(S).text)}</span><span>Senate: <b>${v.senate}</b></span></div>`;
   }
   return `<div class="obj"><div class="goal">${body}</div><div class="pres"><span>The President</span>“${esc(presidentLine(v))}”</div></div>`;
 }
@@ -524,8 +524,6 @@ function whip(pos, compact) {
 /* ---------------- bindings ---------------- */
 function bindGame() {
   $('#endturn').onclick = endTurnClick;
-  app.querySelectorAll('.stat').forEach(c => c.onclick = () => showGlossary(window.ScrambleGlossary.CHIPKEY[c.id]));
-  app.querySelectorAll('[data-why]').forEach(b => b.onclick = () => showGlossary(b.dataset.why));
   $('#help').onclick = showHelp;
   $('#menu').onclick = showMenu;
   app.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { ui.side = b.dataset.side; renderGame(); });
@@ -560,6 +558,9 @@ function doAction() {
   if (a.params && a.params.kind !== 'variant') ui.params = {};
   save(); renderGame(); afterChange();
 }
+
+// Labeled parts as words: what helps or hurts, and how much.
+function parts(list) { const w = x => { const a = Math.abs(x); return a < 1 ? 'barely matters' : (x > 0 ? 'helps' : 'hurts') + (a < 5 ? ' a little' : a >= 12 ? ' a lot' : ''); }; return '<table class="gt">' + list.map(p => `<tr><td>${p[0]}</td><td class="n ${p[1] > 0.5 ? 'up' : p[1] < -0.5 ? 'dn' : ''}">${w(p[1])}</td></tr>`).join('') + '</table>'; }
 
 /* ---------------- modals ---------------- */
 function openModal(html, wide) { $('#modal').className = 'modal' + (wide ? ' wide' : ''); $('#modal').innerHTML = html; $('#ov').hidden = false; const f = $('#modal').querySelector('.choice,.btn'); if (f) f.focus({ preventScroll: true }); }
@@ -684,7 +685,7 @@ function openOffer() {
     <div class="sub" style="margin-bottom:10px">Market wants a lane for its models; Security hates inspections; Science responds to shared evaluations. ${S.pacing.active ? 'America is already pacing.' : S.pacing.armed ? 'America is on standby: Beijing finds it ' + Math.round(100 * E.standbyCred(S)) + '% credible.' : 'America is not pacing: Beijing will ask why it should stop first.'}</div>
     <div class="terms">${terms}</div>
     <div class="twoodds"><div><div class="lbl">President approves</div>${oddsBar(pv.room.p)}</div><div><div class="lbl">Beijing accepts (IC read)</div>${oddsBar(pv.cn.mid)}</div></div>
-    <details id="owhy" class="sub" style="margin:4px 0 10px" ${ui.offerWhy ? 'open' : ''}><summary>What Beijing weighs in this package</summary>${window.ScrambleGlossary.parts(E.cnParts(S, t, true).map(p => [p[0], 10 * p[1]]))}</details>
+    <details id="owhy" class="sub" style="margin:4px 0 10px" ${ui.offerWhy ? 'open' : ''}><summary>What Beijing weighs in this package</summary>${parts(E.cnParts(S, t, true).map(p => [p[0], 10 * p[1]]))}</details>
     ${whip(pv.room.positions, true)}
     <div class="row"><button class="btn" id="osend">Send it (${icon('bolt')}1 ${icon('coin')}2)</button><button class="ghost" id="ocancel">Not yet</button></div></div>`, true);
   $('#modal').querySelectorAll('[data-term]').forEach(c => c.onchange = () => { t[c.dataset.term] = c.checked; openOffer(); });
@@ -735,20 +736,6 @@ function showEnding() {
   $('#look').onclick = () => { closeModal(); };
 }
 
-/* ---- glossary ---- */
-function showGlossary(key) {
-  const G = window.ScrambleGlossary.G;
-  const body = G.map((g, gi) => `<section id="g${gi}"><h3>${esc(g.group)}</h3>${g.items.map(it => `<div class="gi ${it.key === key ? 'hi' : ''}" id="gl-${it.key}"><h4>${esc(it.name)}</h4><ul>${it.does.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
-    <div class="ud"><b>Raised by</b><span>${esc(it.up)}</span><b>Lowered by</b><span>${esc(it.down)}</span></div>${S ? `<div class="now">Right now: ${it.now(S)}</div>` : ''}</div>`).join('')}</section>`).join('');
-  openModal(`<div class="mh"><span>${icon('doc')} Glossary</span><span>What every number does</span></div><div class="mb"><h2>What every number does</h2>
-    <div class="glnav">${G.map((g, gi) => `<button class="ghost sm" data-gj="${gi}">${esc(g.group)}</button>`).join('')}</div>
-    <div class="gl">${body}</div><div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button></div></div>`, true);
-  $('#modal').querySelectorAll('[data-gj]').forEach(b => b.onclick = () => { const el = $('#g' + b.dataset.gj); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-  $('#mclose').onclick = () => { closeModal(); if (S) { renderGame(); afterChange(); } };
-  if (key) { const el = $('#gl-' + key); if (el) setTimeout(() => el.scrollIntoView({ block: 'center' }), 30); }
-}
-
-/* ---- help & menu ---- */
 function showHelp() {
   openModal(`<div class="mh"><span>${icon('doc')} Briefing book</span><span>How to play</span></div><div class="mb help">
     <h2>How to play</h2>
@@ -770,11 +757,10 @@ function showHelp() {
     <p>Beijing can quarantine Taiwan or go to war, likelier when it runs hot, when it is racing, and when America races far ahead near the threshold. The Beijing tab shows the IC\u2019s read on that risk. A quarantine stalls TSMC: US labs slow, markets slide and pacing loses support. War is a phase, not an ending: Taiwan\u2019s fabs go dark, deals are off and the Pentagon wants every model. Escalation climbs each month, and at 100 the war goes nuclear and the game ends. Propose a ceasefire to end it. A kinetic strike always starts a war.</p>
     <h4>Winning</h4>
     <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, and the compute overhang under control. The Phase 2 checklist also shows your confidence that Beijing will comply and whether pacing is law.</p>
-    <h4>Every number</h4><p>Click any stat at the top, or the Glossary button below, to see what it does, what moves it and where it stands now. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
+    <h4>Every number</h4><p>Hover any stat at the top to see what it does. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
     <h4>Keys</h4><p><span class="kbd">E</span> end turn · <span class="kbd">1</span>–<span class="kbd">4</span> event choices · <span class="kbd">Esc</span> close</p>
-    <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button><button class="ghost" id="hgloss">Glossary: what every number does</button></div></div>`, true);
+    <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button></div></div>`, true);
   $('#mclose').onclick = () => { closeModal(); if (S) afterChange(); };
-  $('#hgloss').onclick = () => showGlossary();
 }
 function showMenu() {
   openModal(`<div class="mh"><span>Menu</span><span>seed ${S.seed}</span></div><div class="mb"><h2>Menu</h2>
@@ -820,11 +806,10 @@ if (/^#demo/.test(location.hash)) {
   if (want === 'end') { S.ending = S.ending || 'phase2'; showEnding(); }
   if (want === 'vote') { S.roomUsed = 0; S.ap = S.apMax; S.pc = 12; const r = E.act(S, 'speech', {}); if (!r.error) { showVote(E.ACT.speech, r); setTimeout(() => {}, 0); } }
   if (want === 'event') { S.queue.push({ id: 'feud' }); showEvent(); }
-  if (want === 'gloss') showGlossary('support');
   if (want === 'debate') { S.queue.push({ id: 'debate' }); showEvent(); }
   if (want === 'beg') { S.policies.remote = true; S.queue.push({ id: 'cn_beg' }); showEvent(); }
   if (want === 'did') { ui.sel = 'meet'; ui.params = { who: 'vp' }; doAction(); }
-  if (want === 'strait') { ui.side = 'cn'; renderGame(); showGlossary('strait'); }
+  if (want === 'strait') { ui.side = 'cn'; renderGame(); }
   if (want === 'blockade') { E.startBlockade(S); showEvent(); }
   if (want === 'war') { ui.side = 'cn'; E.startWar(S, 'blockade', 25); E.chooseEvent(S, 0); E.endTurn(S); clearQ(); renderGame(); }
 }

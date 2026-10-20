@@ -100,7 +100,7 @@ const PROJECTS = [
   { id: 'inspect', name: 'Inspectors, chip ledger, whistleblower lines', need: 2, desc: 'Former IAEA and DTRA inspectors who know what a GPU hall looks like, a ledger of every frontier chip, and protected reporting lines at the labs.', done: 'Inspections +30, and smuggling gets harder (the more smuggling there is, the more it cuts).', fx(s) { s.verify.inspect += 30; s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.15 * cnBase(s).smuggle); } },
   { id: 'zk', name: 'Cryptographic proof-of-training', need: 3, desc: 'Zero-knowledge proofs of what a cluster trained. Rigorous and elegant.', done: 'Novel tech +30. It will not count during Phase 1: nobody trusts it yet.', fx(s) { s.verify.novel += 30; } },
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 2, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
-  { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 1, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts turns from a word into a number.' },
+  { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 1, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts gets far more accurate.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 2, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
   { id: 'sl4', name: 'Implement SL4 at the labs', need: 1, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
   { id: 'sl5', name: 'Raise the labs to SL5', need: 3, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
@@ -511,11 +511,11 @@ function cnStart(s) {
 }
 // Timers count ticks: a month each, two days during the scramble.
 function span(s, n) { return s.phase === 'scramble' ? (2 * n) + ' days' : n + ' month' + (n === 1 ? '' : 's'); }
-// The White House counsel's read on the courts: a word until the legal authorities study, then a number. Bots read a word as its bucket's middle.
+// The White House counsel's read on the courts, as a word; the legal authorities study makes it far more accurate. Bots read a word as its bucket's middle.
 function courtRead(s) {
   const err = s.done.legal ? 0.08 : 0.3, est = Math.max(0.3, (s.courts || 1) * (1 + (hash01(s.seed, 'courts', Math.floor(s.turn / 3)) - 0.5) * 2 * err));
   const i = est < 0.8 ? 0 : est < 1.2 ? 1 : 2, word = ['friendly', 'mixed', 'hostile'][i];
-  return { word, text: s.done.legal ? word + ' (~' + est.toFixed(1) + '× typical)' : word, seen: s.done.legal ? est : [0.65, 1, 1.35][i] };
+  return { word, text: word, seen: s.done.legal ? est : [0.65, 1, 1.35][i] };
 }
 const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
 function pushHist(s) { s.hist.push({ t: s.t, F: frontier(s), cn: s.cn.cap, cnEst: leadEstimate(s).mid, labs: s.labs.map(l => l.cap), paced: paced(s), phase: s.phase, salience: s.salience, tension: s.tension, markets: s.markets }); }
