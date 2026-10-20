@@ -19,15 +19,22 @@
   --f-body:"Source Serif 4",Georgia,"Times New Roman",serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   --shadow:0 1px 0 var(--rule),0 14px 30px -26px rgba(10,20,40,.55);
+  /* phase palettes: accent, soft fill, page tint */
+  --p0:#1A4480; --p0-soft:#DCE6F3; --p0-bg:#E3E8ED;
+  --scr:#A34D00; --scr-soft:#F6E2CB; --scr-bg:#EDE5DA;
+  --p1:#0E6B62; --p1-soft:#D2ECE7; --p1-bg:#DDE9E6;
+  --war-bg:#F0D6D3; --hazard:#9A5B00;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0D131A; --sheet:#151E28; --sheet2:#1B2632; --ink:#E3E9EF; --muted:#9AA7B4; --faint:#5F6D7B; --rule:#2A3746;
   --accent:#8FB4EC; --accent-ink:#0D131A; --accent-soft:#1E3150;
-  --good:#6FD39A; --bad:#F38A80; --warn:#F2B65C; --cn:#F0828A; --us:#8FB4EC; --paper:#1A2028; --shadow:0 1px 0 var(--rule); color-scheme:dark;}}
+  --good:#6FD39A; --bad:#F38A80; --warn:#F2B65C; --cn:#F0828A; --us:#8FB4EC; --paper:#1A2028; --shadow:0 1px 0 var(--rule); color-scheme:dark;
+  --p0:#8FB4EC; --p0-soft:#1E3150; --p0-bg:#0D131A; --scr:#F2A65A; --scr-soft:#3A2A18; --scr-bg:#1C150D; --p1:#6FCFC2; --p1-soft:#15332F; --p1-bg:#0A1A18; --war-bg:#260F13; --hazard:#F2B65C;}}
 :root[data-theme="dark"]{
   --bg:#0D131A; --sheet:#151E28; --sheet2:#1B2632; --ink:#E3E9EF; --muted:#9AA7B4; --faint:#5F6D7B; --rule:#2A3746;
   --accent:#8FB4EC; --accent-ink:#0D131A; --accent-soft:#1E3150;
-  --good:#6FD39A; --bad:#F38A80; --warn:#F2B65C; --cn:#F0828A; --us:#8FB4EC; --paper:#1A2028; --shadow:0 1px 0 var(--rule); color-scheme:dark;}
+  --good:#6FD39A; --bad:#F38A80; --warn:#F2B65C; --cn:#F0828A; --us:#8FB4EC; --paper:#1A2028; --shadow:0 1px 0 var(--rule); color-scheme:dark;
+  --p0:#8FB4EC; --p0-soft:#1E3150; --p0-bg:#0D131A; --scr:#F2A65A; --scr-soft:#3A2A18; --scr-bg:#1C150D; --p1:#6FCFC2; --p1-soft:#15332F; --p1-bg:#0A1A18; --war-bg:#260F13; --hazard:#F2B65C;}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14.5px;line-height:1.45}
@@ -44,6 +51,30 @@ button{font:inherit;color:inherit}
 .up{color:var(--good)} .dn{color:var(--bad)}
 .pill{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border:1px solid currentColor;line-height:1.3;white-space:nowrap}
 .pill.good{color:var(--good)}.pill.bad{color:var(--bad)}.pill.warn{color:var(--warn)}.pill.muted{color:var(--muted)}.pill.acc{color:var(--accent)}
+/* phases: each sets the accent and page tint; a Strait crisis tints on top */
+body[data-phase="p0"]{--accent:var(--p0);--accent-soft:var(--p0-soft);--bg:var(--p0-bg)}
+body[data-phase="scramble"]{--accent:var(--scr);--accent-soft:var(--scr-soft);--bg:var(--scr-bg)}
+body[data-phase="p1"]{--accent:var(--p1);--accent-soft:var(--p1-soft);--bg:var(--p1-bg)}
+body[data-crisis="war"]{--bg:var(--war-bg)}
+body[data-phase] .top{border-top:3px solid var(--accent)}
+body[data-crisis="war"] .top{border-top-color:var(--bad);box-shadow:0 2px 0 var(--bad)}
+body[data-crisis="quarantine"] .top{box-shadow:0 4px 0 -1px transparent;background-image:repeating-linear-gradient(135deg,var(--hazard) 0 8px,transparent 8px 16px);background-size:100% 4px;background-repeat:no-repeat;background-position:bottom}
+/* phase ribbon: where you are in the game, the phase clock, and any Strait crisis */
+.ribbon{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;background:var(--sheet);border:1px solid var(--rule);border-left:5px solid var(--accent);border-radius:6px;padding:10px 14px}
+.phases{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0;padding:0;list-style:none}
+.phases li{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--faint);padding:4px 10px;border-radius:999px;white-space:nowrap}
+.phases li{position:relative} .phases li+li{margin-left:18px}
+.phases li+li::before{content:"";position:absolute;left:-18px;top:50%;width:14px;height:1px;background:var(--rule)}
+.phases li.done{color:var(--muted)} .phases li.done b::before{content:"\2713\00a0"}
+.phases li.now{color:var(--accent-ink);background:var(--accent)}
+.phases li.now b{font-weight:800}
+.ribbon .clock{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-left:auto}
+.ribbon .clock b{color:var(--ink);font-family:var(--f-mono);font-weight:600}
+.ticks14{display:flex;gap:3px} .ticks14 i{width:14px;height:8px;background:var(--rule)} .ticks14 i.on{background:var(--accent)}
+.crisis{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;padding:4px 10px;border:1px solid currentColor;text-transform:uppercase;letter-spacing:.08em}
+.crisis.war{color:var(--bad)} .crisis.quar{color:var(--hazard)}
+.crisis .meter{width:80px}
+@media (max-width:600px){.ribbon .clock{margin-left:0}.phases li{padding:3px 8px}}
 /* top bar */
 .top{position:sticky;top:23px;z-index:25;background:var(--sheet);border-bottom:1px solid var(--rule)}
 .top-in{max-width:1400px;margin:0 auto;padding:8px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px}

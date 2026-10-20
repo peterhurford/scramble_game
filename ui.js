@@ -140,6 +140,7 @@ function changedBox(list, title) {
 function renderTitle() {
   const saved = loadSave();
   $('#banner').dataset.level = 'U'; $('#banner').textContent = 'UNCLASSIFIED // FOR EXERCISE ONLY';
+  delete document.body.dataset.phase; delete document.body.dataset.crisis;
   closeModal();
   const diffs = Object.keys(E.DIFFS).map(k => `<button class="opt ${k === 'advisor' ? 'on' : ''}" data-diff="${k}"><b>${E.DIFFS[k].label}</b><small>${E.DIFFS[k].desc}</small></button>`).join('');
   app.innerHTML = `<div class="title"><div class="tcard">
@@ -170,7 +171,8 @@ function renderGame() {
   const v = E.view(S);
   $('#banner').dataset.level = bannerLevel();
   $('#banner').textContent = { U: 'UNCLASSIFIED // FOR EXERCISE ONLY', S: 'SECRET // EXERCISE // NOFORN', TS: 'TOP SECRET // EXERCISE // NOFORN' }[bannerLevel()];
-  app.innerHTML = `${topBar(v)}<div class="wrap">${raceStrip(v)}<div class="main"><div class="desk">${deskPanel(v)}</div>${sidePanel(v)}</div></div>`;
+  document.body.dataset.phase = S.phase; document.body.dataset.crisis = S.war ? 'war' : S.blockade ? 'quarantine' : '';
+  app.innerHTML = `${topBar(v)}<div class="wrap">${phaseRibbon(v)}${raceStrip(v)}<div class="main"><div class="desk">${deskPanel(v)}</div>${sidePanel(v)}</div></div>`;
   bindGame();
   showDeltas();
 }
@@ -208,6 +210,20 @@ function topBar(v) {
     </div>
     <div class="row"><button class="ghost sm" id="help">Help</button><button class="ghost sm" id="menu">Menu</button><button class="btn" id="endturn" title="End turn (E)">End turn <span class="kbd">E</span></button></div>
   </div></div>`;
+}
+
+/* ---- the phase ribbon: the four phases, this phase's clock, and any Strait crisis ---- */
+function phaseRibbon(v) {
+  const at = S.phase === 'p0' ? 0 : S.phase === 'scramble' ? 1 : 2;
+  const names = ['Phase 0 · Prepare', 'The scramble', 'Phase 1 · Hold the pause', 'Phase 2 · Agreement'];
+  const steps = names.map((n, i) => `<li class="${i === at ? 'now' : i < at ? 'done' : ''}"><b>${n}</b></li>`).join('');
+  const sc = S.scramble;
+  const clock = S.phase === 'scramble' ? `<span>Day <b>${1 + 2 * (sc.turn - 1)}</b> of 14</span><span class="ticks14">${Array.from({ length: sc.max }, (_, i) => `<i class="${i < sc.turn ? 'on' : ''}"></i>`).join('')}</span>`
+    : S.phase === 'p1' ? (S.pacing.armed && !S.pacing.active ? '<span>Standing by for Beijing</span>' : `<span>Paused <b>${S.flags.monthsInP1 || 0}</b> month${S.flags.monthsInP1 === 1 ? '' : 's'}</span>`)
+    : `<span>${S.pacing.collapsed ? 'Aftermath: pacing collapsed' : 'Getting in position'}</span>`;
+  const crisis = S.war ? `<span class="crisis war" title="At 100 the war goes nuclear and the game ends.">At war · escalation ${meter(S.war.esc, 'bad', [100])} ${Math.round(S.war.esc)}</span>`
+    : S.blockade ? `<span class="crisis quar">Taiwan quarantined</span>` : '';
+  return `<div class="ribbon"><ol class="phases" aria-label="Phases">${steps}</ol>${crisis}<div class="clock">${clock}</div></div>`;
 }
 
 /* ---- the race strip: US, China and the RSI zone on one track ---- */
