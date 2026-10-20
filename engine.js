@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -736,9 +736,9 @@ function malaysiaOdds(s) { return clamp(0.25 + s.coalition / 200 + (s.flags.joho
 
 // ---- scramble decisions ----
 const MECH = {
-  charter: { label: 'Pacing Charter', desc: 'Voluntary commitments by every lab above the line, mutual verification, and the DPA held in reserve. Labs must sign. Lowest court risk until Congress acts.', tags: { pause: 1.2, control: 0.8, industry: -0.4, markets: -0.4 } },
-  dpa: { label: 'DPA halt', desc: 'Order every lab above the line to stop. Covers everyone at once. Legally untested: the highest court risk until Congress acts.', tags: { pause: 2.2, control: 2, industry: -2, markets: -1.4 } },
-  license: { label: 'Commerce licensing', desc: 'Commerce licenses every run above the line. Covers everyone. Commerce runs it, enforcement is leakier, and court risk is moderate until Congress acts.', tags: { pause: 1.2, control: 1.2, commerce: 2, industry: -0.8, markets: -0.6 } },
+  charter: { label: 'Pacing Charter', desc: 'Voluntary commitments by every lab above the line, mutual verification, and the DPA held in reserve. Labs must sign, and labs that like you sign and stay. Lowest court risk until Congress acts.', tags: { pause: 1.2, control: 0.8, industry: -0.4, markets: -0.4 } },
+  dpa: { label: 'DPA halt', desc: 'Order every lab above the line to stop. Covers everyone at once. Legally untested: the highest court risk until Congress acts, and hostile courts are likelier to rule against it and to uphold the ruling on appeal.', tags: { pause: 2.2, control: 2, industry: -2, markets: -1.4 } },
+  license: { label: 'Commerce licensing', desc: 'Commerce licenses every run above the line. Covers everyone. Commerce runs it, so it is as tight as Commerce wants: leaky with a hostile Commerce Secretary, solid with an ally, whose lawyers also halve the court risk.', tags: { pause: 1.2, control: 1.2, commerce: 2, industry: -0.8, markets: -0.6 } },
 };
 def({ id: 'mech', cat: 'crisis', name: 'Choose the pacing mechanism', phases: ['scramble'], ap: 1, pc: 2, room: true,
   params: { kind: 'variant', options: () => Object.keys(MECH).map(k => ({ id: k, label: MECH[k].label, desc: MECH[k].desc })) },
@@ -884,7 +884,8 @@ function complianceBase(s, l) {
   const d = LD(l.id);
   let c = 35 + d.safety * 0.5 + l.rel * 0.2;
   if (s.pacing.mech === 'dpa') c += 15;
-  if (s.pacing.mech === 'license') c -= 12;
+  if (s.pacing.mech === 'license') c += -12 + TUNE.licRel * P(s, 'doc').rel; // Commerce runs it: as good as Commerce wants it to be
+  if (s.pacing.mech === 'charter' && l.signedVoluntary) c += TUNE.charterRel * l.rel; // a lab that chose to sign keeps faith as far as it trusts you
   if (s.flags.commerceChairs) c -= 5;
   return clamp(c);
 }
@@ -1104,7 +1105,7 @@ function summitP(s) { const d = s.cn.deal; if (!d) return 0; const held = s.t - 
 // Monthly chance a court enjoins the pause: the mechanism's rate (a DPA order on any lab counts as DPA), far lower once a statute is challenged instead,
 // times the game's hidden court climate (pass the counsel's read to get what the player can know); the legal study cuts it, ignoring a ruling raises it.
 function courtP(s, climate) {
-  const base = s.flags.statute ? TUNE.statuteCourt : Math.max(TUNE.courtRate[s.pacing.mech] || 0.03, s.flags.compelled ? TUNE.courtRate.dpa : 0);
+  const base = s.flags.statute ? TUNE.statuteCourt : Math.max((TUNE.courtRate[s.pacing.mech] || 0.03) * (s.pacing.mech === 'license' && P(s, 'doc').rel >= 40 ? 0.5 : 1), s.flags.compelled ? TUNE.courtRate.dpa : 0);
   return base * (climate == null ? s.courts || 1 : climate) * (s.done.legal ? 0.4 : 1) * (1 + (s.flags.defied || 0));
 }
 function summitCourtP(s) { return s.flags.statute ? 0 : TUNE.summitCourt * (s.done.legal ? 0.5 : 1); }
@@ -1577,7 +1578,7 @@ ev({ id: 'cn_cheat', forced: true, title: 'Two heat signatures', stamp: 'NGA, 11
 const COURT = { dpa: 'frontier AI risk does not meet the Defense Production Act’s “national emergency” standard', license: 'Commerce has no statutory authority to license domestic training runs', charter: 'the Charter’s mandatory verification and its DPA backstop exceed executive authority' };
 // Appeals restore the orders half the time, three times in four when it is a statute under challenge.
 // A Charter injunction strikes its mandatory verification, which stays enjoined until an appeal wins or a statute passes.
-function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && l.comp < 70) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : 0.5; if (s.pacing.mech === 'charter' && !s.flags.statute) s.flags.verifyEnjoined = true; return out; }
+function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && (l.comp < 70 || s.pacing.mech === 'dpa')) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : clamp(0.5 - TUNE.appealSwing * ((s.courts || 1) - 1), 0.15, 0.85); if (s.pacing.mech === 'charter' && !s.flags.statute) s.flags.verifyEnjoined = true; return out; }
 ev({ id: 'court', forced: true, title: 'Injunction', stamp: 'D.C. Circuit',
   body: s => s.flags.statute ? `<p>Mindscale’s lawyers find a sympathetic district judge, who rules that the Pacing Act delegates too much to the executive and enjoins enforcement pending appeal.</p><p>A statute makes this rare. It does not make it impossible.</p>` : `<p>A federal judge rules that ${COURT[s.flags.compelled ? 'dpa' : s.pacing.mech] || COURT.charter}, and enjoins the government’s orders.</p><p>Without a statute, this can happen again.${s.pacing.mech === 'charter' && !s.flags.compelled ? ' Until an appeal wins or Congress acts, the Charter\u2019s inspections lose their teeth: cheating labs get caught half as often, and inspections build half as fast.' : ''}</p>`,
   choices: [
@@ -1616,7 +1617,7 @@ ev({ id: 'markets_wobble', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced
     { label: 'Support it', hint: '3 capital. Markets +10; Treasury +8.', fx: s => { if (s.pc >= 3) { s.pc -= 3; s.markets += 10; rel(s, 'tsy', 8); return 'Markets rally 5%.'; } rel(s, 'tsy', -5); return 'You have no capital to spend on it.'; } },
     { label: 'Hold the line', hint: 'Treasury -10; markets -3 as Treasury goes over your head.', fx: s => { rel(s, 'tsy', -10); s.markets -= 3; return 'The Treasury Secretary goes over your head, and says so on CNBC.'; } },
   ] });
-ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && (s.pacing.mech === 'license' || s.flags.commerceChairs),
+ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && (s.pacing.mech === 'license' || s.flags.commerceChairs) && P(s, 'doc').rel < 15,
   title: 'An exemption', stamp: 'Commerce Department',
   body: () => `<p>Commerce quietly grants Mindscale a “research exemption” for a training run at Forge 2.</p>`,
   choices: [

@@ -42,7 +42,8 @@ P(`- **Spare actions:** ${G.alliesIdle ? 'build the treaty coalition' : 'nothing
 P('## The scramble\n');
 const mrule = G.mechCut < 2 && G.mechHostile !== G.mech ? `${E.MECH[G.mech].label}, or ${E.MECH[G.mechHostile].label} when counsel reads the courts above ${G.mechCut.toFixed(2)}× typical` : E.MECH[G.mech].label;
 const crule = [G.mech, G.mechHostile].indexOf('charter') >= 0 && G.charterMin > 0.02 ? `; the Charter only if Mindscale is at least ${pct(G.charterMin)} likely to sign, else ${E.MECH[G.mechNoSign].label}` : '';
-P(`- **Mechanism:** ${mrule}${crule}.${w('mech')}${w('mechHostile')}${w('mechCut')}${w('charterMin')}${w('mechNoSign')}  **Threshold:** ${G.thr}.${w('thr')}  **Automation limits:** ${G.auto ? 'yes' : 'no'}.${w('auto')}  **Monitoring trigger:** ${G.trig === 'none' ? 'none' : E.TRIG[G.trig].label}.${w('trig')}`);
+const lrule = G.licRelMin <= 100 ? `Commerce licensing whenever the Commerce Secretary's relationship is at least ${Math.round(G.licRelMin)}; otherwise ` : '';
+P(`- **Mechanism:** ${lrule}${mrule}${crule}.${w('mech')}${w('mechHostile')}${w('mechCut')}${w('charterMin')}${w('mechNoSign')}  **Threshold:** ${G.thr}.${w('thr')}  **Automation limits:** ${G.auto ? 'yes' : 'no'}.${w('auto')}  **Monitoring trigger:** ${G.trig === 'none' ? 'none' : E.TRIG[G.trig].label}.${w('trig')}`);
 P(`- **Go first?** ${G.seq === 'adaptive' ? `wait for Beijing if the IC says RSI is ${G.seqIc.toFixed(1)}+ months away, otherwise go first` : E.SEQ[G.seq].label}.${w('seq')}${w('seqIc')}`);
 P(`- **Signing table:** asks the labs in order; sweetens a lab's deal only if its odds are under ${pct(G.dealBelow)} and it holds at least ${pct(G.dealMinShare)} of US compute.${w('dealMinShare')}`);
 P(`- **Launch:** ${G.waitFull ? 'waits until automation limits and the trigger are in (or day 11)' : 'as soon as possible'}. **Spare actions:** ${G.scrIdle}${G.scrOffer ? '; also makes Beijing an offer during the scramble' : ''}.\n`);
