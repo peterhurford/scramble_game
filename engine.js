@@ -84,7 +84,9 @@ const COMPONENTS = [
 ]
 
 // Weight security ladder. Each level replaces the one below: its theft odds and its cost to US labs.
-const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.10 }, 5: { W: 92, theft: 0.04, drag: 0.30 } };
+const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.05 }, 5: { W: 92, theft: 0.04, drag: 0.15, dragStart: 0.30 } };
+// SL5's overhead is front-loaded: the move onto isolated networks costs most, easing from dragStart to drag over 12 months
+function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const age = s.t - (s.flags.sl5Since == null ? s.t : s.flags.sl5Since); return l.drag + (l.dragStart - l.drag) * Math.max(0, 1 - age / 12); }
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
@@ -98,8 +100,8 @@ const PROJECTS = [
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court.', done: 'Emergency orders are far less likely to be enjoined, and the DPA threat becomes credible.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl4', name: 'Implement SL4 at the labs', need: 2, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 10%.', fx(s) { setSL(s, 4); } },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 6, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% (instead of SL4\u2019s 10%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
+  { id: 'sl4', name: 'Implement SL4 at the labs', need: 2, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 6, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
 ];
 
 const ASKS = {
@@ -181,7 +183,7 @@ function betrayWord(s) { const p = hiddenRisk(s); return p < 0.08 ? 'high' : p <
 // US drag: what our own moves cost American labs, as a fraction of their growth rate.
 function usDrag(s) {
   const parts = [];
-  if (SL[s.sl].drag) parts.push(['SL' + s.sl + ' security overhead', SL[s.sl].drag]);
+  if (SL[s.sl].drag) parts.push(['SL' + s.sl + ' security overhead', slDrag(s)]);
   if (s.done.control) parts.push(['AI control protocols', 0.05]);
   if (s.policies.distill) parts.push(['API know-your-customer friction', 0.015]);
   if (s.policies.methods) parts.push(['Research secrecy and visa screening', 0.015]);
@@ -569,7 +571,7 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3.',
-  effect: () => 'Orders SL4. It takes effect after 2 more actions implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 10%. Labs -8, industry -2.',
+  effect: () => 'Orders SL4. It takes effect after 2 more actions implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
   apply(s) { s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
