@@ -567,11 +567,26 @@ function showVote(a, res, diffs) {
   rollDice();
   $('#mclose').onclick = () => { closeModal(); renderGame(); afterChange(); };
 }
-function afterChange() { if (!S) return; if (S.ending) return showEnding(); if (S.queue.length) return showEvent(); }
+// Events whose only button is "Note it" resolve themselves: they land in the morning brief (or on the desk) instead of a modal.
+function noteOnly(ev) { return ev && ev.choices.length === 1 && ev.choices[0].label === 'Note it'; }
+function autoNotes() {
+  const out = []; let g = 0;
+  while (S && S.queue.length && !S.ending && g++ < 20) { const ev = E.currentEvent(S); if (!noteOnly(ev)) break; const r = E.chooseEvent(S, 0); out.push({ title: ev.title, text: r.text || '', hint: ev.choices[0].hint || '' }); }
+  if (out.length) save();
+  return out;
+}
+const noteHtml = n => `<li class="info"><b>${esc(n.title)}.</b> ${esc(n.text)}${n.hint ? ` <span class="sub">${esc(n.hint)}</span>` : ''}</li>`;
+function afterChange() {
+  if (!S) return;
+  const notes = autoNotes();
+  if (notes.length) { ui.result = { tone: 'info', head: 'Also today.', text: `<ul class="heads">${notes.map(noteHtml).join('')}</ul>` }; renderGame(); }
+  if (S.ending) return showEnding(); if (S.queue.length) return showEvent();
+}
 function eventHeader(id) { const m = EVMETA[evType(id)]; return `<div class="evband" style="--c:${m[2]}">${icon(m[1])}<span>${m[0]}</span></div>`; }
 function showEvent() {
   const ev = E.currentEvent(S); if (!ev) return;
   openModal(`${eventHeader(ev.id)}<div class="mh"><span>${esc(ev.stamp || '')}</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb">
+    ${ui.lastOutcome ? `<div class="result ${ui.lastOutcome.tone}" style="margin:0 0 12px"><b>${esc(ui.lastOutcome.head)}</b> ${ui.lastOutcome.text}</div>` : ''}
     <h2>${esc(ev.title)}</h2><div class="prose">${ev.body}</div>
     <div class="choices">${ev.choices.map((c, i) => `<button class="choice" data-ch="${i}"><span class="k">${i + 1}</span><span class="l">${esc(c.label)}</span>${hintChips(c.hint)}</button>`).join('')}</div></div>`);
   $('#modal').querySelectorAll('[data-ch]').forEach(b => b.onclick = () => pickEvent(+b.dataset.ch));
@@ -581,10 +596,11 @@ function pickEvent(i) {
   const before = snap();
   const r = E.chooseEvent(S, i); save();
   const diffs = diffList(before, snap());
-  if (!r.text && !diffs.length) { closeModal(); renderGame(); afterChange(); return; }
-  openModal(`${eventHeader(ev.id)}<div class="mh"><span>${esc(ev.stamp || '')}</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb">
-    <h2>${esc(ev.title)}</h2><div class="prose"><p>${esc(r.text || '')}</p></div>${changedBox(diffs)}<div class="row" style="margin-top:12px"><button class="btn" id="mclose">Continue</button></div></div>`);
-  $('#mclose').onclick = () => { closeModal(); renderGame(); afterChange(); };
+  // the outcome rides along: on top of the next event if there is one, else on the desk
+  const out = (r.text || diffs.length) ? { tone: 'good', head: ev.title + ': ' + ev.choices[i].label + '.', text: esc(r.text || '') + changedBox(diffs) } : null;
+  ui.lastOutcome = out; ui.result = out || ui.result;
+  closeModal(); renderGame(); afterChange();
+  ui.lastOutcome = null;
 }
 function endTurnClick() {
   if (!S || S.ending) return;
@@ -594,7 +610,7 @@ function endTurnClick() {
   const before = E.view(S); const b = { cred: S.cred, mk: S.markets, tens: S.tension, pc: S.pc, alarm: S.alarm, sal: S.salience }; ui.turnBefore = snap();
   const rep = E.endTurn(S);
   if (!rep || rep.error) { if (rep && rep.error) toast(rep.error); return; }
-  ui.result = null; save();
+  ui.result = null; ui.notes = autoNotes(); save();
   renderGame();
   if (S.ending && !S.queue.length) return showEnding();
   showReport(before, b, rep);
@@ -610,7 +626,7 @@ function showReport(before, b, rep) {
   openModal(`<div class="mh"><span>${icon('doc')} The morning brief</span><span>${esc(rep.date)}</span></div><div class="mb">
     <div class="tiles">${tiles}</div>
     ${changedBox(diffList(ui.turnBefore || {}, snap()).filter(x => !/^.(Credibility|Capital|Markets|Beijing temperature|Alarm|Salience|Pacing support|Senate votes) /.test(x)), 'Everything else that moved')}
-    ${rep.logs.length ? `<div class="lbl" style="margin-top:10px">Overnight</div><ul class="heads">${rep.logs.map(l => `<li class="${l.tone}">${esc(l.text)}</li>`).join('')}</ul>` : '<div class="sub">A quiet night.</div>'}
+    ${rep.logs.length || (ui.notes || []).length ? `<div class="lbl" style="margin-top:10px">Overnight</div><ul class="heads">${rep.logs.map(l => `<li class="${l.tone}">${esc(l.text)}</li>`).join('')}${(ui.notes || []).map(noteHtml).join('')}</ul>` : '<div class="sub">A quiet night.</div>'}
     <div class="row" style="margin-top:14px"><button class="btn" id="mclose">${S.queue.length ? 'Open the inbox (' + S.queue.length + ')' : 'To work'}</button></div></div>`);
   $('#mclose').onclick = () => { closeModal(); afterChange(); };
 }
@@ -757,6 +773,7 @@ document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
   if (modalOpen()) {
+    if (e.key === 'Enter') { const b = $('#mclose'); if (b) { b.click(); e.preventDefault(); return; } }
     const n = +e.key; if (n >= 1 && n <= 4) { const b = $('#modal').querySelector(`[data-ch="${n - 1}"]`); if (b) { b.click(); e.preventDefault(); } }
     if (e.key === 'Escape') { const ev = S && S.queue.length && $('#modal').querySelector('[data-ch]'); const end = S && S.ending; if (!ev && !end) { closeModal(); if (S) renderGame(); } }
     return;
