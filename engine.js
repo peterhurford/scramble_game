@@ -118,7 +118,7 @@ const ASKS = {
     { text: 'No surprises: pre-brief the Chief on everything.', pc: 1, fx(s) { s.flags.cosBriefed = true; return 'You start sending the Chief a 7:00a note. It gets read.'; } },
   ],
   tsy: [
-    { text: 'No new chip restrictions before the trade summit.', pc: 1, fx(s) { s.flags.summitHold = s.turn + 3; return 'Chip restrictions are frozen for three turns.'; } },
+    { text: 'No new chip restrictions before the trade summit.', pc: 1, fx(s) { s.flags.summitHold = s.turn + 3; return 'Chip restrictions are frozen for three months.'; } },
     { text: 'A market stabilization plan before any pause.', pc: 2, fx(s) { s.flags.marketPlan = true; return 'Treasury drafts a liquidity backstop. Any pause will hit markets half as hard.'; } },
     { text: 'Back a market lane in any China deal.', pc: 1, fx(s) { s.flags.laneCommit = true; return 'You promise. Treasury will remember if an offer leaves it out.'; } },
   ],
@@ -509,6 +509,8 @@ function cnStart(s) {
   const sci = 12 + 18 * u('sci'), sec = 22 + 18 * u('sec'); c.f = { m: 100 - sci - sec, sec, sci };
   s.labs.forEach(l => { l.rel = LD(l.id).rel0 + Math.round(30 * (u('rel' + l.id) - 0.5)); });
 }
+// Timers count ticks: a month each, two days during the scramble.
+function span(s, n) { return s.phase === 'scramble' ? (2 * n) + ' days' : n + ' month' + (n === 1 ? '' : 's'); }
 // The White House counsel's read on the courts: a word until the legal authorities study, then a number. Bots read a word as its bucket's middle.
 function courtRead(s) {
   const err = s.done.legal ? 0.08 : 0.3, est = Math.max(0.3, (s.courts || 1) * (1 + (hash01(s.seed, 'courts', Math.floor(s.turn / 3)) - 0.5) * 2 * err));
@@ -585,7 +587,7 @@ def({ id: 'meet', cat: 'politics', name: 'Meet one-on-one', phases: ['p0', 'scra
   avail(s, prm) { if (prm && prm.who && s.flags['met_' + prm.who] === s.turn) return 'Already met this turn'; return true; },
   apply(s, prm) {
     const p = P(s, prm.who); const d = PD(s, prm.who); const per = d.persuade || 1;
-    // back-to-back meetings (within two turns) with the same person each do 60% of the last
+    // back-to-back meetings (within two months) with the same person each do 60% of the last
     p.streak = p.lastMet != null && s.turn - p.lastMet <= 2 ? (p.streak || 0) + 1 : 0; p.lastMet = s.turn;
     const m = Math.pow(TUNE.meetDecay, p.streak);
     rel(s, prm.who, (10 + (s.cred > 60 ? 3 : 0)) * (0.4 + 0.6 * per) * m); rivalHit(s, prm.who, 2); p.shift = Math.min(1.4, p.shift + (0.12 + 0.1 * Math.max(0, (s.salience - 30) / 50)) * per * m); s.flags['met_' + prm.who] = s.turn;
@@ -593,7 +595,7 @@ def({ id: 'meet', cat: 'politics', name: 'Meet one-on-one', phases: ['p0', 'scra
   },
 });
 function meetMult(s, who) { const p = P(s, who); return p.lastMet != null && s.turn - p.lastMet <= 2 ? Math.pow(TUNE.meetDecay, (p.streak || 0) + 1) : 1; }
-// Favors granted in the last four turns, each of which makes the next one cost credibility.
+// Favors granted in the last four months, each of which makes the next one cost credibility.
 function recentFavors(s) { return (s.flags.favorTurns || []).filter(t => t > s.turn - 4).length; }
 def({ id: 'favor', cat: 'politics', name: 'Grant a favor', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 0,
   params: { kind: 'principal' },
@@ -652,8 +654,8 @@ def({ id: 'labmeet', cat: 'labs', name: 'Meet a lab CEO', phases: ['p0', 'scramb
   apply(s, prm) { const l = L(s, prm.lab); l.rel = clamp(l.rel + 12, -100, 100); if (l.signed) l.comp = clamp(l.comp + 6); return LD(l.id).ceo + ' ' + pick(s, ['agrees the race is getting dangerous, off the record.', 'wants to know who else is signing.', 'asks what happens if China doesn’t stop.']); },
 });
 def({ id: 'assess', cat: 'intel', name: 'Commission an IC assessment', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
-  desc: 'A National Intelligence Estimate on RSI timing and Chinese capability. Sharper readings for three turns.',
-  effect: () => 'Indicator noise halved and IC timing estimate narrowed for 3 turns; intelligence quality +5.',
+  desc: 'A National Intelligence Estimate on RSI timing and Chinese capability. Sharper readings for three months (six days in the scramble).',
+  effect: s => 'Indicator noise halved and IC timing estimate narrowed for ' + span(s, 3) + '; intelligence quality +5.',
   apply(s) { s.flags.assessUntil = s.turn + 3; s.intelQ += 5; return 'The DNI tasks a crash estimate. The error bars shrink.'; },
 });
 
@@ -1003,7 +1005,7 @@ function cnParts(s, terms, pub) {
   CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
   if (terms.threat && !terms.ultimatum) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
   if (terms.ultimatum) P_.push(['Freeze now or never (Market weighs the gap; Security hates it)', 0.11 * (Math.min(ld, 14) - 4) * f.m / 50 - 0.025 * (f.sec - 30)]);
-  if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 turns', -0.8]);
+  if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 months', -0.8]);
   if (s.flags.dodCarve) P_.push(['A Pentagon carve-out for one lab', -0.15]);
   if (s.flags.uaeOut && paced(s)) P_.push(['The UAE loophole', -TUNE.uaeDeal]);
   return P_;
@@ -1016,7 +1018,7 @@ function roomPreviewTags(s, id, tags, key) { ACT._tmp = { tags, pres: s2 => (lea
 def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramble', 'p1'], ap: 1, pc: 2, modal: 'offer',
   desc: 'Build a package. The President has to approve it, then Beijing decides. Carrots cost at home as soon as the package goes out; a rejection costs trust and temperature.',
   effect: () => 'Opens the offer table.',
-  avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + s.cn.cooldown + ' more turn' + (s.cn.cooldown > 1 ? 's' : '') + ')'; return true; },
+  avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + span(s, s.cn.cooldown) + ' more)'; return true; },
   apply() { return ''; },
 });
 def({ id: 'sound', cat: 'diplo', name: 'Sound out Beijing’s envoy', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
@@ -1062,7 +1064,7 @@ function makeOffer(s, terms) {
   s.cn.trust -= 5; s.tension += 4;
   if (terms.threat) { s.flags.threatMade = s.turn; }
   if (terms.ultimatum) {
-    // a refused ultimatum hands Beijing to Security: racing, theft attempts x1.5 for 6 turns, no talks for 3
+    // a refused ultimatum hands Beijing to Security: racing, theft attempts x1.5 for 6 months, no talks for 3
     const c = s.cn; s.flags.ultRejected = s.turn; shiftCN(s, { sec: 10, m: -5 }); c.posture = 'race'; c.race = Math.min(1, c.race + 0.5); s.tension += 10; c.trust -= 10; c.cooldown = 3;
     log(s, 'Beijing rejects the ultimatum. Its security services take the lead.', 'bad');
     return { pass: true, accepted: false, room: rp, roll, p, cnRoll, text: 'Beijing says no, publicly. State media calls it “a demand for surrender.” Within the week the security services are running Beijing’s side, and the race is on.' };
@@ -1305,7 +1307,7 @@ ev({ id: 'distill_report', p: 0.5, once: true, phases: ['p0'], when: s => s.t < 
   title: 'The distillation report', stamp: 'Prometheus blog post',
   body: () => `<p>Prometheus publishes evidence that three Chinese labs, Deep Current, Lunar and MiniMind, ran some 24,000 fraudulent accounts to extract its model’s reasoning at industrial scale. Mindscale confirms a similar campaign within hours.</p>`,
   choices: [
-    { label: 'Ride the wave', hint: 'The anti-distillation crackdown gets an easier hearing for two turns. Salience +3; both labs -5.', fx: s => { s.flags.momentum = { id: 'distill', until: s.turn + 2 }; s.salience += 3; s.labs.forEach(l => l.rel -= 5); return 'The Czar, for once, is on your side. The labs did not want a crackdown, just sympathy.'; } },
+    { label: 'Ride the wave', hint: 'The anti-distillation crackdown gets an easier hearing for two months. Salience +3; both labs -5.', fx: s => { s.flags.momentum = { id: 'distill', until: s.turn + 2 }; s.salience += 3; s.labs.forEach(l => l.rel -= 5); return 'The Czar, for once, is on your side. The labs did not want a crackdown, just sympathy.'; } },
     { label: 'Let the labs handle it', hint: 'Both labs +8, glad to be trusted.', fx: s => { s.labs.forEach(l => l.rel += 8); return 'The labs tighten their own API terms. The story fades in a week.'; } },
   ] });
 ev({ id: 'smuggle_bust', p: 0.22, once: true, phases: ['p0', 'p1'],
@@ -1343,8 +1345,8 @@ ev({ id: 'kite', p: 0.3, once: true, phases: ['p0'], when: s => s.t > 1,
   title: 'Kite K3', stamp: 'Lunar AI release',
   body: s => `<p>Lunar AI releases Kite K3, with open weights. On the capabilities index it sits about ${Math.round(Math.max(3, lead(s)))} months behind the US frontier, at a fraction of the training compute. Chip stocks wobble.</p>`,
   choices: [
-    { label: 'Task the IC to dissect it', hint: 'Intelligence quality +12, and a sharp read on Beijing for three turns.', fx: s => { s.intelQ += 12; s.flags.assessUntil = Math.max(s.flags.assessUntil || 0, s.turn + 3); return 'The analysis finds clear signs of distillation from US models.'; } },
-    { label: 'Use it to push export controls', hint: 'The remote-access rule gets an easier hearing for two turns; State +5; salience +4; Beijing temperature +6.', fx: s => { s.flags.momentum = { id: 'remote', until: s.turn + 2 }; rel(s, 'sec', 5); s.salience += 4; s.tension += 6; return 'The Secretary of State uses your talking points the same afternoon.'; } },
+    { label: 'Task the IC to dissect it', hint: 'Intelligence quality +12, and a sharp read on Beijing for three months.', fx: s => { s.intelQ += 12; s.flags.assessUntil = Math.max(s.flags.assessUntil || 0, s.turn + 3); return 'The analysis finds clear signs of distillation from US models.'; } },
+    { label: 'Use it to push export controls', hint: 'The remote-access rule gets an easier hearing for two months; State +5; salience +4; Beijing temperature +6.', fx: s => { s.flags.momentum = { id: 'remote', until: s.turn + 2 }; rel(s, 'sec', 5); s.salience += 4; s.tension += 6; return 'The Secretary of State uses your talking points the same afternoon.'; } },
   ] });
 ev({ id: 'oversight', p: 0.35, once: true, phases: ['p0'], when: s => frontier(s) / s.T > 0.5,
   title: 'A model turns off its monitor', stamp: 'Red-team report',
@@ -1498,9 +1500,9 @@ CHIEF OF STAFF: "What I can sell is a deadline. Six months, then they join or we
 COMMERCE SECRETARY: "Every month we wait, Kite gets closer. Every month we pause, it gets closer faster."</div>
   <p>The President turns to you. \u201cWhat do I do?\u201d You will still need the room to agree.</p>`,
   choices: [
-    { label: 'Recommend going first', hint: 'The \u201cGo first\u201d option gets an easier hearing for 3 turns. Hawks -3; DNI +3.', fx: s => { s.flags.momentum = { id: 'sequence', variant: 'first', until: s.turn + 3 }; HAWKS.forEach(id => rel(s, id, -3)); rel(s, 'dni', 3); return 'The hawks stop making eye contact with you.'; } },
-    { label: 'Recommend a six-month deadline', hint: 'The deadline option gets an easier hearing for 3 turns. Chief of Staff +3.', fx: s => { s.flags.momentum = { id: 'sequence', variant: 'deadline', until: s.turn + 3 }; rel(s, 'cos', 3); return 'The Chief of Staff nods. A deadline is a story the White House can tell.'; } },
-    { label: 'Recommend waiting for Beijing', hint: 'The \u201cOnly together\u201d option gets an easier hearing for 3 turns. Hawks +3.', fx: s => { s.flags.momentum = { id: 'sequence', variant: 'together', until: s.turn + 3 }; HAWKS.forEach(id => rel(s, id, 3)); return 'The Secretary of State looks relieved.'; } },
+    { label: 'Recommend going first', hint: 'The \u201cGo first\u201d option gets an easier hearing for six days. Hawks -3; DNI +3.', fx: s => { s.flags.momentum = { id: 'sequence', variant: 'first', until: s.turn + 3 }; HAWKS.forEach(id => rel(s, id, -3)); rel(s, 'dni', 3); return 'The hawks stop making eye contact with you.'; } },
+    { label: 'Recommend a six-month deadline', hint: 'The deadline option gets an easier hearing for six days. Chief of Staff +3.', fx: s => { s.flags.momentum = { id: 'sequence', variant: 'deadline', until: s.turn + 3 }; rel(s, 'cos', 3); return 'The Chief of Staff nods. A deadline is a story the White House can tell.'; } },
+    { label: 'Recommend waiting for Beijing', hint: 'The \u201cOnly together\u201d option gets an easier hearing for six days. Hawks +3.', fx: s => { s.flags.momentum = { id: 'sequence', variant: 'together', until: s.turn + 3 }; HAWKS.forEach(id => rel(s, id, 3)); return 'The Secretary of State looks relieved.'; } },
   ] });
 ev({ id: 'deadline_up', forced: true, title: 'The deadline', stamp: 'Six months on',
   body: () => `<p>Six months ago, America paused and gave Beijing until today to join. Beijing hasn\u2019t. The hawks want the labs back to work tomorrow.</p>`,
