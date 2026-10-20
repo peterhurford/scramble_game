@@ -435,9 +435,8 @@ function cnReadout(s) {
   const compSeen = tier === 0 ? bucket(e.comp, [0.6, 0.85, 1.1], [0.5, 0.72, 0.97, 1.25]) : tier === 1 ? mid(e.comp, e.rel * e.comp) : e.comp;
   const seen = { comp: compSeen, dist: tier === 0 ? bucket(e.dist, [0.1, 0.35, 0.7], [0.05, 0.22, 0.52, 0.85]) : tier === 1 ? mid(e.dist, 0.6 * e.rel, 100) : e.dist };
   for (const k in e.src) seen[k] = tier === 0 ? compSeen * bucket(e.src[k] / (e.comp || 1), [0.06, 0.15, 0.35], [0.03, 0.1, 0.25, 0.45]) : tier === 1 ? mid(e.src[k], e.rel * e.src[k]) : e.src[k];
-  // multipliers on typical (1x): Beijing's cyber push against US labs and how well it hides sites
-  const mult = (x, cuts, words, mids) => ({ text: tier === 0 ? words[cuts.findIndex(c => x < c) < 0 ? cuts.length : cuts.findIndex(c => x < c)] : tier === 1 ? `${(x * (1 - e.rel)).toFixed(1)}–${(x * (1 + e.rel)).toFixed(1)}× typical` : `~${x.toFixed(1)}× typical`,
-    seen: tier === 0 ? bucket(x, cuts, mids) : x });
+  // Beijing's cyber push against US labs and how well it hides sites, as words; better intelligence makes the word more accurate. Bots read a word as its bucket's middle.
+  const mult = (x, cuts, words, mids) => ({ text: words[cuts.findIndex(c => x < c) < 0 ? cuts.length : cuts.findIndex(c => x < c)], seen: bucket(x, cuts, mids) });
   const cy = mult(e.cyber, [0.8, 1.25], ['restrained', 'typical', 'aggressive'], [0.65, 1, 1.5]), hd = mult(e.hide, [0.8, 1.2], ['sloppy', 'typical', 'careful'], [0.65, 1, 1.35]);
   seen.cyber = cy.seen; seen.hide = hd.seen;
   return {
