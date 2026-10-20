@@ -183,6 +183,7 @@ function usDrag(s) {
   if (SL[s.sl].drag) parts.push(['SL' + s.sl + ' security overhead', SL[s.sl].drag]);
   if (s.done.control) parts.push(['AI control protocols', 0.05]);
   if (s.policies.distill) parts.push(['API know-your-customer friction', 0.015]);
+  if (s.policies.leak) parts.push(['Research secrecy and visa screening', 0.015]);
   if (s.policies.remote) parts.push(['Lost foreign cloud revenue', 0.02]);
   if (s.policies.chips) parts.push(['Chip export revenue and supply friction', 0.03]);
   if (s.flags.minerals && s.flags.minerals.until >= s.turn) parts.push(['Beijing\u2019s mineral export curbs', s.flags.minerals.d]);
@@ -203,8 +204,9 @@ function usRates(s, assumeCompliant) {
 function cnRate(s) {
   const c = s.cn, gap = lead(s);
   const p = paced(s);
-  // distillation and following US papers are one term; it shrinks when the US is paced and there is little left to copy
-  let r = 0.1 + 0.6 * cnComp(s) + 0.3 * c.dist * (p ? 0.4 : 1) * (gap > 0.5 ? 1 : 0.3);
+  // copying the US: distillation and leaked methods (diffusion), split 4.2 : 3.4 as in metr_graph's channel split; both shrink when the US is paced and there is little left to copy
+  const copy = (0.165 * c.dist + 0.11 * (c.leak == null ? 1 : c.leak)) * (p ? 0.4 : 1) * (gap > 0.5 ? 1 : 0.3);
+  let r = 0.1 + 0.6 * cnComp(s) + copy;
   if (c.deal && !c.cheat) r = Math.min(r, 0.12);
   if (c.deal && c.cheat) r = Math.min(r, 0.12) + 0.45;
   return r;
@@ -372,7 +374,7 @@ function newGame(opts) {
     projects: {}, done: {}, policies: {}, flags: { cooldowns: {} },
     principals: PRINCIPALS.map(p => ({ id: p.id, infl: p.infl, rel: 0, shift: 0, ask: 0, alt: false, askAge: 0 })),
     labs: LABS.map(l => ({ id: l.id, cap: l.cap0, signed: false, covered: false, comp: 0, defect: false, rel: l.rel0, refused: false })),
-    cn: { cap: -5.5, legal: 1, legalT: 1, smuggle: 1, smuggleT: 1, sme: 1, smeT: 1, remote: 1, remoteT: 1, dist: 1, distT: 1, race: 0,
+    cn: { cap: -6, leak: 1, leakT: 1, legal: 1, legalT: 1, smuggle: 1, smuggleT: 1, sme: 1, smeT: 1, remote: 1, remoteT: 1, dist: 1, distT: 1, race: 0,
       f: { m: 50, sec: 30, sci: 20 }, posture: 'diffuse', trust: 10, deal: null, cheat: false, cooldown: 0 },
     pacing: { active: false, mech: null, threshold: null, automation: null, trigger: null, since: null, low: 0, collapsed: 0 },
     scramble: null, T: 0,
@@ -390,10 +392,13 @@ function newGame(opts) {
   s.queue.push({ id: 'intro' });
   return s;
 }
-// Hidden per-game starting point for China's offshore compute, smuggling and distillation (1 = baseline). Smuggling is log-uniform 0.4-2.4x, skewed like IFP's range. Drawn from hash01 so the main random stream is untouched.
+// Hidden per-game starting point for China's lag, offshore compute, smuggling and distillation (1 = baseline). Smuggling is log-uniform 0.4-2.4x, skewed like IFP's range. Drawn from hash01 so the main random stream is untouched.
 function cnStart(s) {
   const c = s.cn, u = k => hash01(s.seed, 'cnstart', k);
   c.base = { remote: 0.5 + u('remote'), smuggle: 0.4 * Math.pow(6, u('smuggle')), dist: 0.6 + 0.4 * u('dist') };
+  // starting lag: lognormal, median 6 months (80% range ~4.1-8.8), around metr_graph's 4.4-6.5 months
+  const z = Math.sqrt(-2 * Math.log(Math.max(1e-9, u('lag1')))) * Math.cos(2 * Math.PI * u('lag2'));
+  c.cap = -clamp(6 * Math.exp(0.3 * z), 3.5, 11); s.stats.peakLead = -c.cap;
   c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
 }
 const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
@@ -528,6 +533,12 @@ def({ id: 'remote', cat: 'policy', name: 'Close the remote-access loophole', pha
   desc: 'Chinese firms train their largest runs on data centers abroad, above all in Johor, Malaysia. Close the cloud loophole.',
   effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +8. US clouds lose foreign revenue: US labs 2% slower.',
   apply(s) { s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8; shiftCN(s, { sec: 4, m: -2 }); s.coalition -= 3; return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
+});
+def({ id: 'leak', cat: 'policy', name: 'Stop the leak of US methods', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
+  tags: { hawk: 1.2, industry: -0.8, control: 0.4 },
+  desc: 'Papers, researchers moving, espionage: every way US research methods reach Chinese labs. Prepublication review at the frontier labs, visa screening, counterintelligence on lab staff.',
+  effect: () => 'Cuts 90% of the methods leaking to China. China takes about a year to absorb what already leaked, so the payoff builds slowly. Beijing temperature +4. Openness costs: US labs 1.5% slower.',
+  apply(s) { s.cn.leak = s.cn.leak == null ? 1 : s.cn.leak; s.cn.leakT = 0.1; s.tension += 4; shiftCN(s, { sci: -3, sec: 2 }); s.labs.forEach(l => l.rel -= 4); return 'The labs agree to prepublication review. Two conference talks are quietly withdrawn.'; },
 });
 def({ id: 'smuggle', cat: 'policy', name: 'Chip smuggling enforcement surge', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1, room: true, once: true,
   tags: { hawk: 1, commerce: 1, control: 0.5 },
@@ -946,6 +957,7 @@ const CHIPS = {
   allies: () => ['+Coalition grows', '+Some Senate votes'],
   labmeet: () => ['+Relationship with the lab up'],
   assess: () => ['+Sharper readings for a while'],
+  leak: () => ['+Slows China, building over a year', '-Slows US labs slightly', '-Labs grumble', '~Beijing mildly annoyed'],
   distill: () => ['+Cuts China’s distillation boost by about a third', '-Slows US labs slightly', '-Beijing annoyed'],
   remote: () => ['+Cuts China’s compute', '-Slows US labs slightly', '-Beijing angry'],
   smuggle: () => ['+Trims China’s compute', '~Beijing mildly annoyed'],
@@ -1575,7 +1587,7 @@ function endTurn(s) {
 
   // --- China's levers drift toward their targets
   const mv = (cur, tgt, rate) => cur + Math.sign(tgt - cur) * Math.min(Math.abs(tgt - cur), rate * dt);
-  c.remote = mv(c.remote, c.remoteT, 0.4); c.dist = mv(c.dist, c.distT, 0.35); c.legal = mv(c.legal, c.legalT, 0.5);
+  c.remote = mv(c.remote, c.remoteT, 0.4); c.dist = mv(c.dist, c.distT, 0.35); if (c.leakT != null) c.leak = mv(c.leak, c.leakT, 0.075); c.legal = mv(c.legal, c.legalT, 0.5);
   c.smuggle = mv(c.smuggle, c.smuggleT, 0.2); c.sme = mv(c.sme, c.smeT, 0.07);
   if (c.cooldown > 0) c.cooldown--;
 

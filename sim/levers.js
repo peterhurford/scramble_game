@@ -8,10 +8,12 @@ const LEVERS = {
   'distillation crackdown (at pacing)': { distT: 0.68, at: 9, pol: ['distill'] },
   'remote-access rule (Jan 27)': { remoteT: 0.15, at: 3, pol: ['remote'] },
   'remote-access rule (at pacing)': { remoteT: 0.15, at: 9, pol: ['remote'] },
+  'stop the methods leak (Jan 27)': { leakT: 0.1, at: 3, pol: ['leak'] },
+  'stop the methods leak (at pacing)': { leakT: 0.1, at: 9, pol: ['leak'] },
   'smuggling crackdown (Jan 27)': { smuggleT: 0.5, at: 3 },
   'end chip sales + tool servicing (Jan 27)': { legalT: 0, smeT: 0.2, at: 3, pol: ['chips'] },
   'SL5 security (Jan 27), no China levers': { at: 3, pol: [], W: 1 },
-  'everything (Jan 27)': { distT: 0.68, remoteT: 0.15, smuggleT: 0.5, legalT: 0, smeT: 0.2, at: 3, pol: ['distill', 'remote', 'chips'] },
+  'everything (Jan 27)': { distT: 0.68, leakT: 0.1, remoteT: 0.15, smuggleT: 0.5, legalT: 0, smeT: 0.2, at: 3, pol: ['distill', 'remote', 'chips', 'leak'] },
 };
 function run(lv, seed, extra) {
   const s = E.newGame({ seed }); s.queue = []; s.T = 999; s.W = 25;
