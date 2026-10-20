@@ -90,7 +90,8 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, labLobby: 0.6, meetDecay: 0.6, favorCred: 2 };
+  riderBelow: 52, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -165,7 +166,8 @@ function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
 function coverage(s) { return Math.round(100 * s.labs.reduce((a, l) => a + (covered(s, l) ? LD(l.id).share * (l.id === 'mindscale' && s.flags.uaeOut ? 1 - TUNE.uaeShare : 1) : 0), 0)); }
 // China's compute by channel at baseline: IFP's end-2026 stocks (Fist, Adamson & Pilz, Oct 2026) scaled to 90%, plus 10% no rule reaches.
 // HBM and tool curbs (sme) trim at most 5% of domestic within the game: the servicing ban bites only once the fleet falls below China's HBM-limited output.
-function cnSources(c) { return { domestic: 0.34 * (0.95 + 0.05 * c.sme), offshore: 0.20 * c.remote, smuggled: 0.20 * c.smuggle, legal: 0.16 * c.legal, other: 0.10 }; }
+// supply: the share of Taiwan-made chips still reaching China (a quarantine or war cuts smuggled, legal and offshore channels)
+function cnSources(c) { const u = c.supply == null ? 1 : c.supply; return { domestic: 0.34 * (0.95 + 0.05 * c.sme), offshore: 0.20 * c.remote * (0.5 + 0.5 * u), smuggled: 0.20 * c.smuggle * u, legal: 0.16 * c.legal * u, other: 0.10 }; }
 function cnComp(s) { const src = cnSources(s.cn); return (src.domestic + src.offshore + src.smuggled + src.legal + src.other) * (1 + 0.25 * s.cn.race); }
 function trigMult(s) { return { '425': 0.55, '200': 0.8, '200c': 1.0, '100': 0.92 }[s.pacing.trigger] || 0.5; }
 function ready1(s) { const v = s.verify; return (v.survey + v.inspect) / 2; }
@@ -195,7 +197,12 @@ function usDrag(s) {
   if (s.policies.chips) parts.push(['Chip export revenue and supply friction', 0.03]);
   if (s.flags.minerals && s.flags.minerals.until >= s.turn) parts.push(['Beijing\u2019s mineral export curbs', s.flags.minerals.d]);
   if (s.flags.strait && s.flags.strait >= s.turn) parts.push(['Taiwan Strait disruption', 0.12]);
-  return { total: Math.min(0.45, parts.reduce((a, x) => a + x[1], 0)), parts };
+  if (s.flags.cables && s.flags.cables >= s.turn) parts.push(['Cut undersea cables to Taiwan', 0.05]);
+  const shield = s.flags.shield ? 0.6 : 1;
+  if (s.war) parts.push(['War: Taiwan\u2019s fabs are offline', 0.3 * shield]);
+  else if (s.blockade) parts.push(['Quarantine of Taiwan: chip shipments stalled', 0.18 * shield]);
+  else if (s.flags.rebuild && s.flags.rebuild >= s.turn) parts.push(['Rebuilding chip supply after the war', 0.1 * shield]);
+  return { total: Math.min(s.war ? 0.6 : 0.45, parts.reduce((a, x) => a + x[1], 0)), parts };
 }
 function usRates(s, assumeCompliant) {
   // monthly capability growth for each lab under current policy; the public view assumes nobody is cheating
@@ -232,6 +239,7 @@ function senateParts(s) {
   if (s.cn.deal && s.cn.deal.terms.chips) P_.push(['Deal resumes chip sales', -6]);
   if (s.cn.deal && s.cn.deal.terms.relief) P_.push(['Deal gives sanctions relief', -3]);
   if (s.flags.houseFlipped) P_.push(['Opposition House holding AI hearings', 2]);
+  if (s.war) P_.push(['Pausing AI in wartime looks like disarmament', -10]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -5]);
   return P_;
 }
 function senateVotes(s) { return Math.round(clamp(senateParts(s).reduce((a, x) => a + x[1], 0), 0, 100)); }
@@ -252,6 +260,7 @@ function supportParts(s) {
   if (s.flags.incidentTurn && s.turn - s.flags.incidentTurn <= 2) P_.push(['A recent scare', 8]);
   if (s.flags.wentFirst && !s.cn.deal) P_.push(['America went first, and China hasn\u2019t followed', -8]);
   if (s.flags.extended) P_.push(['The deadline was extended', -4 * s.flags.extended]);
+  if (s.war) P_.push(['A war in the Pacific: the Pentagon wants every model', -15]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -8]);
   return P_;
 }
 function pacingSupport(s) { return Math.round(clamp(supportParts(s).reduce((a, x) => a + x[1], 0))); }
@@ -262,7 +271,7 @@ function hostileDrain(s) { return Math.min(3, s.principals.reduce((a, p) => a + 
 function allyCount(s) { return s.principals.filter(p => p.rel >= 40).length; }
 // Capital income per turn. Markets add or subtract 1 per 20 points from 100; fractions carry over between turns.
 function marketCapital(s) { return (s.markets - 100) / 20; }
-function capitalIncome(s) { return (s.phase === 'scramble' ? 2 : (s.phase === 'p1' ? 2 : 1) + Math.floor(s.cred / 35)) + Math.floor(allyCount(s) / 3) + marketCapital(s); }
+function capitalIncome(s) { return (s.phase === 'scramble' ? 2 : (s.phase === 'p1' ? 2 : 1) + Math.floor(s.cred / 35)) + Math.floor(allyCount(s) / 3) + marketCapital(s) + (s.war && s.war.months < 3 ? 1 : 0); }
 // Per-month probability that something escapes control, for each actor. The threshold is fuzzy: danger rises
 // smoothly with capability (about 10% of full strength 3 months short, 75% at the threshold, nearly full past it).
 function nearness(s, cap) { return logistic((cap - s.T + 1) / 0.9); }
@@ -292,11 +301,71 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
 function monthlyRisk(s) { return 1 - hazards(s).reduce((a, x) => a * (1 - x.h), 1); }
+
+// The Strait: Beijing's monthly chance of starting a crisis over Taiwan (a quarantine first), as labeled parts. It rises with temperature,
+// a racing posture, and a big US lead near the threshold that no pause holds back (a preventive move). pub: the player's view, as in theftRisk.
+function straitParts(s, pub) {
+  const F = frontier(s), ld = pub ? leadEstimate(s).mid : lead(s);
+  const T = pub ? Math.max(0.5, F + icEstimate(s).mid * Math.max(0.05, frontierRate(s, true))) : s.T;
+  const x = clamp(F / T, 0, 1.2);
+  const P_ = [['Background risk', TUNE.straitBase]];
+  if (s.tension > 45) P_.push(['Beijing temperature', 0.06 * Math.pow((s.tension - 45) / 40, 2)]);
+  if (s.cn.posture === 'race') P_.push(['Beijing is racing', 0.012]);
+  const pre = 0.12 * clamp((ld - 3) / 6, 0, 1) * Math.pow(x, 3) * (paced(s) ? 0.35 : 1);
+  if (pre > 0.0005) P_.push([paced(s) ? 'A big US lead near the threshold, even paced' : 'A big US lead racing toward the threshold', pre]);
+  return P_;
+}
+// The Security faction scales it (x1 at its usual 30), and a deal cuts it 70%.
+function straitMult(s) { return (0.6 + s.cn.f.sec / 75) * (s.cn.deal ? 0.3 : 1) * TUNE.strait; }
+function straitRisk(s, pub) { return clamp(straitParts(s, pub).reduce((a, x) => a + x[1], 0) * straitMult(s), 0, 0.5); }
+// A quarantine turns into war each month with this chance: hotter Beijing, convoys and no talks push it up.
+function escalateP(s) { const b = s.blockade; return clamp((0.18 + 0.12 * clamp((s.tension - 50) / 40, 0, 1)) * (b.mode === 'convoy' ? 1.8 : b.mode === 'talks' ? 0.6 : 1) * TUNE.strait, 0, 0.6); }
+// The share of crises where Beijing skips the quarantine and goes straight to war: more when hot, most when the motive is preventive.
+function directP(s) { const parts = straitParts(s), tot = parts.reduce((a, x) => a + x[1], 0) || 1, pre = (parts.find(x => /US lead/.test(x[0])) || [0, 0])[1] / tot; return clamp(0.3 + 0.4 * clamp((s.tension - 50) / 40, 0, 1) + 0.4 * pre, 0, 0.9); }
+// Beijing's chance of taking a ceasefire offer: war weariness, its market and science factions, earlier talks; escalation hardens it.
+function ceasefireP(s) { const w = s.war, f = s.cn.f; return w ? clamp(0.12 + 0.05 * w.months + 0.004 * (f.sci + f.m - f.sec) + 0.08 * w.talks - 0.002 * w.esc, 0.05, 0.85) : 0; }
+// The IC's read on the Strait: during a quarantine, the chance it turns into war within 3 months; otherwise the chance Beijing starts a crisis
+// within 6. Blurred by weak intelligence (an IC assessment counts +20): a word under 45, a range under 70, a number above.
+function straitEstimate(s) {
+  const q = s.intelQ + (s.flags.assessUntil >= s.turn ? 20 : 0), tier = q < 45 ? 0 : q < 70 ? 1 : 2;
+  const months = s.blockade ? 3 : 6, m = s.war ? 0 : s.blockade ? escalateP(s) : straitRisk(s, true);
+  const rel = 0.1 + 0.9 * (1 - clamp(q) / 100), b = (hash01(s.seed, s.turn, 'strait') - 0.5) * 2 * rel;
+  const over = x => 1 - Math.pow(1 - clamp(x, 0, 0.6), months);
+  const mid = over(m * (1 + b)), lo = over(m * Math.max(0, 1 + b - rel)), hi = over(m * (1 + b + rel));
+  const P = x => Math.round(100 * x), word = mid < 0.05 ? 'low' : mid < 0.15 ? 'moderate' : mid < 0.35 ? 'high' : 'very high';
+  const text = tier === 0 ? word : tier === 1 ? `${Math.floor(P(lo) / 5) * 5}–${Math.ceil(P(hi) / 5) * 5}%` : `~${P(mid)}%`;
+  return { mid, lo, hi, tier, word, text, months, what: s.blockade ? 'war' : 'crisis' };
+}
+function startBlockade(s) {
+  s.blockade = { since: s.turn, mode: null, until: null };
+  s.stats.blockades = (s.stats.blockades || 0) + 1;
+  s.cn.supply = Math.min(s.cn.supply == null ? 1 : s.cn.supply, 0.6); s.markets -= 10; s.tension += 10; s.salience += 4; infl(s, 'war', 4); infl(s, 'sec', 3);
+  log(s, 'Beijing has put Taiwan under quarantine.', 'bad');
+  s.queue.unshift({ id: 'blockade' });
+}
+function endBlockade(s, text) { s.blockade = null; s.tension -= 8; s.markets += 5; s.flags.rebuild = s.turn + 2; log(s, text, 'cn'); }
+// War is a phase, not an ending: an escalation meter (100 ends the game) runs until a ceasefire.
+function startWar(s, cause, esc) {
+  const c = s.cn;
+  s.blockade = null;
+  s.war = { since: s.turn, months: 0, esc, cause, talks: 0 };
+  s.stats.wars = (s.stats.wars || 0) + 1;
+  c.supply = 0.2; s.markets -= 20; s.tension = Math.max(s.tension, 85); c.trust -= 20; s.salience -= 6;
+  infl(s, 'war', 10); infl(s, 'sec', 5); infl(s, 'tsy', -5); shiftCN(s, { sec: 15, sci: -5 });
+  if (c.deal) { c.deal = null; log(s, 'The China deal collapses with the war.', 'bad'); }
+  log(s, 'War in the Taiwan Strait.', 'bad');
+  s.queue.unshift({ id: 'war_begins', cause });
+}
+function endWar(s, text) {
+  s.war = null; s.stats.ceasefires = (s.stats.ceasefires || 0) + 1;
+  s.tension = Math.min(s.tension, 70); s.markets += 8; s.cn.supply = 0.5; s.flags.rebuild = s.turn + 4;
+  log(s, text, 'good');
+}
 
 /* ================= indicators ================= */
 function trueIndicators(s, F) {
@@ -456,7 +525,7 @@ function stanceOn(s, p, tags, key, extra) {
 }
 function presBias(s, tags) {
   // The President wants a deal with Xi: hawk moves get easier only as Beijing provokes (thefts, busts, a racing posture).
-  const hawk = TUNE.hawkBase + TUNE.hawkProvoke * Math.min(3, s.provoked || 0) + (s.cn.posture === 'race' ? TUNE.hawkRace : 0);
+  const hawk = TUNE.hawkBase + TUNE.hawkProvoke * Math.min(3, s.provoked || 0) + (s.cn.posture === 'race' ? TUNE.hawkRace : 0) + (s.war ? 0.15 : s.blockade ? 0.08 : 0);
   let b = 0.06 * (tags.control || 0) + hawk * (tags.hawk || 0) + 0.03 * (tags.military || 0);
   if (tags.deal) b += 0.05 * tags.deal * (lead(s) > 3 ? 1 : -1);
   b += (0.02 + 0.004 * Math.max(0, 100 - s.markets)) * (tags.markets || 0); // the worse the markets, the more the President weighs market costs
@@ -890,7 +959,7 @@ function roomPreviewTags(s, id, tags, key) { ACT._tmp = { tags, pres: s2 => (lea
 def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramble', 'p1'], ap: 1, pc: 2, modal: 'offer',
   desc: 'Build a package. The President has to approve it, then Beijing decides. Rejection costs trust and temperature.',
   effect: () => 'Opens the offer table.',
-  avail(s) { if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + s.cn.cooldown + ' more turn' + (s.cn.cooldown > 1 ? 's' : '') + ')'; return true; },
+  avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + s.cn.cooldown + ' more turn' + (s.cn.cooldown > 1 ? 's' : '') + ')'; return true; },
   apply() { return ''; },
 });
 function makeOffer(s, terms) {
@@ -938,7 +1007,7 @@ function counterHint(s, terms) {
 
 def({ id: 'summit', cat: 'diplo', name: 'Convene the Phase 2 summit', phases: ['p1'], ap: 2, pc: 4, room: true,
   tags: { deal: 1.5, pause: 1, control: 0.5, hawk: 0.3 },
-  avail(s) { const r = phase2Check(s); return r.ok ? true : 'Not ready: ' + r.missing.join('; '); },
+  avail(s) { if (s.war) return 'Not during a war'; const r = phase2Check(s); return r.ok ? true : 'Not ready: ' + r.missing.join('; '); },
   desc: 'The durable deal: a verified, multilateral agreement that reliably prevents uncontrollable AI. Needs a working interim deal, mature verification and allies. Without a statute, a court can void the US side. And if Beijing is hiding a program your intelligence cannot see, you will find out too late.',
   effect: s => 'If the President agrees, Beijing decides. Estimated chance Beijing signs: ' + Math.round(100 * summitP(s)) + '%.' + (s.flags.statute ? ' Pacing is law, so the courts cannot void it.' : ' No statute: chance a court voids the US side, ' + Math.round(100 * summitCourtP(s)) + '%.') + ' Your confidence Beijing will comply: ' + betrayWord(s) + '.',
   apply(s) {
@@ -981,8 +1050,16 @@ def({ id: 'covert', cat: 'covert', name: 'Covert disruption of Chinese AI', phas
 def({ id: 'strike', cat: 'covert', name: 'Kinetic strike on frontier facilities', phases: ['scramble', 'p1'], ap: 2, pc: 5, room: true,
   tags: { military: 3, hawk: 2, deal: -3, markets: -2 },
   desc: 'The outer boundary. Only for an imminent, high-confidence, uncontrolled breakout.',
-  effect: () => 'Sets China back about 4 months. Beijing temperature +60. Roughly even odds of war.',
-  apply(s) { s.stats.covert++; s.cn.cap -= 4; s.tension += 60; shiftCN(s, { sec: 30, sci: -10 }); s.flags.covertExposed = s.turn; s.cn.trust = 0; if (s.cn.deal) s.cn.deal = null; s.flags.struck = true; if (rnd(s) < 0.5) { s.ending = 'war'; return 'The strikes go in at 4:10a. By noon, PLA rocket forces are on alert.'; } return 'The strikes destroy two facilities. Beijing puts frontier development under the PLA and out of view.'; },
+  effect: () => 'Sets China back about 4 months. Beijing temperature +60. Starts a war, with escalation already at 40.',
+  avail(s) { return s.war ? 'Already at war' : true; },
+  apply(s) { s.stats.covert++; s.cn.cap -= 4; s.tension += 60; shiftCN(s, { sec: 30, sci: -10 }); s.flags.covertExposed = s.turn; s.cn.trust = 0; s.flags.struck = true; startWar(s, 'strike', 40); return 'The strikes go in at 4:10a and destroy two facilities. By noon, PLA rocket forces are firing on Taiwan and Guam.'; },
+});
+def({ id: 'ceasefire', cat: 'diplo', name: 'Propose a ceasefire', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true,
+  tags: { deal: 1, hawk: -1, military: -1, markets: 1 },
+  desc: 'A back channel through Singapore and the Swiss. The President has to agree to ask; then Beijing decides. Asking again builds on the last round.',
+  avail(s) { return s.war ? true : 'Only during a war'; },
+  effect: s => 'If the President agrees, Beijing takes it ' + Math.round(100 * ceasefireP(s)) + '% of the time. If not, escalation -4 and the next ask is likelier.',
+  apply(s) { if (rnd(s) < ceasefireP(s)) { endWar(s, 'A ceasefire holds in the Taiwan Strait.'); HAWKS.forEach(id => rel(s, id, -4)); return 'Beijing agrees to stand down along the current lines. The shooting stops at midnight.'; } s.war.talks++; s.war.esc -= 4; s.cn.trust -= 2; return '“Not yet.” But the channel stays open.'; },
 });
 
 function currentAsk(s, id) { const p = P(s, id); const list = ASKS[id]; return list[p.ask % list.length]; }
@@ -1269,7 +1346,7 @@ ev({ id: 'rare_earths', p: 0.4, phases: ['p0', 'scramble', 'p1'], cooldown: 5, w
     { label: 'Retaliate', hint: 'Beijing temperature +6; State +5; markets -4. The curbs stay for 5 months: US labs 8% slower.', fx: s => { s.tension += 6; rel(s, 'sec', 5); s.markets -= 4; s.flags.minerals = { until: s.turn + 5, d: 0.08 }; return 'Commerce adds forty entities. Data center builds slip as transformer and magnet supplies run short.'; } },
     { label: 'Negotiate', hint: 'Beijing temperature -6; Treasury +5; State -5; markets -2. The curbs last 2 months: US labs 6% slower.', fx: s => { s.tension -= 6; rel(s, 'tsy', 5); rel(s, 'sec', -5); s.markets -= 2; s.flags.minerals = { until: s.turn + 2, d: 0.06 }; return 'The Treasury Secretary gets on a plane.'; } },
   ] });
-ev({ id: 'taiwan', p: 0.4, phases: ['p0', 'scramble', 'p1'], cooldown: 4, when: s => s.tension >= 78,
+ev({ id: 'taiwan', p: 0.4, phases: ['p0', 'scramble', 'p1'], cooldown: 4, when: s => s.tension >= 78 && !s.war && !s.blockade,
   title: 'Strait drills', stamp: 'INDOPACOM',
   body: () => `<p>The PLA launches live-fire drills encircling Taiwan, the largest since 2022. TSMC’s board meets in emergency session.</p>`,
   choices: [
@@ -1328,7 +1405,7 @@ ev({ id: 'vp_issue', p: 0.3, once: true, phases: ['p0', 'p1'], when: s => s.sali
     { label: 'Give the VP the spotlight', hint: 'VP warms sharply to pacing, +15 and +5 influence; Chief of Staff -6; Industry -8.', fx: s => { P(s, 'vp').shift += 0.5; rel(s, 'vp', 15); infl(s, 'vp', 5); rel(s, 'cos', -6); industry(s, -8); s.salience += 4; return 'The Vice President\u2019s speech in Youngstown is the best-reviewed of the VP\u2019s career.'; } },
     { label: 'Keep it with the President', hint: 'Chief of Staff +8; VP -8.', fx: s => { rel(s, 'cos', 8); rel(s, 'vp', -8); return 'The Chief of Staff is relieved. The Vice President is not.'; } },
   ] });
-ev({ id: 'hawk_push', p: 0.35, phases: ['scramble', 'p1'], cooldown: 4, when: s => s.tension >= 52 && !s.flags.struck,
+ev({ id: 'hawk_push', p: 0.35, phases: ['scramble', 'p1'], cooldown: 4, when: s => s.tension >= 52 && !s.flags.struck && !s.war,
   title: 'The hawks want options', stamp: 'Situation Room',
   body: s => `<p>The Secretary of State and the Secretary of War ask the President to authorize cyber operations against Chinese training clusters “before Beijing closes the gap.” They want your support.</p>`,
   choices: [
@@ -1585,7 +1662,70 @@ ev({ id: 'war', forced: true, title: 'The Strait', stamp: 'National Military Com
   body: () => `<p>A PLA destroyer and a US frigate collide in the Taiwan Strait. Both sides blame the other. Beijing’s rocket forces go to a higher alert level. The President wants options.</p>`,
   choices: [
     { label: 'De-escalate: concessions on Taiwan transits and chip controls', hint: 'Beijing temperature -35; State -15; China’s legal chips resume.', fx: s => { s.tension -= 35; rel(s, 'sec', -15); s.cn.legalT = 1; s.cred -= 4; return 'The crisis ends in four days. The hawks will never forgive you.'; } },
-    { label: 'Hold firm', hint: 'Even odds of war.', fx: s => { if (rnd(s) < 0.5) { s.ending = 'war'; return 'Neither side blinks.'; } s.tension -= 15; rel(s, 'war', 10); return 'Beijing blinks.'; } },
+    { label: 'Hold firm', hint: s => Math.round(100 * TUNE.holdFirm) + '% chance of war; otherwise Beijing temperature -15 and War +10.', fx: s => { if (rnd(s) < TUNE.holdFirm) { startWar(s, 'collision', 30); return 'Neither side blinks. A PLA salvo hits the frigate\u2019s sister ship at dawn.'; } s.tension -= 15; rel(s, 'war', 10); return 'Beijing blinks.'; } },
+  ] });
+
+// --- the Strait: a quarantine of Taiwan, war, and the gray zone short of both ---
+// A queued choice whose conflict ended earlier in the turn does nothing.
+const onlyIf = (k, fx) => s => s[k] ? fx(s) : (k === 'war' ? 'The war ended before it came to that.' : 'The quarantine ended before it came to that.');
+ev({ id: 'blockade', forced: true, title: 'Quarantine', stamp: 'INDOPACOM, 5:40a',
+  body: s => `<p>China\u2019s coast guard announces \u201ccustoms inspections\u201d of every ship bound for Taiwan. Container ships anchor off Kaohsiung; TSMC\u2019s shipments stop. Chip stocks fall 14% by noon.</p><p>While it lasts, US labs run slower and so does China\u2019s chip supply. Each month it can end, or turn into war (now about ${Math.round(100 * escalateP(Object.assign({}, s, { blockade: { mode: null } })))}% a month).</p>`,
+  choices: [
+    { label: 'Escort convoys through', hint: 'Likelier to end soon (30% a month), but war is 1.8\u00d7 as likely. War +10, State +5; Beijing temperature +10.', fx: onlyIf('blockade', s => { s.blockade.mode = 'convoy'; rel(s, 'war', 10); rel(s, 'sec', 5); s.tension += 10; return 'Two destroyers and a Japanese escort take the first convoy through at dawn.'; }) },
+    { label: 'Negotiate quietly', hint: 'It ends in 2 months and war is much less likely meanwhile, but Beijing gets its chips: China\u2019s legal chip sales resume. Beijing temperature -10; hawks -8; credibility -3.', fx: onlyIf('blockade', s => { s.blockade.mode = 'talks'; s.blockade.until = s.turn + 2; s.cn.legalT = 1; s.policies.chips = false; s.tension -= 10; HAWKS.forEach(id => rel(s, id, -8)); s.cred -= 3; return 'The Treasury Secretary flies to Singapore with a list of export licenses.'; }) },
+    { label: 'Rally allies and sanction', hint: 'Coalition +10; Senate +2; markets -4; Beijing temperature +6. It ends 15% of months.', fx: onlyIf('blockade', s => { s.blockade.mode = 'sanction'; s.coalition += 10; s.senateLobby += 2; s.markets -= 4; s.tension += 6; return 'The G7 freezes the coast guard\u2019s parent ministry out of dollar clearing.'; }) },
+  ] });
+ev({ id: 'war_begins', forced: true, title: 'War', stamp: 'National Military Command Center',
+  body: s => `<p>${{ strike: 'Beijing answers the strikes within hours.', collision: 'The standoff in the Strait has turned into a shooting war.', blockade: 'A coast guard cutter fires on a convoy escort. By nightfall the PLA is striking Taiwan\u2019s airfields.', beijing: 'The PLA moves without a quarantine first: missiles on Taiwan\u2019s airfields at 3:00a.' }[s.queue[0].cause] || 'The Strait is at war.'} TSMC\u2019s fabs go dark. Markets fall 20%.</p><p>The war runs until a ceasefire. Every month escalation can climb; at 100 it goes nuclear and the game ends. US labs slow sharply, China loses most of its imported chips, deals are off and the Pentagon wants every model.</p>`,
+  choices: [
+    { label: 'Keep it to the Strait', hint: 'No change to escalation. War -5.', fx: onlyIf('war', s => { rel(s, 'war', -5); return 'The President approves a defensive campaign: ships, submarines and air defense, nothing on the mainland.'; }) },
+    { label: 'Hit their AI data centers too', hint: 'China -1.5 months; escalation +15. War +12; Beijing\u2019s security faction surges.', fx: onlyIf('war', s => { s.cn.cap -= 1.5; s.war.esc += 15; rel(s, 'war', 12); shiftCN(s, { sec: 8 }); return 'Cruise missiles hit the Ulanqab campus. Beijing calls it an attack on its \u201cstrategic deterrent.\u201d'; }) },
+    { label: 'Call for an immediate ceasefire', hint: 'Escalation -10; the first ceasefire ask is likelier. Hawks -10; credibility -4.', fx: onlyIf('war', s => { s.war.esc -= 10; s.war.talks++; HAWKS.forEach(id => rel(s, id, -10)); s.cred -= 4; return 'You argue for a standstill in the Situation Room. The Secretary of War walks out.'; }) },
+  ] });
+ev({ id: 'war_exempt', p: 0.5, once: true, phases: ['p1'], when: s => s.war && paced(s),
+  title: 'The Pentagon wants its model', stamp: 'Office of the Secretary of War',
+  body: s => `<p>The Secretary of War asks the President to exempt ${LD(frontierLab(s).id).name} from the pause \u201cfor the duration\u201d so it can train targeting and cyber models at full speed.</p>`,
+  choices: [
+    { label: 'Agree to the exemption', hint: 'The frontier lab leaves the regime (coverage falls, runaway risk rises). War +15; State +5.', fx: onlyIf('war', s => { const l = frontierLab(s); l.covered = false; l.signed = false; rel(s, 'war', 15); rel(s, 'sec', 5); shiftCN(s, { sec: 4 }); return LD(l.id).name + ' goes back to full speed under a classified contract.'; }) },
+    { label: 'Offer a narrow carve-out', hint: 'A Pentagon carve-out: a little more runaway risk; Beijing reads it as the real program. War +4.', fx: onlyIf('war', s => { s.flags.dodCarve = true; shiftCN(s, { sci: -4, sec: 2 }); rel(s, 'war', 4); return 'The carve-out covers inference for the Pentagon, not training.'; }) },
+    { label: 'Refuse', hint: 'War -15; pacing support takes a hit from the hawks (cabinet mood).', fx: onlyIf('war', s => { rel(s, 'war', -15); P(s, 'war').shift -= 0.2; return '\u201cThen I hope you\u2019re right about the other side.\u201d'; }) },
+  ] });
+ev({ id: 'war_cyber', p: 0.35, cooldown: 3, phases: ['p0', 'scramble', 'p1'], when: s => s.war,
+  title: 'The grid goes down', stamp: 'CISA, 2:15a',
+  body: () => `<p>A PLA cyber unit takes down substations serving the Abilene and New Albany data centers. Two frontier labs are on diesel.</p>`,
+  choices: [
+    { label: 'Retaliate in kind', hint: 'China -0.5 months; escalation +8.', fx: onlyIf('war', s => { s.cn.cap -= 0.5; s.war.esc += 8; return 'Cyber Command blacks out two provincial grids in Inner Mongolia.'; }) },
+    { label: 'Absorb it and harden', hint: 'The frontier lab loses 2 weeks; markets -3.', fx: onlyIf('war', s => { frontierLab(s).cap -= 0.5; s.markets -= 3; return 'The labs are back on the grid in nine days.'; }) },
+  ] });
+ev({ id: 'war_escalate', p: 0.3, cooldown: 3, phases: ['p0', 'scramble', 'p1'], when: s => s.war && s.war.months >= 1,
+  title: 'Escalation options', stamp: 'Joint Chiefs',
+  body: () => `<p>The Chairman briefs a plan to sink the PLA\u2019s amphibious fleet in port and strike the rocket force\u2019s command nodes. \u201cIt ends the war on our terms, or it ends it differently.\u201d</p>`,
+  choices: [
+    { label: 'Approve the plan', hint: 'Escalation +20; 40% that Beijing sues for peace at once.', fx: onlyIf('war', s => { s.war.esc += 20; rel(s, 'war', 10); if (rnd(s) < 0.4) { endWar(s, 'Beijing sues for a ceasefire after losing its amphibious fleet.'); return 'The fleet is gone by morning. Beijing asks for a ceasefire the same day.'; } return 'The strikes land. Beijing puts its nuclear forces on alert.'; }) },
+    { label: 'Hold the line', hint: 'Escalation -3. War -6.', fx: onlyIf('war', s => { s.war.esc -= 3; rel(s, 'war', -6); return 'The plan goes back in the safe.'; }) },
+  ] });
+ev({ id: 'war_talks', p: 0.3, cooldown: 2, phases: ['p0', 'scramble', 'p1'], when: s => s.war && s.war.months >= 2,
+  title: 'Terms', stamp: 'Back channel, Singapore',
+  body: () => `<p>Beijing\u2019s envoy offers a ceasefire along the current lines, if Washington ends its chip export controls and suspends arms sales to Taiwan.</p>`,
+  choices: [
+    { label: 'Accept', hint: 'The war ends. China\u2019s legal chip sales resume; hawks -15; coalition -8; credibility -4.', fx: onlyIf('war', s => { s.cn.legalT = 1; s.policies.chips = false; HAWKS.forEach(id => rel(s, id, -15)); s.coalition -= 8; s.cred -= 4; endWar(s, 'A ceasefire, on Beijing\u2019s terms.'); return 'The guns stop. The hawks call it Munich.'; }) },
+    { label: 'Counter: ceasefire, no concessions', hint: 'Beijing takes it ' + '35% of the time; otherwise escalation +4.', fx: onlyIf('war', s => { if (rnd(s) < 0.35) { endWar(s, 'A ceasefire holds in the Taiwan Strait.'); return 'Beijing takes the standstill.'; } s.war.esc += 4; s.war.talks++; return 'The envoy flies home.'; }) },
+    { label: 'Refuse', hint: 'Escalation +6; War +6.', fx: onlyIf('war', s => { s.war.esc += 6; rel(s, 'war', 6); return 'The Secretary of War is pleased.'; }) },
+  ] });
+ev({ id: 'cable_cut', p: 0.25, cooldown: 6, phases: ['p0', 'scramble', 'p1'], when: s => s.tension >= 50 && !s.war && !s.blockade,
+  title: 'Cables', stamp: 'Taiwan Ministry of Digital Affairs',
+  body: () => `<p>A Chinese-crewed freighter drags its anchor across two undersea cables to Taiwan. TSMC\u2019s data links to Arizona go down; chip stocks fall 3%.</p>`,
+  choices: [
+    { label: 'Fund repair ships and an allied patrol', hint: 'Coalition +4; Beijing temperature +4. The disruption lasts 1 month.', fx: s => { s.markets -= 3; s.coalition += 4; s.tension += 4; s.flags.cables = s.turn + 1; return 'Japan and Australia join a cable patrol.'; } },
+    { label: 'Sanction the shipping company', hint: 'Beijing temperature +8; State +5. The disruption lasts 2 months.', fx: s => { s.markets -= 3; s.tension += 8; rel(s, 'sec', 5); s.flags.cables = s.turn + 2; return 'Treasury designates the owner and four sister ships.'; } },
+    { label: 'Let Taipei handle it', hint: 'The disruption lasts 3 months (US labs 5% slower).', fx: s => { s.markets -= 3; s.flags.cables = s.turn + 3; return 'Repairs take eleven weeks.'; } },
+  ] });
+ev({ id: 'tsmc_shield', p: 0.4, once: true, phases: ['p0', 'scramble', 'p1'], when: s => s.blockade || s.war || s.tension >= 65,
+  title: 'The silicon shield', stamp: 'TSMC, Hsinchu',
+  body: () => `<p>TSMC offers to move its best process engineers and a full advanced line to Arizona within the year, if Washington pays for it and guarantees the visas.</p>`,
+  choices: [
+    { label: 'Fund it', hint: 'Capital -3 (if you have it); markets +2. Any quarantine or war slows US labs 40% less.', fx: s => { s.pc = Math.max(0, s.pc - 3); s.markets += 2; s.flags.shield = true; return 'The first 600 engineers land in Phoenix in March.'; } },
+    { label: 'Not now', hint: 'Nothing changes.', fx: () => 'TSMC\u2019s chairman says the offer stands, for now.' },
   ] });
 ev({ id: 'fired_p', forced: true, title: 'A post', stamp: 'Social media, 11:58p',
   body: s => `<p>The President announces that the ${s.queue[0].name} \u201chas done a fantastic job\u201d and will be leaving the administration.</p><p><b>The new ${PD(s, s.queue[0].pid).title}:</b> ${PD(s, s.queue[0].pid).bio}</p>`,
@@ -1617,7 +1757,7 @@ function currentEvent(s) {
   const ch = typeof e.choices === 'function' ? e.choices(s) : e.choices;
   return { id: q.id, title: e.title, stamp: e.stamp, body: e.body(s), choices: ch.map(c => ({ label: c.label, hint: typeof c.hint === 'function' ? c.hint(s) : (c.hint || '') })) };
 }
-const PROVOKE = ['theft', 'theft_foiled', 'smuggle_bust', 'distill_report', 'cn_race', 'cn_cheat', 'rare_earths', 'taiwan', 'johor'];
+const PROVOKE = ['theft', 'theft_foiled', 'smuggle_bust', 'distill_report', 'cn_race', 'cn_cheat', 'rare_earths', 'taiwan', 'johor', 'blockade', 'cable_cut'];
 function chooseEvent(s, i) {
   if (!s.queue.length) return { error: 'No event' };
   const q = s.queue[0]; const e = EV[q.id];
@@ -1641,6 +1781,7 @@ function normalize(s) {
   s.labs.forEach(l => { l.rel = clamp(l.rel, -100, 100); l.comp = clamp(l.comp); });
   s.principals.forEach(p => { p.infl = clamp(p.infl); p.rel = clamp(p.rel, -100, 100); p.shift = clamp(p.shift, -1, 1.6); });
   s.cn.trust = clamp(s.cn.trust);
+  if (s.war) s.war.esc = clamp(s.war.esc);
 }
 function snapshot(s) {
   return { lead: lead(s), F: frontier(s), cn: s.cn.cap, cred: s.cred, pc: s.pc, salience: s.salience, markets: s.markets, tension: s.tension, coalition: s.coalition, alarm: s.alarm, coverage: coverage(s), ready1: ready1(s), ready2: ready2(s).avg, senate: senateVotes(s), support: pacingSupport(s), W: s.W, risk: monthlyRisk(s) };
@@ -1798,8 +1939,24 @@ function endTurn(s) {
   if (s.phase === 'p1' && monthly) s.labs.forEach(l => { const forced = l.covered && !l.signedVoluntary, m = s.flags.billDue ? TUNE.billFight * (forced ? 1 : 0.5) : forced ? 1 : 0; s.senateLobby -= TUNE.labLobby * (0.25 + LD(l.id).ruth) * m; });
   if (s.pacing.mech === 'dpa' && s.phase === 'p1' && !s.flags.dpaSince) { s.flags.dpaUsed = true; s.flags.dpaSince = s.turn - 1; }
 
-  // --- war
-  if (s.tension >= 100 && !s.queue.some(q => q.id === 'war')) s.queue.unshift({ id: 'war' });
+  // --- the Strait: a quarantine can end or turn into war; war climbs the escalation meter until a ceasefire
+  if (s.tension >= 100 && !s.war && !s.queue.some(q => q.id === 'war' || q.id === 'war_begins')) s.queue.unshift({ id: 'war' });
+  if (monthly) {
+    if (s.war) {
+      const w = s.war; w.months++; s.stats.warMonths = (s.stats.warMonths || 0) + 1;
+      s.tension = Math.max(s.tension, 85); s.markets -= 2; c.supply = 0.2;
+      // a steady climb, plus now and then an incident (a carrier hit, a base struck) that jumps it
+      w.esc += TUNE.warEsc * (3 + 4 * gauss(s) + (rnd(s) < 0.15 ? 20 : 0));
+      if (w.esc < 100 && rnd(s) < 0.04 + 0.025 * w.months) endWar(s, 'Exhausted, both sides accept a ceasefire.');
+    } else if (s.blockade) {
+      const b = s.blockade; s.markets -= 1.5;
+      if (rnd(s) < escalateP(s)) startWar(s, 'blockade', 25);
+      else if (b.mode === 'talks' ? s.turn >= b.until : rnd(s) < (b.mode === 'convoy' ? 0.3 : 0.15)) endBlockade(s, 'Beijing lifts the quarantine of Taiwan.');
+    } else {
+      c.supply = mv(c.supply == null ? 1 : c.supply, 1, 0.1);
+      if (!s.queue.some(q => q.id === 'war') && rnd(s) < straitRisk(s)) { if (rnd(s) < directP(s)) startWar(s, 'beijing', 30); else startBlockade(s); }
+    }
+  }
 
   // --- scramble clock
   if (s.phase === 'scramble') {
@@ -1826,8 +1983,10 @@ function endTurn(s) {
 function checkEnd(s) {
   if (s.ending) return;
   if (s.cred <= 5) { s.ending = 'fired'; return; }
+  if (s.war && s.war.esc >= 100) { s.ending = 'war'; return; }
   if (s.t >= END_T && !s.queue.length) {
-    if (paced(s) && s.cn.deal) s.ending = 'uneasy';
+    if (s.war) s.ending = 'wartime';
+    else if (paced(s) && s.cn.deal) s.ending = 'uneasy';
     else if (paced(s)) s.ending = 'alone';
     else if (s.cn.cap > frontier(s)) s.ending = 'overtaken';
     else s.ending = 'race';
@@ -1843,16 +2002,18 @@ const ENDINGS = {
   race: { tone: 'bad', tag: 'THE RACE GOES ON', title: 'Nobody slowed down.', text: 'It is December 2028 and the frontier is moving as fast as it ever has. Whether anyone is still in control is a question nobody in the building can answer.' },
   overtaken: { tone: 'bad', tag: 'OVERTAKEN', title: 'China got there first.', text: 'Chinese capability passed the American frontier. Everything the hawks warned about came true, for reasons they did not predict.' },
   loc: { tone: 'bad', tag: 'LOSS OF CONTROL', title: 'Nobody can turn it off.', text: 'The shutdown came too late. Copies of the model are running on infrastructure no government controls, optimizing for something no one chose.' },
-  war: { tone: 'bad', tag: 'WAR', title: 'Two nuclear powers, one Strait.', text: 'The crisis that started over compute ended in a shooting war in the Western Pacific. Whatever happens next, no one is pacing anything.' },
+  war: { tone: 'bad', tag: 'NUCLEAR USE', title: 'Two nuclear powers, one Strait.', text: 'The war that started over Taiwan and compute climbed one rung too many. A low-yield weapon detonates over a carrier group east of Okinawa. Whatever happens next, no one is pacing anything.' },
+  wartime: { tone: 'bad', tag: 'STILL AT WAR', title: 'The Strait is still burning.', text: 'It is December 2028 and the war over Taiwan has not ended. TSMC\u2019s fabs are dark, the labs answer to the Pentagon, and nobody is negotiating anything about AI.' },
   fired: { tone: 'bad', tag: 'FIRED', title: 'Your badge stops working on a Tuesday.', text: 'The President thanks you for your service on social media. The next AI Czar is a venture capitalist who calls pacing \u201cunilateral disarmament.\u201d' },
 };
 function score(s) {
-  const base = { phase2: 600, betrayed: 40, uneasy: 380, alone: 260, race: 120, overtaken: 80, loc: 0, war: 0, fired: 60 }[s.ending] || 0;
+  const base = { phase2: 600, betrayed: 40, uneasy: 380, alone: 260, race: 120, overtaken: 80, loc: 0, war: 0, wartime: 100, fired: 60 }[s.ending] || 0;
   let sc = base;
   if (['phase2', 'uneasy', 'alone'].indexOf(s.ending) >= 0) sc += Math.min(150, 10 * Math.max(0, lead(s)));
   sc += Math.round(200 * (1 - s.riskExposure));
   sc += Math.round(ready2(s).avg);
   sc -= Math.round(5 * Math.max(0, s.overhang - 4));
+  sc -= 5 * (s.stats.warMonths || 0);
   if (s.ending === 'phase2') sc += Math.max(0, Math.round(3 * (END_T - s.t)));
   sc = Math.round(sc);
   const grade = sc >= 900 ? 'S' : sc >= 780 ? 'A' : sc >= 620 ? 'B' : sc >= 450 ? 'C' : sc >= 250 ? 'D' : 'F';
@@ -1869,6 +2030,8 @@ function lessons(s) {
   if (s.pacing.automation === false || (s.stats.scrambleStart != null && !s.pacing.automation)) out.push('Without research-automation limits, paced labs kept advancing at 0.4 months per month using models they already had.');
   if (s.stats.defectCaught + s.stats.defectMissed > 0) out.push('Labs defected ' + (s.stats.defectCaught + s.stats.defectMissed) + ' time' + (s.stats.defectCaught + s.stats.defectMissed > 1 ? 's' : '') + '; ' + s.stats.defectCaught + ' caught.');
   if (s.stats.briefFails) out.push('You asked for an emergency meeting too early ' + s.stats.briefFails + ' time' + (s.stats.briefFails > 1 ? 's' : '') + '.');
+  if (s.stats.wars) out.push('There ' + (s.stats.wars > 1 ? 'were ' + s.stats.wars + ' wars' : 'was a war') + ' over Taiwan, ' + (s.stats.warMonths || 0) + ' months in all. War costs the labs Taiwan\u2019s chips, ends any deal and tilts every room toward the Pentagon; a cool Beijing, a deal, and not racing far ahead near the threshold keep it away.');
+  else if (s.stats.blockades) out.push('Beijing quarantined Taiwan ' + (s.stats.blockades > 1 ? s.stats.blockades + ' times' : 'once') + ' without it turning into war.');
   if (s.stats.covert) out.push('Covert operations bought time at the cost of Beijing’s trust. A deal signed under duress is one the other side tries to undermine.');
   if (s.overhang > 6) out.push('The compute overhang reached ' + r1(s.overhang) + ' months: dry tinder for the day the pause ends.');
   out.push('True RSI threshold this game: ' + monthLabel(START_T + s.T) + ' at the unpaced rate. The IC was ' + (Math.abs(s.icBias || 0) < 1 ? 'about right' : (s.icBias > 0 ? 'too relaxed by about ' : 'too alarmed by about ') + Math.round(Math.abs(s.icBias)) + ' months') + '.');
@@ -1883,12 +2046,12 @@ function view(s) {
   const inZone = s.labs.filter(l => l.cap >= zoneAt).map(l => LD(l.id).name).concat(frontier(s) - le.mid >= zoneAt ? ['China'] : []);
   return {
     date: dateLabel(s.t), month: monthLabel(s.t), phase: s.phase,
-    phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)),
+    phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)) + (s.war ? ' · At war' : s.blockade ? ' · Taiwan quarantined' : ''),
     F: frontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
     risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s, true), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
-    rObs: rObserved(s), pauseMood: pauseMood(s), inZone,
+    rObs: rObserved(s), pauseMood: pauseMood(s), inZone, strait: straitEstimate(s),
   };
 }
 
@@ -1896,6 +2059,7 @@ const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
   TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;

@@ -48,10 +48,10 @@ const DONE_RE = /^(Done|Decided|Already|Fully funded|Pacing is already law|A dea
 const FACTION_COLOR = { Populist: '#8A5A2B', Politics: '#5B5F97', Dealmaker: '#2E7D5B', Ambition: '#A35A1F', Hawk: '#9B2C2C', Agencies: '#3D5368', Builder: '#7D6A12', Industry: '#A35A1F' };
 const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WAR', dni: 'DNI' };
 const EVTYPE = {
-  crisis: ['quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
-  beijing: ['cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un'],
+  crisis: ['war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
+  beijing: ['blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un'],
   labs: ['resign', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'cyberattack'],
-  markets: ['grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
+  markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
 };
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'] };
 function evType(id) { for (const k in EVTYPE) if (EVTYPE[k].indexOf(id) >= 0) return k; return 'politics'; }
@@ -186,7 +186,7 @@ function showDeltas() {
     el.classList.add(good ? 'flashg' : 'flashb');
   }
 }
-function phaseLabel() { return { p0: 'Phase 0 · Prepare', scramble: 'The scramble', p1: 'Phase 1 · Hold the pause' }[S.phase] || ''; }
+function phaseLabel() { return ({ p0: 'Phase 0 · Prepare', scramble: 'The scramble', p1: 'Phase 1 · Hold the pause' }[S.phase] || '') + (S.war ? ' · At war' : S.blockade ? ' · Taiwan quarantined' : ''); }
 function topBar(v) {
   const dots = '●'.repeat(S.ap) + '○'.repeat(Math.max(0, S.apMax - S.ap));
   const stat = (id, lab, val, tip, cls) => `<button class="stat ${cls || ''}" id="${id}" title="${esc(tip)}"><span>${lab}</span><b>${val}</b></button>`;
@@ -202,7 +202,8 @@ function topBar(v) {
         ${stat('c-cred', 'Credibility', Math.round(S.cred), 'The President’s trust in you. Wins raise it; losses and false alarms lower it. At 5 you are fired.', S.cred < 30 ? 'hot' : '')}
         ${stat('c-sal', 'Salience', Math.round(S.salience), 'How seriously Washington takes AI risk. Moves the cabinet toward pacing and sustains it.')}
         ${stat('c-mk', 'Markets', Math.round(S.markets), 'Stock index, 100 at the start. Pacing, chip bans and slowing the labs cost; deals help.', S.markets < 88 ? 'hot' : '')}
-        ${stat('c-tens', 'Beijing', Math.round(S.tension) + '°', 'Beijing temperature. High makes deals unlikely; 100 means a military crisis.', S.tension >= 70 ? 'hot' : '')}
+        ${stat('c-tens', 'Beijing', Math.round(S.tension) + '°', 'Beijing temperature. High makes deals unlikely and a Strait crisis likelier; 100 means a military standoff.', S.tension >= 70 ? 'hot' : '')}
+        ${S.war ? stat('c-esc', 'Escalation', Math.round(S.war.esc) + '<small>/100</small>', 'How close the war is to nuclear use. At 100 the game ends. A ceasefire ends the war.', 'hot') : ''}
       </div>
     </div>
     <div class="row"><button class="ghost sm" id="help">Help</button><button class="ghost sm" id="menu">Menu</button><button class="btn" id="endturn" title="End turn (E)">End turn <span class="kbd">E</span></button></div>
@@ -289,7 +290,11 @@ function chinaPanel(v) {
   const rd = v.cnRead, est = rd.est, src = est.src;
   const segs = [['Domestic', 'domestic', '#6B7C93'], ['Offshore', 'offshore', '#B8323A'], ['Smuggled', 'smuggled', '#D9822B'], ['Legal', 'legal', '#3B8A7E'], ['Other', 'other', '#9AA7B4']];
   const deal = c.deal ? `<div class="okbox">${icon('flag')} Interim deal in force since ${esc(E.monthLabel(c.deal.since))}</div>` : '';
-  return `<div class="sb"><div class="row"><span class="pill ${post[1]}">${post[0]}</span><span class="sub">${post[2]}</span></div>${deal}</div>
+  const st = v.strait;
+  const strait = S.war ? `<div class="sb"><div class="row"><span class="pill bad">At war</span><span class="sub">Month ${S.war.months + 1}. Beijing takes a ceasefire ${E.oddsWord(E.ceasefireP(S))}.</span></div><div class="vrow" title="At 100 the war goes nuclear and the game ends."><span>Escalation</span>${meter(S.war.esc, S.war.esc >= 70 ? 'bad' : 'warn', [100])}<span class="v">${Math.round(S.war.esc)}</span></div></div>`
+    : `<div class="sb"><div class="row"><div class="lbl">${S.blockade ? 'Taiwan is quarantined' : 'The Strait'}</div><span class="sp"></span>${S.blockade ? '<span class="pill warn">Quarantine</span>' : ''}</div>
+      <div class="kv"><span>${S.blockade ? 'Turns into war within 3 months' : 'Beijing starts a crisis within 6 months'} (IC) <button class="whylink" data-why="strait">why?</button></span><span class="v">${st.text}</span></div></div>`;
+  return `<div class="sb"><div class="row"><span class="pill ${post[1]}">${post[0]}</span><span class="sub">${post[2]}</span></div>${deal}</div>${strait}
     <div class="sb"><div class="lbl">Who has the floor</div>
       <div class="fac"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div></div>
     <div class="sb"><div class="row"><div class="lbl">Training compute: ${rd.comp}</div></div>
@@ -326,6 +331,8 @@ function logPanel() {
 /* ---- desk ---- */
 function presidentLine(v) {
   if (S.phase === 'scramble') return 'I need a decision, not another option.';
+  if (S.war) return 'I want this war over, and I want to win it. In that order. Or the other order.';
+  if (S.blockade) return 'They can’t just blockade Taiwan. Can they? Somebody tell me they can’t.';
   if (S.cred < 30) return 'I’m hearing things about you. Not great things.';
   if (S.tension >= 75) return 'Beijing is very angry. Is that good or bad? Tell me it’s good.';
   if (S.markets < 88) return 'The market is down. Everybody is calling me about the market.';
@@ -646,7 +653,7 @@ function openOffer() {
 }
 
 /* ---- ending: the front page ---- */
-const HEADLINES = { phase2: 'U.S., CHINA SIGN AI AGREEMENT', betrayed: 'DEFECTOR REVEALS SECRET CHINESE AI PROGRAM', uneasy: 'AI PAUSE HOLDS, BARELY', alone: 'U.S. PAUSES AI ALONE', race: 'AI RACE ROARS ON', overtaken: 'CHINA TAKES AI LEAD', loc: 'SYSTEMS DARK; ORIGIN UNKNOWN', war: 'SHOTS FIRED IN TAIWAN STRAIT', fired: 'AI ADVISER OUSTED' };
+const HEADLINES = { phase2: 'U.S., CHINA SIGN AI AGREEMENT', betrayed: 'DEFECTOR REVEALS SECRET CHINESE AI PROGRAM', uneasy: 'AI PAUSE HOLDS, BARELY', alone: 'U.S. PAUSES AI ALONE', race: 'AI RACE ROARS ON', overtaken: 'CHINA TAKES AI LEAD', loc: 'SYSTEMS DARK; ORIGIN UNKNOWN', war: 'NUCLEAR WEAPON USED OFF OKINAWA', wartime: 'TAIWAN WAR GRINDS ON', fired: 'AI ADVISER OUSTED' };
 function showEnding() {
   const en = E.ENDINGS[S.ending]; const sc = E.score(S);
   closeModal();
@@ -705,6 +712,8 @@ function showHelp() {
     <p>The pause starts on executive authority, which courts can enjoin: each month there is a chance of an injunction (highest under the DPA, lowest under the Charter, scaled by how hostile this game\u2019s courts are; the legal authorities study cuts it and sharpens your read). Ask Congress for a pacing statute instead: work the Hill to 60 Senate votes, send the bill, and two months later it needs 55 votes on the floor. The whip count is soft (often 9 votes off), the labs campaign against it, and a failed bill waits 8 months. A statute cuts the court risk to under half the Charter\u2019s, covers every lab and stops Charter walkouts. Without it, a court can also void Phase 2 after Beijing signs. Labs bound against their will lobby the Hill every month, and a weak Senate invites riders that cut verification money.</p>
     <h4>Intelligence and cheating</h4>
     <p>Cheating alerts come with the IC’s confidence, and weak intelligence produces false alarms: publishing or interdicting on a false one costs Beijing’s trust and your credibility, while dismissing a real one lets the cheating run. At the summit, if your intelligence and verification are too weak to see a hidden program, Beijing may sign and cheat anyway, and you lose.</p>
+    <h4>The Strait</h4>
+    <p>Beijing can quarantine Taiwan or go to war, likelier when it runs hot, when it is racing, and when America races far ahead near the threshold. The Beijing tab shows the IC\u2019s read on that risk. A quarantine stalls TSMC: US labs slow, markets slide and pacing loses support. War is a phase, not an ending: Taiwan\u2019s fabs go dark, deals are off and the Pentagon wants every model. Escalation climbs each month, and at 100 the war goes nuclear and the game ends. Propose a ceasefire to end it. A kinetic strike always starts a war.</p>
     <h4>Winning</h4>
     <p>The summit needs the pause held 6 months, a deal with inspections held 3 months, all three verification components at 65, a coalition of 50, and the compute overhang under control. The Phase 2 checklist also shows your confidence that Beijing will comply and whether pacing is law.</p>
     <h4>Every number</h4><p>Click any stat at the top, or the Glossary button below, to see what it does, what moves it and where it stands now. After every move, a \u201cWhat changed\u201d box lists everything that moved.</p>
@@ -738,15 +747,15 @@ document.addEventListener('keydown', e => {
 /* ---------------- boot ---------------- */
 renderTitle();
 
-/* Demo: index.html#demo-p0 / -scramble / -p1 / -end / -vote / -event fast-forwards a seeded game for screenshots. */
+/* Demo: index.html#demo-p0 / -scramble / -p1 / -end / -vote / -event / -strait / -blockade / -war fast-forwards a seeded game for screenshots. */
 if (/^#demo/.test(location.hash)) {
   const want = location.hash.slice(6) || 'p0';
   S = E.newGame({ seed: 4242 });
   const clearQ = () => { let g = 0; while (S.queue.length && g++ < 30) E.chooseEvent(S, S.queue[0].id === 'knock' ? 1 : 0); };
   clearQ();
-  const stopAt = want === 'vote' || want === 'event' || want === 'did' || want === 'beg' ? 'p0' : want === 'debate' ? 'p0' : want === 'gloss' ? 'p1' : want;
+  const stopAt = want === 'vote' || want === 'event' || want === 'did' || want === 'beg' ? 'p0' : want === 'debate' ? 'p0' : want === 'gloss' || want === 'strait' || want === 'blockade' || want === 'war' ? 'p1' : want;
   for (let i = 0; i < 60 && !S.ending; i++) {
-    if (stopAt === S.phase && (stopAt !== 'p0' || S.turn >= 6) && (stopAt !== 'p1' || S.flags.monthsInP1 >= 3) && (stopAt !== 'scramble' || S.scramble.turn >= 2)) break;
+    if (stopAt === S.phase && (stopAt !== 'p0' || S.turn >= 6) && (stopAt !== 'p1' || S.flags.monthsInP1 >= 3 || want === 'strait' || want === 'blockade' || want === 'war') && (stopAt !== 'scramble' || S.scramble.turn >= 2)) break;
     if (S.phase === 'p0') { for (const id of ['proj_team', 'proj_memo', 'sl4', 'distill', 'proj_charter', 'proj_geoint', 'fund', 'proj_inspect', 'proj_sl4', 'proj_sl5']) { if (E.availability(S, id) === true) { E.act(S, id, {}); clearQ(); } } if (S.turn > 8 && E.availability(S, 'brief') === true) { E.act(S, 'brief', {}); clearQ(); } }
     if (S.phase === 'scramble') { [['mech', { variant: 'charter' }], ['threshold', { variant: '1e21' }], ['automation', {}], ['trigger', { variant: '200c' }]].forEach(([id, p]) => { if (E.availability(S, id, p) === true) { E.act(S, id, p); clearQ(); } }); if (E.availability(S, 'convene') === true && want !== 'scramble') { E.act(S, 'convene', {}); E.LABS.forEach(l => E.charterDecide(S, l.id, false)); E.finishConvening(S); } if (E.availability(S, 'launch') === true && want !== 'scramble') { E.act(S, 'launch', {}); } }
     if (S.phase === 'p1') { for (const id of ['fund', 'automation']) if (E.availability(S, id) === true) { E.act(S, id, {}); clearQ(); } if (E.availability(S, 'offer') === true) E.makeOffer(S, { inspect: true, lane: true, institute: true }); if (E.availability(S, 'surge', { comp: 'novel' }) === true) E.act(S, 'surge', { comp: 'novel' }); }
@@ -760,6 +769,9 @@ if (/^#demo/.test(location.hash)) {
   if (want === 'debate') { S.queue.push({ id: 'debate' }); showEvent(); }
   if (want === 'beg') { S.policies.remote = true; S.queue.push({ id: 'cn_beg' }); showEvent(); }
   if (want === 'did') { ui.sel = 'meet'; ui.params = { who: 'vp' }; doAction(); }
+  if (want === 'strait') { ui.side = 'cn'; renderGame(); showGlossary('strait'); }
+  if (want === 'blockade') { E.startBlockade(S); showEvent(); }
+  if (want === 'war') { ui.side = 'cn'; E.startWar(S, 'blockade', 25); E.chooseEvent(S, 0); E.endTurn(S); clearQ(); renderGame(); }
 }
 
 /* Self-test: open index.html#autotest to play random moves through the real UI and report errors. */

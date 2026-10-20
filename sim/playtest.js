@@ -19,7 +19,7 @@ function runCharter(s, smart) {
 }
 function resolveEvents(s, chooser) { let g = 0; while (s.queue.length && !s.ending && g++ < 20) { const ev = E.currentEvent(s); const i = chooser(s, ev); E.chooseEvent(s, i); } }
 
-const PREF = { distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast: 1, lantern_oped: 0, kite: 0, oversight: 0, power: 0, titan_feud: 1, leak: 1, johor: 0, cyberattack: 1, bio: 1, capex: 0, ceo_call: 1, near_miss: 0, rare_earths: 1, taiwan: 1, verdant: 0, cn_un: 0, g7: 0, s_leak: 0, s_beijing: 0, s_titan: 0, s_hill: 0, defector: 2, cn_cheat: 0, court: 0, lobby_end: 1, uae: 0, hearing: 0, markets_wobble: 0, commerce_ex: 0, wobble: 0, theft: 1, war: 0, knock: 1, debate: 0, deadline_up: 1, cn_beg: 2, czar_endrun: 0, feud: 0, vp_issue: 0, hawk_push: 1 };
+const PREF = { blockade: 1, war_exempt: 2, war_cyber: 1, war_escalate: 1, war_talks: 1, distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast: 1, lantern_oped: 0, kite: 0, oversight: 0, power: 0, titan_feud: 1, leak: 1, johor: 0, cyberattack: 1, bio: 1, capex: 0, ceo_call: 1, near_miss: 0, rare_earths: 1, taiwan: 1, verdant: 0, cn_un: 0, g7: 0, s_leak: 0, s_beijing: 0, s_titan: 0, s_hill: 0, defector: 2, cn_cheat: 0, court: 0, lobby_end: 1, uae: 0, hearing: 0, markets_wobble: 0, commerce_ex: 0, wobble: 0, theft: 1, war: 0, knock: 1, debate: 0, deadline_up: 1, cn_beg: 2, czar_endrun: 0, feud: 0, vp_issue: 0, hawk_push: 1 };
 
 const BOTS = {
   random(s) {
@@ -64,6 +64,8 @@ function expertTurn(s, o) {
   const v = () => E.view(s);
   let guard = 0;
   const step = () => { resolveEvents(s, evChooserExpert); return !s.ending; };
+  while (s.war && !s.ending && guard++ < 3 && tryAct(s, 'ceasefire')) step();
+  guard = 0;
   if (s.phase === 'p0') {
     const order = ['sl4', 'team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk'];
     if (o.ic) { const v0 = v(); if (v0.ic.mid < 5 && v0.briefOdds > 0.3 && tryAct(s, 'brief')) { step(); return; } if (v0.ic.mid < 7) { s.flags._save = true; } }
