@@ -183,7 +183,7 @@ function usDrag(s) {
   if (SL[s.sl].drag) parts.push(['SL' + s.sl + ' security overhead', SL[s.sl].drag]);
   if (s.done.control) parts.push(['AI control protocols', 0.05]);
   if (s.policies.distill) parts.push(['API know-your-customer friction', 0.015]);
-  if (s.policies.leak) parts.push(['Research secrecy and visa screening', 0.015]);
+  if (s.policies.methods) parts.push(['Research secrecy and visa screening', 0.015]);
   if (s.policies.remote) parts.push(['Lost foreign cloud revenue', 0.02]);
   if (s.policies.chips) parts.push(['Chip export revenue and supply friction', 0.03]);
   if (s.flags.minerals && s.flags.minerals.until >= s.turn) parts.push(['Beijing\u2019s mineral export curbs', s.flags.minerals.d]);
@@ -534,7 +534,7 @@ def({ id: 'remote', cat: 'policy', name: 'Close the remote-access loophole', pha
   effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +8. US clouds lose foreign revenue: US labs 2% slower.',
   apply(s) { s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8; shiftCN(s, { sec: 4, m: -2 }); s.coalition -= 3; return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
 });
-def({ id: 'leak', cat: 'policy', name: 'Stop the leak of US methods', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
+def({ id: 'methods', cat: 'policy', name: 'Stop the leak of US methods', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.2, industry: -0.8, control: 0.4 },
   desc: 'Papers, researchers moving, espionage: every way US research methods reach Chinese labs. Prepublication review at the frontier labs, visa screening, counterintelligence on lab staff.',
   effect: () => 'Cuts 90% of the methods leaking to China. China takes about a year to absorb what already leaked, so the payoff builds slowly. Beijing temperature +4. Openness costs: US labs 1.5% slower.',
@@ -957,7 +957,7 @@ const CHIPS = {
   allies: () => ['+Coalition grows', '+Some Senate votes'],
   labmeet: () => ['+Relationship with the lab up'],
   assess: () => ['+Sharper readings for a while'],
-  leak: () => ['+Slows China, building over a year', '-Slows US labs slightly', '-Labs grumble', '~Beijing mildly annoyed'],
+  methods: () => ['+Slows China, building over a year', '-Slows US labs slightly', '-Labs grumble', '~Beijing mildly annoyed'],
   distill: () => ['+Cuts China’s distillation boost by about a third', '-Slows US labs slightly', '-Beijing annoyed'],
   remote: () => ['+Cuts China’s compute', '-Slows US labs slightly', '-Beijing angry'],
   smuggle: () => ['+Trims China’s compute', '~Beijing mildly annoyed'],

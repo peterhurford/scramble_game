@@ -3,7 +3,7 @@
 const E = require('../engine.js');
 
 const PROJ = ['team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk'];
-const POL0 = ['distill', 'leak', 'fund', 'remote', 'smuggle', 'sl4', 'chips', 'accelerate', 'speech', 'malaysia', 'assess'];
+const POL0 = ['distill', 'methods', 'fund', 'remote', 'smuggle', 'sl4', 'chips', 'accelerate', 'speech', 'malaysia', 'assess'];
 // China policies a strategy can make conditional on the Beijing readout: skip unless the reading is at least the gate.
 const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offshore', 0.4], smuggle: ['smuggled', 0.2], chips: ['legal', 0.15] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
