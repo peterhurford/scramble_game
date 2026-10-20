@@ -84,7 +84,7 @@ const COMPONENTS = [
 ]
 
 // Weight security ladder. Each level replaces the one below: its theft odds and its cost to US labs.
-const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
+const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.30 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
@@ -98,7 +98,7 @@ const PROJECTS = [
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court.', done: 'Emergency orders are far less likely to be enjoined, and the DPA threat becomes credible.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 8, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 20% (instead of SL4\u2019s 8%). Labs -12, industry -6, markets -3.', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 12); industry(s, -6); s.markets -= 3; } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 8, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% (instead of SL4\u2019s 8%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
 ];
 
 const ASKS = {
