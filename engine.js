@@ -1836,6 +1836,8 @@ function chooseEvent(s, i) {
   const text = c.fx(s);
   if (PROVOKE.indexOf(q.id) >= 0) s.provoked = (s.provoked || 0) + 1;
   s.queue.shift();
+  // a choice can change the phase (the knock starts the scramble): random events rolled for the old phase are dropped
+  s.queue = s.queue.filter(x => { const d = EV[x.id]; return d.forced || !d.phases || d.phases.indexOf(s.phase) >= 0; });
   s.seen[q.id] = s.seen[q.id] || s.turn;
   normalize(s);
   checkEnd(s);
@@ -2152,7 +2154,7 @@ const API = {
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, standbyCred, standbyParts, termRead, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
-  TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
+  EVENTS: EV, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
 })(typeof self !== 'undefined' ? self : this);
