@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -99,7 +99,7 @@ const PROJECTS = [
   { id: 'geoint', name: 'Build the thermal and GEOINT baseline', need: 2, desc: 'Pattern-of-life on every candidate site. Cheap now, impossible to compress later. Worth the most when Beijing hides its sites well.', done: 'Survey +30, intelligence quality +15, and Beijing’s concealment counts for 60% less.', fx(s) { s.verify.survey += 30; s.intelQ += 15; } },
   { id: 'inspect', name: 'Inspectors, chip ledger, whistleblower lines', need: 2, desc: 'Former IAEA and DTRA inspectors who know what a GPU hall looks like, a ledger of every frontier chip, and protected reporting lines at the labs.', done: 'Inspections +30, and smuggling gets harder (the more smuggling there is, the more it cuts).', fx(s) { s.verify.inspect += 30; s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.15 * cnBase(s).smuggle); } },
   { id: 'zk', name: 'Cryptographic proof-of-training', need: 3, desc: 'Zero-knowledge proofs of what a cluster trained. Rigorous and elegant.', done: 'Novel tech +30. It will not count during Phase 1: nobody trusts it yet.', fx(s) { s.verify.novel += 30; } },
-  { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 2, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
+  { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 2, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +12; their science faction gains ground.', fx(s) { s.cn.trust += 12; shiftCN(s, { sci: 5, sec: -2 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 1, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts gets far more accurate.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 2, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
   { id: 'sl4', name: 'Implement SL4 at the labs', need: 1, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
@@ -994,7 +994,7 @@ function cnParts(s, terms, pub) {
   const P_ = [['Base reluctance', -1.55], ['Who has the floor in Beijing', 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30)]];
   if (ld > 5) P_.push(['A big US lead', 0.07 * Math.min(ld - 5, 10)]);
   if (ld < 2) P_.push(['China is nearly level', -0.6]);
-  if (chanClosed(s) && !terms.lane && f.sec > 40) P_.push(['Every channel closed, and no market lane', -0.4]);
+  if (chanClosed(s) && !terms.lane && !terms.chips && !terms.relief && f.sec > 40) P_.push(['Every channel closed, and nothing in the offer reopens one', -0.4]);
   if (paced(s)) P_.push(['America is pacing', 0.5]);
   else if (s.pacing.armed) P_.push(['America’s labs signed, but nothing stops until Beijing does (' + Math.round(100 * standbyCred(s)) + '% credible)', 0.65 * standbyCred(s)]);
   else P_.push(['America is not pacing', -0.7]);
@@ -1003,6 +1003,10 @@ function cnParts(s, terms, pub) {
   if (terms.freeze && !terms.ultimatum) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
   CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
+  // export controls are leverage: Beijing values getting back what you took
+  if (terms.chips && s.policies.chips) P_.push(['Resumes the chip sales you cut', TUNE.chipLever]);
+  const held = ['remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
+  if (terms.relief && held) P_.push(['Relief eases ' + held + ' control' + (held > 1 ? 's' : '') + ' you imposed', TUNE.reliefLever * held]);
   if (terms.threat && !terms.ultimatum) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
   if (terms.ultimatum) P_.push(['Freeze now or never (Market weighs the gap; Security hates it)', 0.11 * (Math.min(ld, 14) - 4) * f.m / 50 - 0.025 * (f.sec - 30)]);
   if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 months', -0.8]);
