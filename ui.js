@@ -238,17 +238,21 @@ function raceStrip(v) {
   const dzx = X(Math.max(x0, Math.min(Tlo, x1)));
   g += `<rect x="${dzx}" y="${Y - 16}" width="${Math.max(2, W - R - dzx)}" height="32" rx="4" fill="var(--bad)" opacity=".1"/>`;
   if (Tm <= x1) g += `<line x1="${X(Tm)}" x2="${X(Tm)}" y1="${Y - 16}" y2="${Y + 16}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
-  g += `<text x="${Math.min(dzx + 8, W - R - 4)}" y="${Y - 24}" text-anchor="${dzx > W - 160 ? 'end' : 'start'}" class="dz">RSI possible (IC estimate)</text>`;
   g += `<line x1="${L}" x2="${W - R}" y1="${Y}" y2="${Y}" stroke="var(--rule)" stroke-width="2"/>`;
   for (let m = Math.ceil(x0 - F); m <= Math.floor(x1 - F); m++) { if (m % 3) continue; const x = X(F + m); g += `<line x1="${x}" x2="${x}" y1="${Y + 3}" y2="${Y + 7}" stroke="var(--faint)"/><text x="${x}" y="${Y + 34}" text-anchor="middle">${m === 0 ? 'now' : (m > 0 ? '+' : '') + m + ' mo'}</text>`; }
   E.LABS.forEach(ld => { g += `<circle cx="${X(E.L(S, ld.id).cap)}" cy="${Y}" r="3" fill="var(--us)" opacity=".5"><title>${esc(ld.name)}</title></circle>`; });
   g += `<rect x="${X(cn - le.err)}" y="${Y - 3}" width="${Math.max(0, X(cn + le.err) - X(cn - le.err))}" height="6" rx="3" fill="var(--cn)" opacity=".2"><title>Uncertainty in China’s position</title></rect>`;
-  g += `<path d="M${X(cn)} ${Y - 17} V${Y - 21} H${X(F)} V${Y - 17}" fill="none" stroke="var(--faint)"/><text x="${(X(cn) + X(F)) / 2}" y="${Y - 26}" text-anchor="middle" class="big">US ahead by ${f1(le.mid)} ± ${f1(le.err)} mo</text>`;
+  // The gap label names whoever leads; the RSI label sits at the zone's left edge, or its right end if that would overlap the gap label.
+  const gapText = (le.mid < 0 ? 'China ahead by ' + f1(-le.mid) : 'US ahead by ' + f1(le.mid)) + ' ± ' + f1(le.err) + ' mo';
+  const gx = (X(cn) + X(F)) / 2, gw = gapText.length * 7 / 2, rw = 160;
+  const rsiAt = [[Math.min(dzx + 8, W - R - rw), 'start'], [W - R - 4, 'end']].find(([x, a]) => { const lo = a === 'start' ? x : x - rw; return lo > gx + gw + 8 || lo + rw < gx - gw - 8; }) || [W - R - 4, 'end'];
+  g += `<text x="${rsiAt[0]}" y="${Y - 24}" text-anchor="${rsiAt[1]}" class="dz">RSI possible (IC estimate)</text>`;
+  g += `<path d="M${X(cn)} ${Y - 17} V${Y - 21} H${X(F)} V${Y - 17}" fill="none" stroke="var(--faint)"/><text x="${gx}" y="${Y - 26}" text-anchor="middle" class="big">${gapText}</text>`;
   g += `<circle cx="${X(cn)}" cy="${Y}" r="11" fill="var(--cn)"/><text x="${X(cn)}" y="${Y + 3.5}" text-anchor="middle" class="tok">CN</text>`;
   g += `<circle cx="${X(F)}" cy="${Y}" r="11" fill="var(--us)"/><text x="${X(F)}" y="${Y + 3.5}" text-anchor="middle" class="tok">${S.pacing.active ? '⏸' : 'US'}</text>`;
   // Where the lead is headed at today's speeds, six months out.
   const ahead = le.mid + 6 * (v.usRate - v.cnEst.rate);
-  const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : Math.abs(ahead - le.mid) < 0.3 ? `Lead <b>steady</b> at this pace` : ahead <= 0 ? `At this pace China <b>catches up within 6 months</b>` : `In 6 months at this pace: <b>~${f1(ahead)} mo</b> lead`;
+  const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : Math.abs(ahead - le.mid) < 0.3 ? `Lead <b>steady</b> at this pace` : ahead <= 0 ? `At this pace China <b>catches up within 6 months</b>` : `In 6 months at this pace: ${ahead < 0 ? `China <b>~${f1(-ahead)} mo</b> ahead` : `<b>~${f1(ahead)} mo</b> lead`}`;
   const rsi = v.ic.lo > 24 ? 'RSI: 24+ months away' : `RSI possible in <b>${Math.round(v.ic.lo)}–${v.ic.hi > 24 ? '24+' : Math.round(v.ic.hi)} mo</b>`;
   return `<section class="panel race"><div class="ph"><h2>The race</h2><div class="readouts">
       <span>${rsi}</span><span>${cross}</span>
