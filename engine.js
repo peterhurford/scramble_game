@@ -278,10 +278,12 @@ function hazards(s) {
 // When something escapes, the chance it is caught in time: likelier early on the curve.
 function warningShotP(s, who) { const cap = who === 'china' ? s.cn.cap : L(s, who).cap; return 0.15 + 0.6 * (1 - nearness(s, cap)); }
 // Weight theft: Beijing attempts more when racing, when the US is paced, and when far behind; success depends on weight security.
-function theftRisk(s) {
-  const c = s.cn;
+// pub: the player's view, which reads the ramp off the IC's threshold estimate so the theft-risk word doesn't leak the true threshold
+function theftRisk(s, pub) {
+  const c = s.cn, F = frontier(s);
+  const T = pub ? Math.max(0.5, F + icEstimate(s).mid * Math.max(0.05, frontierRate(s, true))) : s.T;
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
-  const x = clamp(frontier(s) / s.T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
+  const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const attempt = TUNE.theftBase * ramp * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
@@ -1815,7 +1817,7 @@ function view(s) {
     phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)),
     F: frontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
-    risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),
+    risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s, true), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
     rObs: rObserved(s), pauseMood: pauseMood(s), inZone,
   };
