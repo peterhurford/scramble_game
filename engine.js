@@ -204,9 +204,11 @@ function usRates(s, assumeCompliant) {
 function cnRate(s) {
   const c = s.cn, gap = lead(s);
   const p = paced(s);
-  // copying the US: distillation and leaked methods (diffusion), split 4.2 : 3.4 as in metr_graph's channel split; both shrink when the US is paced and there is little left to copy
-  const copy = (0.165 * c.dist + 0.11 * (c.leak == null ? 1 : c.leak)) * (p ? 0.4 : 1) * (gap > 0.5 ? 1 : 0.3);
-  let r = 0.1 + 0.6 * cnComp(s) + copy;
+  // metr_graph's split of China's pace, in US-pace units: own research 0.26, compute 0.15, distillation 0.27, leaked methods 0.22.
+  // Compute is raised to 0.25 (own research down to 0.16) as a hedge: the split measures compute at its growth rate, not a sudden cut.
+  // Copying shrinks when the US is paced and there is little left to copy.
+  const copy = (0.34 * c.dist + 0.22 * (c.leak == null ? 1 : c.leak)) * (p ? 0.4 : 1) * (gap > 0.5 ? 1 : 0.3);
+  let r = 0.16 + 0.25 * cnComp(s) + copy;
   if (c.deal && !c.cheat) r = Math.min(r, 0.12);
   if (c.deal && c.cheat) r = Math.min(r, 0.12) + 0.45;
   return r;
