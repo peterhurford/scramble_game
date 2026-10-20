@@ -2,7 +2,7 @@
 // play(genome, seed, diff) runs one game and returns the final state. The default genome encodes the scripted expert.
 const E = require('../engine.js');
 
-const PROJ = ['team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk'];
+const PROJ = ['team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk', 'sl4'];
 const POL0 = ['distill', 'methods', 'fund', 'remote', 'smuggle', 'sl4', 'chips', 'accelerate', 'speech', 'malaysia', 'assess'];
 // China policies a strategy can make conditional on the Beijing readout: skip unless the reading is at least the gate.
 const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offshore', 0.4], smuggle: ['smuggled', 0.2], chips: ['legal', 0.15] };
@@ -32,6 +32,7 @@ const PREF = { distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast
 function expertGenome() {
   const G = {};
   PROJ.forEach((p, i) => G['proj.' + p] = 1 - i * 0.1);
+  G['proj.sl4'] = 1.05; // implement an ordered SL4 before anything else
   POL0.forEach(p => G['pol.' + p] = -0.5);
   Object.keys(GATE).forEach(p => G['gate.' + p] = 0);
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
@@ -144,7 +145,7 @@ function turn(s, G) {
       const comp = G.surge === 'lowest' ? comps[0] : G.surge === 'novel' ? (s.verify.novel < 65 ? 'novel' : comps[0]) : (s.verify.inspect < 65 ? 'inspect' : comps[0]);
       if (tryAct(s, 'surge', { comp }, G, 'surge rule: ' + G.surge)) { step(); continue; }
       if (v.support < G.meetSup && tryAct(s, 'meet', { who: 'vp' }, G, 'pacing support below ' + Math.round(G.meetSup))) { step(); continue; }
-      const proj = G.p1proj && ['inspect', 'geoint', 'sl5', 'team'].find(p => !s.done[p] && avail(s, 'proj_' + p));
+      const proj = G.p1proj && ['inspect', 'geoint', 'sl4', 'sl5', 'team'].find(p => !s.done[p] && avail(s, 'proj_' + p));
       if (proj && tryAct(s, 'proj_' + proj, {}, G, 'nothing more urgent: finish projects')) { step(); continue; }
       break;
     }

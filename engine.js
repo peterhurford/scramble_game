@@ -98,7 +98,8 @@ const PROJECTS = [
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court.', done: 'Emergency orders are far less likely to be enjoined, and the DPA threat becomes credible.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 8, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% (instead of SL4\u2019s 10%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
+  { id: 'sl4', name: 'Implement SL4 at the labs', need: 2, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 10%.', fx(s) { setSL(s, 4); } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 6, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% (instead of SL4\u2019s 10%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
 ];
 
 const ASKS = {
@@ -467,7 +468,7 @@ function def(a) { ACT[a.id] = a; }
 PROJECTS.forEach(pr => def({
   id: 'proj_' + pr.id, cat: 'prep', name: pr.name, phases: pr.p1 === false ? ['p0'] : ['p0', 'p1'], ap: 1, pc: 0, project: pr.id,
   desc: pr.desc, effect: () => pr.done,
-  avail(s) { if (s.done[pr.id]) return 'Done'; if (pr.id === 'sl5' && s.sl < 4) return 'Needs the SL4 executive order first'; return true; },
+  avail(s) { if (s.done[pr.id]) return 'Done'; if (pr.id === 'sl4' && !s.policies.sl4) return 'Needs the SL4 executive order first'; if (pr.id === 'sl5' && s.sl < 4) return 'Needs SL4 implemented first'; return true; },
   apply(s) {
     s.projects[pr.id] = (s.projects[pr.id] || 0) + 1;
     if (s.projects[pr.id] >= pr.need) { s.done[pr.id] = true; if (pr.fx) pr.fx(s); log(s, 'Completed: ' + pr.name + '. ' + pr.done, 'good'); return 'Done. ' + pr.done; }
@@ -568,8 +569,8 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3.',
-  effect: () => 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 10%. Labs -8, industry -2.',
-  apply(s) { setSL(s, 4); s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost and comply.'; },
+  effect: () => 'Orders SL4. It takes effect after 2 more actions implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 10%. Labs -8, industry -2.',
+  apply(s) { s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
   tags: { pause: 1, industry: -1, markets: -0.5 },
@@ -961,7 +962,8 @@ const CHIPS = {
   proj_zk: () => ['+New verification tech', '~Not trusted until Phase 2'],
   proj_legal: () => ['+Better odds in court', '+Makes a DPA threat credible'],
   proj_control: () => ['+Lowers the chance of losing control', '-Slows US labs a little'],
-  proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs and industry angry', '-Markets dip', '-Takes 8 actions'],
+  proj_sl4: () => ['+Weights harder to steal', '-Slows US labs'],
+  proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs and industry angry', '-Markets dip', '-Takes 6 actions'],
   meet: () => ['+Relationship up', '+Warms them to pacing a little', '-Rivals a little jealous'],
   favor: () => ['+Relationship up a lot', '+Their influence grows', '-Rivals annoyed'],
   brief: s => ['~Your read: ' + oddsWord(briefOdds(s)), '-If it fails, your credibility suffers'],

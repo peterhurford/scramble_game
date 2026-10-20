@@ -65,7 +65,7 @@ function expertTurn(s, o) {
   let guard = 0;
   const step = () => { resolveEvents(s, evChooserExpert); return !s.ending; };
   if (s.phase === 'p0') {
-    const order = ['team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk'];
+    const order = ['sl4', 'team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk'];
     if (o.ic) { const v0 = v(); if (v0.ic.mid < 5 && v0.briefOdds > 0.3 && tryAct(s, 'brief')) { step(); return; } if (v0.ic.mid < 7) { s.flags._save = true; } }
     // room policy first
     for (const id of (o.hawk ? (o.pure ? ['distill', 'fund', 'sl4', 'remote', 'smuggle', 'chips', 'accelerate'] : o.sec ? ['sl4', 'remote', 'distill', 'chips', 'smuggle', 'accelerate'] : ['remote', 'distill', 'chips', 'smuggle', 'accelerate']) : ['distill', 'fund', 'remote', 'smuggle', 'sl4'])) { if (s.flags._save && s.pc < 5) break; if (o.nosec && id === 'sl4') continue; if (tryAct(s, id)) { step(); break; } }
@@ -119,7 +119,7 @@ function expertTurn(s, o) {
       const low = E.COMPONENTS.map(c => c.id).sort((a, b) => s.verify[a] - s.verify[b])[0];
       if (tryAct(s, 'surge', { comp: low })) { step(); continue; }
       if (vv.support < 45 && tryAct(s, 'meet', { who: 'vp' })) { step(); continue; }
-      const proj = ['inspect', 'geoint', 'sl5', 'team'].find(p => !s.done[p] && !((o.nosec || o.sl4only) && p === 'sl5'));
+      const proj = ['inspect', 'geoint', 'sl4', 'sl5', 'team'].find(p => !s.done[p] && !((o.nosec || o.sl4only) && p === 'sl5'));
       if (proj && tryAct(s, 'proj_' + proj)) { step(); continue; }
       break;
     }
