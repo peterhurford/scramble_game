@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, cnWin: 0.10, ctrlBite: { legal: 0.10, remote: 0.06, smuggle: 0.05, dist: 0.04 }, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.10, remote: 0.06, smuggle: 0.05, dist: 0.04 }, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -544,7 +544,8 @@ function presBias(s, tags) {
   b += (0.02 + 0.004 * Math.max(0, 100 - s.markets)) * (tags.markets || 0); // the worse the markets, the more the President weighs market costs
   return b;
 }
-function roomMax(s) { if (s.phase === 'scramble') return 2; return (s.phase === 'p0' ? 1 : 2) + (P(s, 'cos').rel >= 40 ? 1 : 0); }
+// Oval decisions a turn: one a month in Phase 0 (so two in its two-month turns), two in the scramble and Phase 1; an Ally Chief of Staff adds one.
+function roomMax(s) { if (s.phase === 'scramble') return 2; return (s.phase === 'p0' ? TUNE.slowMonths : 2) + (P(s, 'cos').rel >= 40 ? 1 : 0); }
 function roomPreview(s, id, params) {
   const a = ACT[id]; params = params || {};
   const tags = typeof a.tags === 'function' ? a.tags(s, params) : a.tags;
@@ -1993,7 +1994,9 @@ function tick(s) {
 
   // --- China growth, cheating, theft
   if (monthly && c.deal) {
-    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s)) c.cheat = true;
+    // a deal reached in cold conditions is brittle: low trust, and controls still in force, make Beijing likelier to cheat
+    const held = ['chips', 'remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
+    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held)) c.cheat = true;
     const quiet = (s.flags.cheatQuiet || 0) >= s.turn || s.queue.some(q => q.id === 'cn_cheat');
     if (!quiet && c.cheat && rnd(s) < cnVisibility(s)) s.queue.push({ id: 'cn_cheat', real: true, conf: cheatConf(s, true) });
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
