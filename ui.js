@@ -696,7 +696,7 @@ function showHelp() {
     <p>The track at the top is the game. US and China move right; each tick is a month of US frontier progress. The red band is the IC’s estimate of where recursive self-improvement becomes possible. Danger rises smoothly as anyone doing unconstrained automated research nears it; some escapes are caught in time (warning shots), and the rest are runaways.</p>
     <ul><li>Unpaced labs move about a tick a month. Paced labs crawl, especially with automation limits.</li>
     <li>China’s speed depends on its compute (home, offshore, smuggled, legal) and on distilling US models. Your levers cut both, and Beijing gets angrier.</li>
-    <li>Some of your moves slow US labs too. Slower US labs reach the danger zone later, but the lead shrinks, markets sag and the labs resent it. Security is the big one: SL4 slows them somewhat and SL5 a lot, in exchange for making stolen weights rarer, though never impossible. A theft nearly erases the lead.</li></ul>
+    <li>Some of your moves slow US labs too. Slower US labs reach the danger zone later, but the lead shrinks, markets sag and the labs resent it. Security is the big one: SL4 slows them somewhat and SL5 a lot, in exchange for making stolen weights much rarer. A theft nearly erases the lead.</li></ul>
     <h4>Three phases</h4>
     <ul><li><b>Phase 0</b> (monthly): prepare, win policies, cultivate the cabinet, watch the RSI bars. Ask for the emergency meeting when the evidence and your credibility can carry it.</li>
     <li><b>The scramble</b> (2-day turns, 14 days): choose a mechanism, threshold, automation limits and trigger; get the labs to sign; launch.</li>

@@ -84,10 +84,10 @@ const COMPONENTS = [
 ]
 
 // Weight security ladder. Each level replaces the one below: its theft odds and its cost to US labs.
-const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.60, drag: 0.08 }, 5: { W: 92, theft: 0.25, drag: 0.20 } };
+const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.08 }, 5: { W: 92, theft: 0.04, drag: 0.20 } };
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { theftBase: 0.06, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
+const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -98,7 +98,7 @@ const PROJECTS = [
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court.', done: 'Emergency orders are far less likely to be enjoined, and the DPA threat becomes credible.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 5, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 25% of the time instead of 60%. Nothing stops a determined state for sure. Air gaps and vetting slow US labs 20% (instead of SL4\u2019s 8%).', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 6); } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 8, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 20% (instead of SL4\u2019s 8%). Labs -12, industry -6, markets -3.', fx(s) { setSL(s, 5); s.labs.forEach(l => l.rel -= 12); industry(s, -6); s.markets -= 3; } },
 ];
 
 const ASKS = {
@@ -280,7 +280,9 @@ function warningShotP(s, who) { const cap = who === 'china' ? s.cn.cap : L(s, wh
 // Weight theft: Beijing attempts more when racing, when the US is paced, and when far behind; success depends on weight security.
 function theftRisk(s) {
   const c = s.cn;
-  const attempt = TUNE.theftBase * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
+  // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
+  const x = clamp(frontier(s) / s.T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
+  const attempt = TUNE.theftBase * ramp * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -564,7 +566,7 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3.',
-  effect: () => 'Security SL4: a theft attempt succeeds 60% of the time instead of 90%. Overhead slows US labs 8%. Labs -5.',
+  effect: () => 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 8%. Labs -5.',
   apply(s) { setSL(s, 4); s.labs.forEach(l => l.rel -= 5); return 'The order is signed. The labs complain about cost and comply.'; },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
@@ -957,7 +959,7 @@ const CHIPS = {
   proj_zk: () => ['+New verification tech', '~Not trusted until Phase 2'],
   proj_legal: () => ['+Better odds in court', '+Makes a DPA threat credible'],
   proj_control: () => ['+Lowers the chance of losing control', '-Slows US labs a little'],
-  proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs unhappy'],
+  proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs and industry angry', '-Markets dip', '-Takes 8 actions'],
   meet: () => ['+Relationship up', '+Warms them to pacing a little', '-Rivals a little jealous'],
   favor: () => ['+Relationship up a lot', '+Their influence grows', '-Rivals annoyed'],
   brief: s => ['~Your read: ' + oddsWord(briefOdds(s)), '-If it fails, your credibility suffers'],
