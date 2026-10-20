@@ -89,19 +89,20 @@ const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 
 function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const age = s.t - (s.flags.sl5Since == null ? s.t : s.flags.sl5Since); return l.drag + (l.dragStart - l.drag) * Math.max(0, 1 - age / 12); }
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.08, license: 0.05, charter: 0.03 }, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 8 };
+const TUNE = { theftBase: 0.05, hawkBase: -0.15, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
+  riderBelow: 52, whip: 9, hillCap: 20, billFight: 8, billBack: 8, walkRate: 0.3, labLobby: 0.6, meetDecay: 0.6, favorCred: 2 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 3, desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 2, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
   { id: 'charter', name: 'Pre-draft the Pacing Charter with lab lawyers', need: 3, desc: 'Definitions, thresholds and research-automation language, agreed in principle by general counsels.', done: 'Every lab is much more likely to sign during the scramble.' },
-  { id: 'geoint', name: 'Build the thermal and GEOINT baseline', need: 4, desc: 'Pattern-of-life on every candidate site. Cheap now, impossible to compress later.', done: 'Survey +30, intelligence quality +15.', fx(s) { s.verify.survey += 30; s.intelQ += 15; } },
-  { id: 'inspect', name: 'Inspectors, chip ledger, whistleblower lines', need: 4, desc: 'Former IAEA and DTRA inspectors who know what a GPU hall looks like, a ledger of every frontier chip, and protected reporting lines at the labs.', done: 'Inspections +30, and smuggling gets harder.', fx(s) { s.verify.inspect += 30; s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.15); } },
+  { id: 'geoint', name: 'Build the thermal and GEOINT baseline', need: 4, desc: 'Pattern-of-life on every candidate site. Cheap now, impossible to compress later. Worth the most when Beijing hides its sites well.', done: 'Survey +30, intelligence quality +15, and Beijing’s concealment counts for 60% less.', fx(s) { s.verify.survey += 30; s.intelQ += 15; } },
+  { id: 'inspect', name: 'Inspectors, chip ledger, whistleblower lines', need: 4, desc: 'Former IAEA and DTRA inspectors who know what a GPU hall looks like, a ledger of every frontier chip, and protected reporting lines at the labs.', done: 'Inspections +30, and smuggling gets harder (the more smuggling there is, the more it cuts).', fx(s) { s.verify.inspect += 30; s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.15 * cnBase(s).smuggle); } },
   { id: 'zk', name: 'Cryptographic proof-of-training', need: 5, desc: 'Zero-knowledge proofs of what a cluster trained. Rigorous and elegant.', done: 'Novel tech +30. It will not count during Phase 1: nobody trusts it yet.', fx(s) { s.verify.novel += 30; } },
-  { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
-  { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court.', done: 'Emergency orders are far less likely to be enjoined, and the DPA threat becomes credible.' },
+  { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 3, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +20; their science faction gains ground.', fx(s) { s.cn.trust += 20; shiftCN(s, { sci: 8, sec: -3 }); } },
+  { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 2, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts turns from a word into a number.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 4, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
   { id: 'sl4', name: 'Implement SL4 at the labs', need: 2, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 6, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 6, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
 ];
 
 const ASKS = {
@@ -170,15 +171,18 @@ function trigMult(s) { return { '425': 0.55, '200': 0.8, '200c': 1.0, '100': 0.9
 function ready1(s) { const v = s.verify; return (v.survey + v.inspect) / 2; }
 function ready2(s) { const v = s.verify; const xs = COMPONENTS.map(c => v[c.id]); return { avg: xs.reduce((a, b) => a + b, 0) / xs.length, min: Math.min.apply(null, xs) }; }
 function detection(s) { const v = s.verify; return clamp(0.08 + 0.5 * (v.inspect / 100) * trigMult(s) + (s.pacing.automation ? 0.12 : 0) + (s.flags.surgeTurn === s.turn ? 0.25 : 0) + (s.verify.novel > 50 ? 0.08 : 0), 0, 0.9); }
-function cnVisibility(s) { const v = s.verify; const insp = s.cn.deal && s.cn.deal.terms.inspect; return clamp(0.08 + 0.3 * (v.survey / 100) * trigMult(s) + (insp ? 0.25 * v.inspect / 100 : 0) + 0.35 * s.intelQ / 100, 0, 0.92); }
+// How well Beijing hides sites, as a multiplier on cheating and hidden-program risk; the GEOINT baseline cuts 60% of the departure from typical.
+function concealment(s, h) { if (h == null) h = s.cn.hide || 1; return s.done.geoint ? 1 + 0.4 * (h - 1) : h; }
+function cnVisibility(s) { const v = s.verify; const insp = s.cn.deal && s.cn.deal.terms.inspect; return clamp((0.08 + 0.3 * (v.survey / 100) * trigMult(s) + (insp ? 0.25 * v.inspect / 100 : 0) + 0.35 * s.intelQ / 100) / concealment(s), 0, 0.92); }
 // Chance a signed Phase 2 agreement hides a Chinese program you could not see: certain if cheating is under way now, otherwise falling with enforcement (half intelligence, half survey and inspections).
 // The IC's confidence that an alert is real cheating: centered on the truth, blurred by weak intelligence.
 function cheatConf(s, real) { const x = (real ? 0.72 : 0.28) + (hash01(s.seed, 'cheatconf', s.turn) - 0.5) * 1.3 * (1 - s.intelQ / 100); return x < 0.38 ? 'low' : x < 0.62 ? 'moderate' : 'high'; }
 function enforcement(s) { const v = s.verify, insp = s.cn.deal && s.cn.deal.terms.inspect; return 0.5 * s.intelQ / 100 + 0.25 * Math.min(100, v.survey) / 100 + (insp ? 0.25 * Math.min(100, v.inspect) / 100 : 0); }
-// What you can know: the hidden-program risk your enforcement leaves, ignoring whether China is cheating right now.
-function hiddenRisk(s) { return clamp(TUNE.betray * (TUNE.betrayAt - enforcement(s)), 0.02, 0.8); }
+// The hidden-program risk your enforcement leaves, ignoring whether China is cheating right now; h is the concealment level (default: the truth).
+function hiddenRisk(s, h) { return clamp(TUNE.betray * (TUNE.betrayAt - enforcement(s)) * concealment(s, h), 0.02, 0.8); }
 function betrayP(s) { return s.cn.cheat ? 1 : hiddenRisk(s); }
-function betrayWord(s) { const p = hiddenRisk(s); return p < 0.08 ? 'high' : p < 0.25 ? 'moderate' : 'low'; }
+// What you can know: the same risk, reading concealment off the Beijing tab
+function betrayWord(s) { const p = hiddenRisk(s, cnReadout(s).seen.hide); return p < 0.08 ? 'high' : p < 0.25 ? 'moderate' : 'low'; }
 
 // US drag: what our own moves cost American labs, as a fraction of their growth rate.
 function usDrag(s) {
@@ -287,7 +291,8 @@ function theftRisk(s, pub) {
   const T = pub ? Math.max(0.5, F + icEstimate(s).mid * Math.max(0.05, frontierRate(s, true))) : s.T;
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
-  const attempt = TUNE.theftBase * ramp * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
+  const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -332,7 +337,8 @@ function cnEstimate(s) {
   for (const key in src) src[key] = Math.max(0, src[key] * (1 + noise(key)));
   const comp = cnComp(s) * (1 + noise('comp')), sum = Object.values(src).reduce((a, x) => a + x, 0) || 1;
   for (const key in src) src[key] *= comp / sum;
-  return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, cnRate(s) * (1 + noise('rate'))), rel };
+  return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, cnRate(s) * (1 + noise('rate'))), rel,
+    cyber: Math.max(0.2, (c.cyber || 1) * (1 + noise('cyber'))), hide: Math.max(0.2, (c.hide || 1) * (1 + noise('hide'))) };
 }
 // How precisely the advisor can read Beijing: words while intelligence is patchy, ranges once decent, numbers once sharp. An IC assessment counts as +20.
 function cnReadout(s) {
@@ -351,8 +357,13 @@ function cnReadout(s) {
   const compSeen = tier === 0 ? bucket(e.comp, [0.6, 0.85, 1.1], [0.5, 0.72, 0.97, 1.25]) : tier === 1 ? mid(e.comp, e.rel * e.comp) : e.comp;
   const seen = { comp: compSeen, dist: tier === 0 ? bucket(e.dist, [0.1, 0.35, 0.7], [0.05, 0.22, 0.52, 0.85]) : tier === 1 ? mid(e.dist, 0.6 * e.rel, 100) : e.dist };
   for (const k in e.src) seen[k] = tier === 0 ? compSeen * bucket(e.src[k] / (e.comp || 1), [0.06, 0.15, 0.35], [0.03, 0.1, 0.25, 0.45]) : tier === 1 ? mid(e.src[k], e.rel * e.src[k]) : e.src[k];
+  // multipliers on typical (1x): Beijing's cyber push against US labs and how well it hides sites
+  const mult = (x, cuts, words, mids) => ({ text: tier === 0 ? words[cuts.findIndex(c => x < c) < 0 ? cuts.length : cuts.findIndex(c => x < c)] : tier === 1 ? `${(x * (1 - e.rel)).toFixed(1)}–${(x * (1 + e.rel)).toFixed(1)}× typical` : `~${x.toFixed(1)}× typical`,
+    seen: tier === 0 ? bucket(x, cuts, mids) : x });
+  const cy = mult(e.cyber, [0.8, 1.25], ['restrained', 'typical', 'aggressive'], [0.65, 1, 1.5]), hd = mult(e.hide, [0.8, 1.2], ['sloppy', 'typical', 'careful'], [0.65, 1, 1.35]);
+  seen.cyber = cy.seen; seen.hide = hd.seen;
   return {
-    tier, src, est: e, seen,
+    tier, src, est: e, seen, cyber: cy.text, hide: hd.text,
     comp: fmt(e.comp, e.rel * e.comp, compWord, undefined, ' of baseline'), dist: fmt(e.dist, 0.6 * e.rel, distWord, 100),
     rate: tier === 0 ? (rr > 1.15 ? 'faster than the US' : rr > 0.85 ? 'about the US pace' : 'slower than the US') : tier === 1 ? `${(Math.round(e.rate * (1 - e.rel) * 10) / 10).toFixed(1)}–${(Math.round(e.rate * (1 + e.rel) * 10) / 10).toFixed(1)} mo/mo` : `~${(Math.round(e.rate * 10) / 10).toFixed(1)} mo/mo`,
     note: ['Patchy intelligence: the IC can only characterize these.', 'Decent intelligence: the IC gives ranges.', 'Sharp intelligence: the IC gives point estimates.'][tier],
@@ -397,7 +408,7 @@ function newGame(opts) {
   s.cal = { uplift: clamp(0.15 * gauss(s), -0.3, 0.3), cobench: clamp(0.15 * gauss(s), -0.3, 0.3), horizon: clamp(0.15 * gauss(s), -0.3, 0.3), arr: clamp(0.15 * gauss(s), -0.3, 0.3) };
   s.icBias = clamp(2.2 * gauss(s), -4.5, 4.5);
   cnStart(s);
-  if (dk === 'excomm') { s.cn.f = { m: 45, sec: 37, sci: 18 }; }
+  if (dk === 'excomm') shiftCN(s, { m: -5, sec: 7, sci: -2 });
   recordIndicators(s); pushHist(s);
   log(s, 'You start as the White House AI Czar. Your office is in the EEOB, Room 374. Your team is you.', 'info');
   s.queue.push({ id: 'intro' });
@@ -414,6 +425,17 @@ function cnStart(s) {
   const z2 = Math.sqrt(-2 * Math.log(Math.max(1e-9, u('inno1')))) * Math.cos(2 * Math.PI * u('inno2'));
   c.inno = clamp(0.16 * Math.exp(0.6 * z2), 0.04, 0.5);
   c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
+  // multipliers on typical: how hostile the courts are (0.5-1.5x), Beijing's cyber push against US labs (log-uniform 0.5-1.8x), how well it hides sites (0.5-1.5x)
+  s.courts = 0.5 + u('courts'); c.cyber = 0.5 * Math.pow(3.6, u('cyber')); c.hide = 0.5 + u('hide');
+  // visible from day one: who has the floor in Beijing, and how warm each lab starts (±15 around its usual)
+  const sci = 12 + 18 * u('sci'), sec = 22 + 18 * u('sec'); c.f = { m: 100 - sci - sec, sec, sci };
+  s.labs.forEach(l => { l.rel = LD(l.id).rel0 + Math.round(30 * (u('rel' + l.id) - 0.5)); });
+}
+// The White House counsel's read on the courts: a word until the legal authorities study, then a number. Bots read a word as its bucket's middle.
+function courtRead(s) {
+  const err = s.done.legal ? 0.08 : 0.3, est = Math.max(0.3, (s.courts || 1) * (1 + (hash01(s.seed, 'courts', Math.floor(s.turn / 3)) - 0.5) * 2 * err));
+  const i = est < 0.8 ? 0 : est < 1.2 ? 1 : 2, word = ['friendly', 'mixed', 'hostile'][i];
+  return { word, text: s.done.legal ? word + ' (~' + est.toFixed(1) + '× typical)' : word, seen: s.done.legal ? est : [0.65, 1, 1.35][i] };
 }
 const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
 function pushHist(s) { s.hist.push({ t: s.t, F: frontier(s), cn: s.cn.cap, cnEst: leadEstimate(s).mid, labs: s.labs.map(l => l.cap), paced: paced(s), phase: s.phase, salience: s.salience, tension: s.tension, markets: s.markets }); }
@@ -481,17 +503,27 @@ PROJECTS.forEach(pr => def({
 def({ id: 'meet', cat: 'politics', name: 'Meet one-on-one', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 0,
   params: { kind: 'principal' },
   desc: 'An hour in their office. Builds the relationship and moves their view on pacing a little.',
-  effect: () => 'Relationship +10; their stance on pacing shifts toward yours.',
+  effect: (s, prm) => 'Relationship +10; their stance on pacing shifts toward yours.' + (prm && prm.who && meetMult(s, prm.who) < 1 ? ' You met recently, so this one does ' + Math.round(100 * meetMult(s, prm.who)) + '% as much.' : ''),
   avail(s, prm) { if (prm && prm.who && s.flags['met_' + prm.who] === s.turn) return 'Already met this turn'; return true; },
-  apply(s, prm) { const p = P(s, prm.who); const d = PD(s, prm.who); const per = d.persuade || 1; rel(s, prm.who, (10 + (s.cred > 60 ? 3 : 0)) * (0.4 + 0.6 * per)); rivalHit(s, prm.who, 2); p.shift = Math.min(1.4, p.shift + (0.12 + 0.1 * Math.max(0, (s.salience - 30) / 50)) * per); s.flags['met_' + prm.who] = s.turn; return 'The ' + d.name + ' gives you the hour. ' + pick(s, ['They listen more than you expected.', 'They push back hard, then ask good questions.', 'You leave with a promise to keep talking.']); },
+  apply(s, prm) {
+    const p = P(s, prm.who); const d = PD(s, prm.who); const per = d.persuade || 1;
+    // back-to-back meetings (within two turns) with the same person each do 60% of the last
+    p.streak = p.lastMet != null && s.turn - p.lastMet <= 2 ? (p.streak || 0) + 1 : 0; p.lastMet = s.turn;
+    const m = Math.pow(TUNE.meetDecay, p.streak);
+    rel(s, prm.who, (10 + (s.cred > 60 ? 3 : 0)) * (0.4 + 0.6 * per) * m); rivalHit(s, prm.who, 2); p.shift = Math.min(1.4, p.shift + (0.12 + 0.1 * Math.max(0, (s.salience - 30) / 50)) * per * m); s.flags['met_' + prm.who] = s.turn;
+    return 'The ' + d.name + ' gives you the hour. ' + (p.streak ? pick(s, ['You have been here a lot lately. They mostly repeat themselves.', 'They check their phone twice.']) : pick(s, ['They listen more than you expected.', 'They push back hard, then ask good questions.', 'You leave with a promise to keep talking.']));
+  },
 });
+function meetMult(s, who) { const p = P(s, who); return p.lastMet != null && s.turn - p.lastMet <= 2 ? Math.pow(TUNE.meetDecay, (p.streak || 0) + 1) : 1; }
+// Favors granted in the last four turns, each of which makes the next one cost credibility.
+function recentFavors(s) { return (s.flags.favorTurns || []).filter(t => t > s.turn - 4).length; }
 def({ id: 'favor', cat: 'politics', name: 'Grant a favor', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 0,
   params: { kind: 'principal' },
   desc: 'Give a principal what they have been asking for. Big gain with them; often costs you elsewhere.',
-  effect: (s, prm) => prm && prm.who ? ('They want: ' + currentAsk(s, prm.who).text) : 'Each principal has a current ask, shown on their card.',
+  effect: (s, prm) => (prm && prm.who ? ('They want: ' + currentAsk(s, prm.who).text) : 'Each principal has a current ask, shown on their card.') + (recentFavors(s) ? ' Credibility -' + TUNE.favorCred * recentFavors(s) + ': the cabinet sees you trading favors.' : ''),
   cost(s, prm) { return { ap: 1, pc: prm && prm.who ? currentAsk(s, prm.who).pc : 0 }; },
   avail(s, prm) { if (prm && prm.who) { const a = currentAsk(s, prm.who); if (a.avail && !a.avail(s)) return 'No longer possible'; } return true; },
-  apply(s, prm) { const a = currentAsk(s, prm.who); const txt = a.fx(s); rel(s, prm.who, 25); infl(s, prm.who, 4); rivalHit(s, prm.who, 6); const p = P(s, prm.who); p.ask = (p.ask + 1) % ASKS[prm.who].length; p.askAge = 0; return txt + ' ' + PD(s, prm.who).name + ' will remember this.'; },
+  apply(s, prm) { const a = currentAsk(s, prm.who); const txt = a.fx(s); const n = recentFavors(s); s.cred -= TUNE.favorCred * n; s.flags.favorTurns = (s.flags.favorTurns || []).filter(t => t > s.turn - 4).concat([s.turn]); rel(s, prm.who, 25); infl(s, prm.who, 4); rivalHit(s, prm.who, 6); const p = P(s, prm.who); p.ask = (p.ask + 1) % ASKS[prm.who].length; p.askAge = 0; return txt + ' ' + PD(s, prm.who).name + ' will remember this.'; },
 });
 def({ id: 'brief', cat: 'crisis', name: 'Ask for an emergency meeting', phases: ['p0'], ap: 1, pc: 2,
   desc: 'Tell the President it is time. If the evidence and your credibility carry the room, the scramble starts now. If not, you are the advisor who cried wolf.',
@@ -506,15 +538,15 @@ def({ id: 'brief', cat: 'crisis', name: 'Ask for an emergency meeting', phases: 
 function briefOdds(s) { const ev = 70 * Math.max(0, rObserved(s) - 0.45); return logistic((s.alarm * 0.8 + s.cred * 0.5 + ev + s.salience * 0.3 - 92) / 9); }
 
 def({ id: 'hill', cat: 'politics', name: 'Work the Hill', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
-  avail(s) { return s.flags.statute ? 'Pacing is already law' : s.senateLobby >= 35 ? 'You have done all the Hill work you can' : true; },
+  avail(s) { return s.flags.statute ? 'Pacing is already law' : s.senateLobby >= TUNE.hillCap ? 'You have done all the Hill work you can' : true; },
   desc: 'Classified briefings for committee chairs, favors for leadership, cosponsors lined up. Builds the votes a pacing statute needs.',
   effect: () => 'Senate +5.',
-  apply(s) { s.senateLobby = Math.min(35, s.senateLobby + 5); return pick(s, ['The Armed Services chair asks for the classified annex.', 'Two Commerce Committee Republicans agree to cosponsor.', 'Leadership wants a bill it can pass before recess.']); },
+  apply(s) { s.senateLobby = Math.min(TUNE.hillCap, s.senateLobby + 5); return pick(s, ['The Armed Services chair asks for the classified annex.', 'Two Commerce Committee Republicans agree to cosponsor.', 'Leadership wants a bill it can pass before recess.']); },
 });
 def({ id: 'authorize', cat: 'politics', name: 'Ask Congress for pacing authority', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2,
-  avail(s) { if (s.flags.statute) return 'Pacing is already law'; if (s.flags.billDue) return 'The bill is moving; the vote is in ' + monthLabel(s.flags.billDue); const v = senateVotes(s); return v >= 60 ? true : 'Needs 60 Senate votes to start (now ' + v + ')'; },
+  avail(s) { if (s.flags.statute) return 'Pacing is already law'; if (s.flags.billDue) return 'The bill is moving; the vote is in ' + monthLabel(s.flags.billDue); if (s.flags.billBack > s.t) return 'Leadership will not bring it back before ' + monthLabel(s.flags.billBack); const v = senateVotes(s); return v >= 60 ? true : 'Needs 60 Senate votes to start (now ' + v + ')'; },
   desc: 'A statute that authorizes pacing outright. Slow: the vote comes two months after you send it, and it needs 55 votes still standing then. Once law, courts can no longer enjoin the pause, every lab above the line is covered, and Phase 2 rests on solid ground.',
-  effect: () => 'The vote comes in two months. Needs 55 Senate votes on the day.',
+  effect: () => 'The vote comes in two months. Needs 55 Senate votes on the day, and the whip count is soft: the day\u2019s count can land 9 or more votes off, either way, about one time in three. Labs campaign hard against a moving bill. If it fails, leadership waits 8 months to bring it back.',
   apply(s) { s.flags.billDue = s.t + 2; return 'The bill goes to the floor calendar. Leadership promises a vote in two months.'; },
 });
 def({ id: 'allies', cat: 'diplo', name: 'Build the allied coalition', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
@@ -570,7 +602,7 @@ def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', pha
 def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
-  desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3.',
+  desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3. Worth the most when Beijing\u2019s hackers push hard (the Beijing tab).',
   effect: () => 'Orders SL4. It takes effect after 2 more actions implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
   apply(s) { s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
@@ -622,7 +654,7 @@ def({ id: 'mech', cat: 'crisis', name: 'Choose the pacing mechanism', phases: ['
   pres: (s, prm) => prm.variant === 'dpa' && s.flags.alarmist ? 0.15 : 0,
   avail(s) { return s.pacing.mech ? 'Decided: ' + MECH[s.pacing.mech].label : true; },
   desc: 'How does pacing actually happen? This is the first decision of the scramble.',
-  effect: () => 'Sets how labs are bound for all of Phase 1.',
+  effect: s => 'Sets how labs are bound for all of Phase 1. Counsel reads the courts as ' + courtRead(s).text + '.',
   apply(s, prm) { s.pacing.mech = prm.variant; s.pacing.mechTurn = s.turn; if (prm.variant === 'license') { infl(s, 'doc', 8); rel(s, 'cos', -8); rel(s, 'tsy', -8); } return MECH[prm.variant].label + ' it is.'; },
 });
 const THRESH = {
@@ -792,7 +824,7 @@ def({ id: 'compel', cat: 'labs', name: 'Compel a lab under the DPA', phases: ['p
   avail(s) { if (!paced(s)) return 'No pacing regime to enforce'; return s.labs.some(l => !l.covered) ? true : 'Every lab is covered'; },
   desc: 'Order an unsigned lab under the pacing regime. Covers it at once; a court may disagree.',
   effect: () => 'The lab is covered at low compliance. Court risk applies.',
-  apply(s, prm) { const l = L(s, prm.lab); l.covered = true; l.signed = true; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; industry(s, -10); return LD(l.id).name + ' is ordered under the DPA. ' + LD(l.id).ceo + ' calls it “the end of American innovation” and files suit.'; },
+  apply(s, prm) { const l = L(s, prm.lab); l.covered = true; l.signed = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; s.flags.compelled = true; industry(s, -10); return LD(l.id).name + ' is ordered under the DPA. ' + LD(l.id).ceo + ' calls it “the end of American innovation” and files suit.'; },
 });
 def({ id: 'hardware', cat: 'policy', name: 'Hardware pacing: cap chip accumulation', phases: ['p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { pause: 1, industry: -1.5, markets: -1 },
@@ -921,8 +953,12 @@ def({ id: 'summit', cat: 'diplo', name: 'Convene the Phase 2 summit', phases: ['
   },
 });
 function summitP(s) { const d = s.cn.deal; if (!d) return 0; const held = s.t - d.since; return logistic(2.2 * (cnUtility(s, Object.assign({}, d.terms, { inspect: true })) + 0.6 + 0.08 * held + 0.2 * (s.flags.summitFailed || 0))); }
-// Monthly chance a court enjoins the executive pause; the legal authorities study cuts it, and ignoring a ruling raises it.
-function courtP(s) { return s.flags.statute ? 0 : (TUNE.courtRate[s.pacing.mech] || 0.03) * (s.done.legal ? 0.4 : 1) * (1 + (s.flags.defied || 0)); }
+// Monthly chance a court enjoins the pause: the mechanism's rate (a DPA order on any lab counts as DPA), far lower once a statute is challenged instead,
+// times the game's hidden court climate (pass the counsel's read to get what the player can know); the legal study cuts it, ignoring a ruling raises it.
+function courtP(s, climate) {
+  const base = s.flags.statute ? TUNE.statuteCourt : Math.max(TUNE.courtRate[s.pacing.mech] || 0.03, s.flags.compelled ? TUNE.courtRate.dpa : 0);
+  return base * (climate == null ? s.courts || 1 : climate) * (s.done.legal ? 0.4 : 1) * (1 + (s.flags.defied || 0));
+}
 function summitCourtP(s) { return s.flags.statute ? 0 : TUNE.summitCourt * (s.done.legal ? 0.5 : 1); }
 function phase2Check(s) {
   const m = []; const r = ready2(s);
@@ -966,8 +1002,8 @@ const CHIPS = {
   proj_control: () => ['+Lowers the chance of losing control', '-Slows US labs a little'],
   proj_sl4: () => ['+Weights harder to steal', '-Slows US labs'],
   proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Labs and industry angry', '-Markets dip', '-Takes 6 actions'],
-  meet: () => ['+Relationship up', '+Warms them to pacing a little', '-Rivals a little jealous'],
-  favor: () => ['+Relationship up a lot', '+Their influence grows', '-Rivals annoyed'],
+  meet: (s, prm) => ['+Relationship up', '+Warms them to pacing a little', '-Rivals a little jealous'].concat(prm.who && meetMult(s, prm.who) < 1 ? ['-Does less: you met recently'] : []),
+  favor: s => ['+Relationship up a lot', '+Their influence grows', '-Rivals annoyed'].concat(recentFavors(s) ? ['-Credibility: another favor so soon'] : []),
   brief: s => ['~Your read: ' + oddsWord(briefOdds(s)), '-If it fails, your credibility suffers'],
   allies: () => ['+Coalition grows', '+Some Senate votes'],
   labmeet: () => ['+Relationship with the lab up'],
@@ -1386,12 +1422,13 @@ ev({ id: 'cn_cheat', forced: true, title: 'Two heat signatures', stamp: 'NGA, 11
     { label: 'Dismiss it as noise', hint: 'If it is real, the cheating goes on unseen for a while. If it is not, nothing lost.', fx: s => { s.flags.cheatQuiet = s.turn + 3; return s.queue[0].real ? 'The analysts move on to other targets.' : 'The load drops back the next week. Noise after all.'; } },
   ] });
 const COURT = { dpa: 'frontier AI risk does not meet the Defense Production Act’s “national emergency” standard', license: 'Commerce has no statutory authority to license domestic training runs', charter: 'the Charter’s mandatory verification and its DPA backstop exceed executive authority' };
-function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && l.comp < 70) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; return out; }
+// Appeals restore the orders half the time, three times in four when it is a statute under challenge.
+function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && l.comp < 70) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : 0.5; return out; }
 ev({ id: 'court', forced: true, title: 'Injunction', stamp: 'D.C. Circuit',
-  body: s => `<p>A federal judge rules that ${COURT[s.pacing.mech] || COURT.charter}, and enjoins the government’s orders.</p><p>Without a statute, this can happen again.</p>`,
+  body: s => s.flags.statute ? `<p>Mindscale’s lawyers find a sympathetic district judge, who rules that the Pacing Act delegates too much to the executive and enjoins enforcement pending appeal.</p><p>A statute makes this rare. It does not make it impossible.</p>` : `<p>A federal judge rules that ${COURT[s.flags.compelled ? 'dpa' : s.pacing.mech] || COURT.charter}, and enjoins the government’s orders.</p><p>Without a statute, this can happen again.</p>`,
   choices: [
     { label: 'Appeal and ask the labs to comply voluntarily', hint: 'Labs that never signed voluntarily fall out of coverage; every lab’s compliance -10. Even odds the appeal restores it.', fx: s => { const out = injunction(s); return out.length ? out.join(', ') + ' resume training while the appeal runs.' : 'Every lab complies voluntarily while the appeal runs.'; } },
-    { label: 'Appeal, and ask Congress to fix it', hint: 'As appealing, and if you have 55 Senate votes, a pacing bill goes to the floor for a vote in two months.', fx: s => { const out = injunction(s); const go = !s.flags.billDue && senateVotes(s) >= 55; if (go) s.flags.billDue = s.t + 2; return (go ? 'Leadership schedules a vote on a pacing act. ' : 'Leadership will not take up a bill without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } },
+    { label: 'Appeal, and ask Congress to fix it', hint: s => s.flags.statute ? 'As appealing, and if you have 55 Senate votes, Congress tightens the act and the appeal is all but certain.' : 'As appealing, and if you have 55 Senate votes, a pacing bill goes to the floor for a vote in two months.', fx: s => { const out = injunction(s); if (s.flags.statute) { if (senateVotes(s) >= 55) s.flags.appealP = 0.95; return (senateVotes(s) >= 55 ? 'Leadership moves a technical fix to the act. ' : 'Leadership will not reopen the act without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } const go = !s.flags.billDue && !(s.flags.billBack > s.t) && senateVotes(s) >= 55; if (go) s.flags.billDue = s.t + 2; return (go ? 'Leadership schedules a vote on a pacing act. ' : 'Leadership will not take up a bill without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } },
     { label: 'Ignore the ruling', hint: 'Coverage holds. Credibility -10; Senate -6; the next challenge is likelier.', fx: s => { s.cred -= 10; s.senateLobby -= 6; s.flags.defied = (s.flags.defied || 0) + 1; return 'Constitutional scholars are on every channel. The orders stand, for now.'; } },
   ] });
 ev({ id: 'lobby_end', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced(s) && lead(s) < 4,
@@ -1432,6 +1469,24 @@ ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s
     { label: 'Fight it', hint: 'Commerce -15; Mindscale compliance +10.', fx: s => { rel(s, 'doc', -15); L(s, 'mindscale').comp += 10; return 'The exemption is withdrawn after a shouting match.'; } },
     { label: 'Let it stand', hint: 'Mindscale compliance -20.', fx: s => { L(s, 'mindscale').comp -= 20; return 'Mindscale has a license to train.'; } },
   ] });
+ev({ id: 'rider', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && senateVotes(s) < TUNE.riderBelow,
+  title: 'A rider', stamp: 'House Appropriations',
+  body: s => `<p>Appropriators attach a rider to the spending bill: no funds for pacing inspections at any site that has not been charged with a violation. Senate support for pacing is down to ${senateVotes(s)}, and the labs have been working the members for months.</p>`,
+  choices: [
+    { label: 'Fight it in conference', hint: s => '1 capital. Chance it is stripped: ' + Math.round(100 * riderOdds(s)) + '% (more Senate votes, better odds). If not: as accepting it, and credibility -3.', fx: s => { if (s.pc >= 1 && rnd(s) < riderOdds(s)) { s.pc -= 1; return 'The rider comes out in conference, by two votes.'; } s.pc = Math.max(0, s.pc - 1); s.cred -= 3; return 'You lose in conference. ' + riderHit(s); } },
+    { label: 'Accept it', hint: 'Warp Speed funding drops back a level (or, without it, Inspect -10 and Find -6).', fx: s => riderHit(s) },
+  ] });
+// Odds of winning a walkout back with a sweetener, judged as if the lab had already left.
+function backOdds(s, id) { const l = L(s, id), was = l.signed; l.signed = false; const p = charterOdds(s, id, true); l.signed = was; return p; }
+function riderOdds(s) { return clamp((senateVotes(s) - 30) / 30, 0.1, 0.9); }
+function riderHit(s) { if (s.warp >= 2) { s.warp = 1; return 'Warp Speed money stops at the end of the quarter.'; } s.verify.inspect -= 10; s.verify.survey -= 6; return 'Inspectors are recalled from four sites.'; }
+ev({ id: 'walkout', forced: true, title: 'A walkout', stamp: 'Lab general counsel',
+  body: s => `<p>${LD(s.queue[0].lab).name}’s general counsel sends a two-line letter: the lab is withdrawing from the Pacing Charter, effective immediately. ${lead(s) < 3 ? 'China is too close, the board says.' : 'The board says the others are not holding up their end.'}</p>`,
+  choices: s => { const id = s.queue[0] && s.queue[0].lab, n = id ? LD(id).name : 'The lab'; return [
+    { label: 'Compel it under the DPA', hint: n + ' stays covered at low compliance; ' + n + ' -30; industry -10. From now on the courts treat the pause like a DPA halt.', fx: s => { const l = L(s, id); l.covered = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; industry(s, -10); s.flags.compelled = true; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; return 'Federal marshals deliver the order. ' + LD(id).ceo + ' files suit the same afternoon.'; } },
+    { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (rnd(s) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
+    { label: 'Let them go', hint: n + ' leaves the regime and races; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
+  ]; } });
 ev({ id: 'tinder', forced: true, title: 'Dry tinder', stamp: 'Commerce chip data',
   body: s => `<p>Chip production did not pause. Threshold sites have stockpiled about ${Math.round(s.overhang)} months of extra compute. When the pause ends, the first run would be enormous.</p>`,
   choices: [{ label: 'Note it', hint: 'Hardware pacing is now on the table. Phase 2 needs it if the overhang tops 8.', fx: () => 'You add it to the Phase 2 checklist.' }] });
@@ -1581,7 +1636,7 @@ function normalize(s) {
   ['cred', 'alarm', 'salience', 'tension', 'coalition', 'W', 'intelQ'].forEach(k => s[k] = clamp(s[k]));
   s.markets = clamp(s.markets, 40, 140);
   s.pc = clamp(s.pc, 0, 12);
-  s.senateLobby = clamp(s.senateLobby, -10, 35);
+  s.senateLobby = clamp(s.senateLobby, -10, TUNE.hillCap);
   COMPONENTS.forEach(c => s.verify[c.id] = clamp(s.verify[c.id]));
   s.labs.forEach(l => { l.rel = clamp(l.rel, -100, 100); l.comp = clamp(l.comp); });
   s.principals.forEach(p => { p.infl = clamp(p.infl); p.rel = clamp(p.rel, -100, 100); p.shift = clamp(p.shift, -1, 1.6); });
@@ -1648,7 +1703,7 @@ function endTurn(s) {
 
   // --- China growth, cheating, theft
   if (monthly && c.deal) {
-    if (!c.cheat && rnd(s) < 0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) c.cheat = true;
+    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s)) c.cheat = true;
     const quiet = (s.flags.cheatQuiet || 0) >= s.turn || s.queue.some(q => q.id === 'cn_cheat');
     if (!quiet && c.cheat && rnd(s) < cnVisibility(s)) s.queue.push({ id: 'cn_cheat', real: true, conf: cheatConf(s, true) });
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
@@ -1713,8 +1768,10 @@ function endTurn(s) {
   // --- the pacing bill comes to a vote
   if (s.flags.billDue && s.t >= s.flags.billDue) {
     s.flags.billDue = null;
-    if (senateVotes(s) >= 55) { s.flags.statute = true; s.labs.forEach(l => { if (s.pacing.active || s.pacing.armed) { l.signed = true; l.covered = true; } }); log(s, 'Congress passes the pacing act. The pause is now law.', 'good'); }
-    else { s.cred -= 5; log(s, 'The pacing bill fails on the Senate floor (' + senateVotes(s) + ' votes).', 'bad'); }
+    // the whip count is soft: the votes that show up on the day vary around it
+    const day = senateVotes(s) + Math.round(TUNE.whip * gauss(s)); s.stats.billVotes = (s.stats.billVotes || []).concat([[senateVotes(s), day]]);
+    if (day >= 55) { s.flags.statute = true; s.labs.forEach(l => { if (s.pacing.active || s.pacing.armed) { l.signed = true; l.covered = true; } }); log(s, 'Congress passes the pacing act. The pause is now law.', 'good'); }
+    else { s.cred -= 5; s.flags.billBack = s.t + TUNE.billBack; log(s, 'The pacing bill fails on the Senate floor (' + day + ' votes; the whip count said ' + senateVotes(s) + ').', 'bad'); }
   }
   // --- pacing upkeep
   if (s.phase === 'p1' && paced(s) && monthly) {
@@ -1724,13 +1781,21 @@ function endTurn(s) {
     if (ps < 25) s.pacing.low++; else s.pacing.low = Math.max(0, s.pacing.low - 1);
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
     if (s.pacing.low >= 3) s.queue.push({ id: 'collapse' });
-    if (!s.flags.statute && (s.flags.courtNext || 0) <= s.turn && rnd(s) < courtP(s)) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
-    if (s.flags.appeal === s.turn) { if (rnd(s) < 0.5) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.', 'bad'); }
+    if ((s.flags.courtNext || 0) <= s.turn && rnd(s) < courtP(s)) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
+    if (s.flags.appeal === s.turn) { if (rnd(s) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.', 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
     if (s.overhang >= 5 && !s.seen.tinder) { s.queue.push({ id: 'tinder' }); s.seen.tinder = s.turn; }
+    // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
+    if (s.pacing.mech === 'charter' && !s.flags.statute && !s.queue.some(q => q.id === 'walkout')) s.labs.forEach(l => {
+      if (!l.covered || !l.signedVoluntary) return;
+      if (rnd(s) < TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (lead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1)) s.queue.push({ id: 'walkout', lab: l.id });
+    });
     // China passes the paced frontier
     if (s.cn.cap > frontier(s) + 0.5) { s.flags.overtaken = (s.flags.overtaken || 0) + 1; if (s.flags.overtaken >= 2) s.queue.push({ id: 'collapse' }); }
   }
+  // labs bound without signing voluntarily lobby the Hill against the pause, the reckless ones hardest
+  // and much harder while a pacing bill is moving, when voluntary signers join in at half strength
+  if (s.phase === 'p1' && monthly) s.labs.forEach(l => { const forced = l.covered && !l.signedVoluntary, m = s.flags.billDue ? TUNE.billFight * (forced ? 1 : 0.5) : forced ? 1 : 0; s.senateLobby -= TUNE.labLobby * (0.25 + LD(l.id).ruth) * m; });
   if (s.pacing.mech === 'dpa' && s.phase === 'p1' && !s.flags.dpaSince) { s.flags.dpaUsed = true; s.flags.dpaSince = s.turn - 1; }
 
   // --- war
@@ -1831,7 +1896,7 @@ const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
-  TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
+  TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
 })(typeof self !== 'undefined' ? self : this);

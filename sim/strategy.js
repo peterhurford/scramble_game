@@ -5,26 +5,29 @@ const E = require('../engine.js');
 const PROJ = ['team', 'memo', 'charter', 'geoint', 'sl5', 'inspect', 'legal', 'control', 'track2', 'zk', 'sl4'];
 const POL0 = ['distill', 'methods', 'fund', 'remote', 'smuggle', 'sl4', 'chips', 'accelerate', 'speech', 'malaysia', 'assess'];
 // China policies a strategy can make conditional on the Beijing readout: skip unless the reading is at least the gate.
-const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offshore', 0.4], smuggle: ['smuggled', 0.2], chips: ['legal', 0.15] };
+const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offshore', 0.4], smuggle: ['smuggled', 0.2], chips: ['legal', 0.15], sl4: ['cyber', 1.8] };
+// Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
+const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'cyberattack', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'resign', 'algo_break', 'bill'];
+const EVENTS = ['walkout', 'rider', 'knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'cyberattack', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'resign', 'algo_break', 'bill'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
 PROJ.forEach(p => g('proj.' + p, 'real', -1, 1));
 POL0.forEach(p => g('pol.' + p, 'real', -1, 1));
 Object.keys(GATE).forEach(p => g('gate.' + p, 'real', 0, GATE[p][1]));
+Object.keys(PGATE).forEach(p => g('pgate.' + p, 'real', 0, PGATE[p][1]));
 g('meetEvery', 'int', 0, 4); g('meetA', 'choice', PEOPLE); g('meetB', 'choice', PEOPLE);
 PEOPLE.forEach(p => g('fav.' + p, 'bool'));
 g('favReserve', 'int', 0, 8);
 g('briefR', 'real', 0.3, 0.95); g('briefOdds', 'real', 0.1, 0.95); g('briefIc', 'real', 0, 10); g('briefIcOdds', 'real', 0.05, 0.9);
 g('saveIc', 'real', 0, 10); g('saveReserve', 'int', 0, 6); g('speechIc', 'real', 0, 10); g('alliesIdle', 'bool');
-g('mech', 'choice', ['charter', 'dpa', 'license']); g('thr', 'choice', ['1e20', '1e21', '1e22']); g('auto', 'bool');
+g('mech', 'choice', ['charter', 'dpa', 'license']); g('mechHostile', 'choice', ['charter', 'dpa', 'license']); g('mechCut', 'real', 0.5, 2); g('charterMin', 'real', 0, 0.9); g('mechNoSign', 'choice', ['dpa', 'license']); g('thr', 'choice', ['1e20', '1e21', '1e22']); g('auto', 'bool');
 g('trig', 'choice', ['200c', '200', '425', 'none']); g('seq', 'choice', ['first', 'deadline', 'together', 'adaptive']); g('seqIc', 'real', 2, 10);
 g('dealBelow', 'real', 0, 1); g('dealMinShare', 'real', 0, 0.3); g('waitFull', 'bool'); g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']); g('scrOffer', 'bool');
 ['inspect', 'lane', 'institute', 'relief', 'visas', 'freeze', 'chips'].forEach(t => g('o.' + t, 'bool'));
 g('threatLead', 'real', 4, 15); g('fundFirst', 'bool'); g('hwOver', 'real', 2, 10); g('speechSup', 'real', 15, 60); g('alliesCoal', 'real', 30, 80); g('senateT', 'real', 55, 90);
-g('statute', 'bool'); g('hillP0', 'bool'); g('cheatDismiss', 'choice', ['never', 'low', 'moderate']); g('summitConf', 'choice', ['low', 'moderate', 'high']); g('intelTarget', 'real', 0, 100);
+g('statute', 'bool'); g('hillP0', 'bool'); g('hillMoving', 'bool'); g('cheatDismiss', 'choice', ['never', 'low', 'moderate']); g('summitConf', 'choice', ['low', 'moderate', 'high']); g('intelTarget', 'real', 0, 100);
 g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70); g('covertWithin', 'real', 0, 5); g('gofirstIc', 'real', 0, 8); g('p1proj', 'bool');
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 
@@ -35,9 +38,10 @@ function expertGenome() {
   G['proj.sl4'] = 1.05; // implement an ordered SL4 before anything else
   POL0.forEach(p => G['pol.' + p] = -0.5);
   Object.keys(GATE).forEach(p => G['gate.' + p] = 0);
+  Object.keys(PGATE).forEach(p => G['pgate.' + p] = 0);
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
-    mech: 'charter', thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
+    mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
     statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips'].forEach(t => G['o.' + t] = false);
@@ -67,12 +71,20 @@ function charter(s, G) {
 // What the bot knows about China: the readout (default), the hidden truth, or only the note's baseline.
 const SIGHT = process.env.SIGHT || 'readout';
 function seen(s) {
-  if (SIGHT === 'readout') return E.view(s).cnRead.seen;
+  const extra = { courts: SIGHT === 'truth' ? s.courts : SIGHT === 'readout' ? E.courtRead(s).seen : 1, sci: s.cn.f.sci };
+  if (SIGHT === 'readout') return Object.assign({}, E.view(s).cnRead.seen, extra);
   const e = E.view(s).cnEst; const t = SIGHT === 'truth' ? e : null;
   const c = s.cn, b = E.cnSources({ sme: 1, remote: 1, smuggle: 1, legal: 1 }), src = t ? E.cnSources(c) : { offshore: b.offshore * Math.min(1, c.remoteT), smuggled: b.smuggled * Math.min(1, c.smuggleT), legal: b.legal * c.legalT };
-  return Object.assign(src, { dist: t ? c.dist : Math.min(1, c.distT) });
+  return Object.assign(src, extra, { dist: t ? c.dist : Math.min(1, c.distT), cyber: t ? c.cyber : 1, hide: t ? c.hide : 1 });
 }
 const gated = (s, G, p) => { const gt = G['gate.' + p]; if (!gt) return false; const x = seen(s)[GATE[p][0]]; return x < gt ? x : false; };
+const pgated = (s, G, p) => { const gt = G['pgate.' + p]; return !!gt && seen(s)[PGATE[p][0]] < gt; };
+// The mechanism: one choice when counsel reads the courts below the cut, another above it; a Charter only if Mindscale would likely sign.
+function mechFor(s, G) {
+  let m = seen(s).courts > G.mechCut ? G.mechHostile : G.mech;
+  if (m === 'charter' && E.charterOdds(s, 'mindscale', false) < G.charterMin) m = G.mechNoSign;
+  return m;
+}
 const CONF = ['low', 'moderate', 'high'];
 function chooser(G) { return (s, ev) => { if (ev.id === 'cn_cheat' && G.cheatDismiss !== 'never' && CONF.indexOf(s.queue[0].conf) <= CONF.indexOf(G.cheatDismiss)) return 3; const k = G['ev.' + ev.id]; return k == null ? 0 : k % ev.choices.length; }; }
 function resolve(s, G) { let n = 0; const ch = chooser(G); while (s.queue.length && !s.ending && n++ < 25) { const ev = E.currentEvent(s); const i = ch(s, ev); note(s, 'event', ev.title + ' \u2192 ' + ev.choices[i].label, 'event gene ev.' + ev.id + '=' + G['ev.' + ev.id]); E.chooseEvent(s, i); } }
@@ -94,8 +106,8 @@ function turn(s, G) {
     const projs = PROJ.filter(p => G['proj.' + p] >= 0).sort((a, b) => G['proj.' + b] - G['proj.' + a]);
     while (s.ap > 0 && guard++ < 10 && !s.ending && s.phase === 'p0') {
       if (G.meetEvery && s.turn % G.meetEvery === 2 % G.meetEvery && tryAct(s, 'meet', { who: s.turn % (2 * G.meetEvery) < G.meetEvery ? G.meetA : G.meetB }, G, 'meets every ' + G.meetEvery + ' turns, alternating')) { step(); continue; }
-      const next = projs.find(p => !s.done[p] && avail(s, 'proj_' + p));
-      if (next && tryAct(s, 'proj_' + next, {}, G, 'next project in priority order')) { step(); continue; }
+      const next = projs.find(p => !s.done[p] && avail(s, 'proj_' + p) && !pgated(s, G, p));
+      if (next && tryAct(s, 'proj_' + next, {}, G, 'next project in priority order' + (G['pgate.' + next] ? ' (its reading clears the gate)' : ''))) { step(); continue; }
       if (G.hillP0 && tryAct(s, 'hill', {}, G, 'spare action: work the Hill early')) { step(); continue; }
       if (G.alliesIdle && tryAct(s, 'allies', {}, G, 'spare action: build the coalition')) { step(); continue; }
       break;
@@ -104,7 +116,8 @@ function turn(s, G) {
   }
   if (s.phase === 'scramble') {
     const seqV = G.seq === 'adaptive' ? (E.view(s).ic.mid >= G.seqIc ? 'together' : 'first') : G.seq;
-    const plan = [['mech', { variant: G.mech }], ['threshold', { variant: G.thr }], ['sequence', { variant: seqV }]];
+    const mv = s.pacing.mech || mechFor(s, G);
+    const plan = [['mech', { variant: mv }], ['threshold', { variant: G.thr }], ['sequence', { variant: seqV }]];
     if (G.auto) plan.push(['automation', {}]);
     if (G.trig !== 'none') plan.push(['trigger', { variant: G.trig }]);
     plan.push(['convene', {}], ['launch', {}]);
@@ -113,7 +126,7 @@ function turn(s, G) {
       let did = false;
       for (const [id, prm] of plan) {
         if (id === 'launch' && G.waitFull && !((s.pacing.automation || !G.auto) && (s.pacing.trigger || G.trig === 'none')) && s.scramble.turn < 6) continue;
-        if (tryAct(s, id, prm, G, 'scramble plan, in order')) { did = true; step(); break; }
+        if (tryAct(s, id, prm, G, id === 'mech' ? 'courts read ' + E.courtRead(s).word + ', Mindscale ' + Math.round(100 * E.charterOdds(s, 'mindscale', false)) + '% to sign' : 'scramble plan, in order')) { did = true; step(); break; }
       }
       if (did) continue;
       if (G.scrIdle === 'remote' && tryAct(s, 'remote', {}, G, 'spare scramble action')) { step(); continue; }
@@ -135,7 +148,7 @@ function turn(s, G) {
       if (G.trig !== 'none' && !s.pacing.trigger && tryAct(s, 'trigger', { variant: G.trig }, G, 'monitoring trigger still missing')) { step(); continue; }
       if (s.labs.some(l => !l.covered) && tryAct(s, 'convene', {}, G, 'a lab is still outside the regime')) { step(); continue; }
       if (!s.cn.deal && avail(s, 'offer')) { const t = offerTerms(s, G); const r = E.makeOffer(s, t); note(s, 'act', 'Offer to Beijing: ' + Object.keys(t).join(', ') + (!r.pass ? ' [VETOED by the President]' : r.accepted ? ' [ACCEPTED]' : ' [REJECTED by Beijing]'), 'no deal yet; offers every time Beijing will take a call'); step(); continue; }
-      if (G.statute && !s.flags.statute && !s.flags.billDue && (tryAct(s, 'authorize', {}, G, '60 Senate votes: send the pacing bill') || tryAct(s, 'hill', {}, G, 'building votes for a pacing statute'))) { step(); continue; }
+      if (G.statute && !s.flags.statute && (!s.flags.billDue || G.hillMoving) && (tryAct(s, 'authorize', {}, G, '60 Senate votes: send the pacing bill') || tryAct(s, 'hill', {}, G, s.flags.billDue ? 'holding votes while the bill is moving' : 'building votes for a pacing statute'))) { step(); continue; }
       if (G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
       if (s.overhang > G.hwOver && tryAct(s, 'hardware', {}, G, 'overhang above ' + G.hwOver.toFixed(1) + ' months')) { step(); continue; }
       if (v.support < G.speechSup && tryAct(s, 'speech', {}, G, 'pacing support below ' + Math.round(G.speechSup))) { step(); continue; }
@@ -145,7 +158,7 @@ function turn(s, G) {
       const comp = G.surge === 'lowest' ? comps[0] : G.surge === 'novel' ? (s.verify.novel < 65 ? 'novel' : comps[0]) : (s.verify.inspect < 65 ? 'inspect' : comps[0]);
       if (tryAct(s, 'surge', { comp }, G, 'surge rule: ' + G.surge)) { step(); continue; }
       if (v.support < G.meetSup && tryAct(s, 'meet', { who: 'vp' }, G, 'pacing support below ' + Math.round(G.meetSup))) { step(); continue; }
-      const proj = G.p1proj && ['inspect', 'geoint', 'sl4', 'sl5', 'team'].find(p => !s.done[p] && avail(s, 'proj_' + p));
+      const proj = G.p1proj && ['inspect', 'geoint', 'sl4', 'sl5', 'team'].find(p => !s.done[p] && avail(s, 'proj_' + p) && !pgated(s, G, p));
       if (proj && tryAct(s, 'proj_' + proj, {}, G, 'nothing more urgent: finish projects')) { step(); continue; }
       break;
     }
@@ -169,4 +182,4 @@ function evaluate(G, seeds, diff) {
   for (const sd of seeds) { const s = play(G, sd, diff); if (s.ending === 'phase2') wins++; if (s.ending === 'loc') loc++; score += E.score(s).score; }
   return { win: wins / seeds.length, score: score / seeds.length, loc: loc / seeds.length };
 }
-module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE };
+module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE, PGATE };
