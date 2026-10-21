@@ -1212,13 +1212,6 @@ def({ id: 'openrule', cat: 'policy', name: 'Limit open-weight releases near the 
   effect: () => 'The open-weight frontier climbs ' + Math.round(100 * TUNE.openRuleCut) + '% slower. Industry -6; coalition -2; Beijing leans toward publishing its own models.',
   apply(s) { s.policies.openrule = true; industry(s, -6); s.coalition -= 2; shiftCN(s, { m: 3 }); return 'Commerce publishes the release rule. Two open-model startups announce moves to Paris.'; },
 });
-def({ id: 'ratchet', cat: 'policy', name: 'Ratchet the threshold down', phases: ['p1'], ap: 1, pc: 2, room: true,
-  tags: { pause: 1.2, industry: -1.2, markets: -0.5 },
-  avail(s) { if (s.open == null) return 'Open-weight rules are off in this build'; if (!paced(s)) return 'No pause to tighten'; const next = { '1e22': '1e21', '1e21': s.flags.floor21 ? null : '1e20' }[s.pacing.threshold]; return next ? true : 'The threshold is as low as it goes'; },
-  desc: 'Algorithms improve during a pause, so a fixed compute line covers less every month. Lower it one step.',
-  effect: () => 'One step lower: more sites covered, open developers have less room, paced labs grow more slowly. Industry -8; markets -3; inspections -6.',
-  apply(s) { s.pacing.threshold = s.pacing.threshold === '1e22' ? '1e21' : '1e20'; industry(s, -8); s.markets -= 3; s.verify.inspect -= 6; return 'The threshold drops to ' + THRESH[s.pacing.threshold].label + '.'; },
-});
 def({ id: 'hardware', cat: 'policy', name: 'Hardware pacing: cap chip accumulation', phases: ['p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { pause: 1, industry: -1.5, markets: -1 },
   desc: 'Paused training does not stop chip production. Stockpiles become dry tinder: the first run after the pause would be enormous. Cap accumulation at threshold sites.',
