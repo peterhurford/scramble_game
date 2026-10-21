@@ -17,22 +17,67 @@ PROJ.forEach(p => g('proj.' + p, 'real', -1, 1));
 POL0.forEach(p => g('pol.' + p, 'real', -1, 1));
 Object.keys(GATE).forEach(p => g('gate.' + p, 'real', 0, GATE[p][1]));
 Object.keys(PGATE).forEach(p => g('pgate.' + p, 'real', 0, PGATE[p][1]));
-g('meetEvery', 'int', 0, 4); g('meetA', 'choice', PEOPLE); g('meetB', 'choice', PEOPLE);
+g('meetEvery', 'int', 0, 4);
+g('meetA', 'choice', PEOPLE);
+g('meetB', 'choice', PEOPLE);
 PEOPLE.forEach(p => g('fav.' + p, 'bool'));
 g('favReserve', 'int', 0, 8);
-g('briefR', 'real', 0.3, 0.95); g('briefOdds', 'real', 0.1, 0.95); g('briefIc', 'real', 0, 10); g('briefIcOdds', 'real', 0.05, 0.9);
-g('saveIc', 'real', 0, 10); g('saveReserve', 'int', 0, 6); g('speechIc', 'real', 0, 10); g('alliesIdle', 'bool');
-g('mech', 'choice', ['charter', 'dpa', 'license']); g('mechHostile', 'choice', ['charter', 'dpa', 'license']); g('mechCut', 'real', 0.5, 2); g('charterMin', 'real', 0, 0.9); g('mechNoSign', 'choice', ['dpa', 'license']); g('secretLead', 'real', -1, 10); g('licRelMin', 'real', -40, 101); g('thr', 'choice', ['1e20', '1e21', '1e22']); g('auto', 'bool');
-g('trig', 'choice', ['200c', '200', '425', 'none']); g('seq', 'choice', ['first', 'deadline', 'together', 'adaptive']); g('seqIc', 'real', 2, 10);
-g('dealBelow', 'real', 0, 1); g('dealMinShare', 'real', 0, 0.3); g('waitFull', 'bool'); g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']); g('scrOffer', 'bool');
+g('briefR', 'real', 0.3, 0.95);
+g('briefOdds', 'real', 0.1, 0.95);
+g('briefIc', 'real', 0, 10);
+g('briefIcOdds', 'real', 0.05, 0.9);
+g('saveIc', 'real', 0, 10);
+g('saveReserve', 'int', 0, 6);
+g('speechIc', 'real', 0, 10);
+g('alliesIdle', 'bool');
+g('mech', 'choice', ['charter', 'dpa', 'license']);
+g('mechHostile', 'choice', ['charter', 'dpa', 'license']);
+g('mechCut', 'real', 0.5, 2);
+g('charterMin', 'real', 0, 0.9);
+g('mechNoSign', 'choice', ['dpa', 'license']);
+g('secretLead', 'real', -1, 10);
+g('licRelMin', 'real', -40, 101);
+g('thr', 'choice', ['1e20', '1e21', '1e22']);
+g('auto', 'bool');
+g('trig', 'choice', ['200c', '200', '425', 'none']);
+g('seq', 'choice', ['first', 'deadline', 'together', 'adaptive']);
+g('seqIc', 'real', 2, 10);
+g('dealBelow', 'real', 0, 1);
+g('dealMinShare', 'real', 0, 0.3);
+g('waitFull', 'bool');
+g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']);
+g('scrOffer', 'bool');
 ['inspect', 'lane', 'institute', 'relief', 'visas', 'freeze', 'chips', 'misuse'].forEach(t => g('o.' + t, 'bool'));
-g('threatLead', 'real', 4, 15); g('fundFirst', 'bool'); g('hwOver', 'real', 2, 10); g('speechSup', 'real', 15, 60); g('probeSup', 'real', 0, 60); g('alliesCoal', 'real', 30, 80); g('senateT', 'real', 55, 90);
-g('statute', 'bool'); g('hillP0', 'bool'); g('hillMoving', 'bool'); g('cheatDismiss', 'choice', ['never', 'low', 'moderate']); g('summitConf', 'choice', ['low', 'moderate', 'high']); g('intelTarget', 'real', 0, 100);
-g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70); g('covertWithin', 'real', 0, 5); g('gofirstIc', 'real', 0, 8); g('p1proj', 'bool'); g('ceasefire', 'bool');
-g('pledgeScr', 'bool'); g('sound', 'int', 0, 3); g('oMin', 'real', 0, 0.8);
-g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']); g('warnLead', 'real', 0, 10);
-g('openP1', 'bool'); g('ratchetGap', 'real', 0, 6);
-g('reassure', 'bool'); g('reassureLead', 'real', 0, 10); g('redline', 'bool'); g('redlineLead', 'real', 0, 10);
+g('threatLead', 'real', 4, 15);
+g('fundFirst', 'bool');
+g('hwOver', 'real', 2, 10);
+g('speechSup', 'real', 15, 60);
+g('probeSup', 'real', 0, 60);
+g('alliesCoal', 'real', 30, 80);
+g('senateT', 'real', 55, 90);
+g('statute', 'bool');
+g('hillP0', 'bool');
+g('hillMoving', 'bool');
+g('cheatDismiss', 'choice', ['never', 'low', 'moderate']);
+g('summitConf', 'choice', ['low', 'moderate', 'high']);
+g('intelTarget', 'real', 0, 100);
+g('surge', 'choice', ['lowest', 'novel', 'inspect']);
+g('meetSup', 'real', 0, 70);
+g('covertWithin', 'real', 0, 5);
+g('gofirstIc', 'real', 0, 8);
+g('p1proj', 'bool');
+g('ceasefire', 'bool');
+g('pledgeScr', 'bool');
+g('sound', 'int', 0, 3);
+g('oMin', 'real', 0, 0.8);
+g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']);
+g('warnLead', 'real', 0, 10);
+g('openP1', 'bool');
+g('ratchetGap', 'real', 0, 6);
+g('reassure', 'bool');
+g('reassureLead', 'real', 0, 10);
+g('redline', 'bool');
+g('redlineLead', 'real', 0, 10);
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 // Genes that only pay when they change together: a policy or project with its reading gate (SL4 is both), and settings that act as one plan.
 // The search resamples a whole group at once, switching a gated item on with a random priority and gate.
@@ -42,7 +87,62 @@ const GROUPS = Object.keys(GATE).filter(p => p !== 'sl4').map(p => ['pol.' + p, 
     ['o.inspect', 'o.lane', 'o.institute', 'o.relief', 'o.visas', 'o.freeze', 'o.chips', 'o.misuse', 'oMin', 'scrOffer'], ['warnK', 'warnLead', 'threatLead'], ['reassure', 'reassureLead'], ['redline', 'redlineLead'],
     ['briefR', 'briefOdds', 'briefIc', 'briefIcOdds'], ['seq', 'seqIc', 'trig'], ['pol.chips', 'pol.remote', 'pol.distill', 'pol.smuggle', 'gate.chips', 'gate.remote', 'gate.distill', 'gate.smuggle']]);
 
-const PREF = { warn_due: 0, distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast: 1, lantern_oped: 0, kite: 0, oversight: 0, power: 0, titan_feud: 1, leak: 1, johor: 0, bio: 1, capex: 0, ceo_call: 1, near_miss: 0, rare_earths: 1, taiwan: 1, verdant: 0, cn_un: 0, g7: 0, s_leak: 0, s_beijing: 0, s_titan: 0, s_hill: 0, defector: 2, cn_cheat: 0, court: 0, lobby_end: 1, uae: 0, hearing: 0, markets_wobble: 0, commerce_ex: 0, wobble: 0, theft: 1, war: 0, knock: 1, debate: 0, deadline_up: 1, cn_beg: 2, czar_endrun: 0, feud: 0, vp_issue: 0, hawk_push: 1, midterms: 0, blockade: 1, war_begins: 0, war_exempt: 2, war_cyber: 1, war_escalate: 1, war_talks: 1, cable_cut: 0, tsmc_shield: 0, redline_due: 0 };
+const PREF = {
+  warn_due: 0,
+  distill_report: 0,
+  smuggle_bust: 2,
+  trade_summit: 1,
+  czar_podcast: 1,
+  lantern_oped: 0,
+  kite: 0,
+  oversight: 0,
+  power: 0,
+  titan_feud: 1,
+  leak: 1,
+  johor: 0,
+  bio: 1,
+  capex: 0,
+  ceo_call: 1,
+  near_miss: 0,
+  rare_earths: 1,
+  taiwan: 1,
+  verdant: 0,
+  cn_un: 0,
+  g7: 0,
+  s_leak: 0,
+  s_beijing: 0,
+  s_titan: 0,
+  s_hill: 0,
+  defector: 2,
+  cn_cheat: 0,
+  court: 0,
+  lobby_end: 1,
+  uae: 0,
+  hearing: 0,
+  markets_wobble: 0,
+  commerce_ex: 0,
+  wobble: 0,
+  theft: 1,
+  war: 0,
+  knock: 1,
+  debate: 0,
+  deadline_up: 1,
+  cn_beg: 2,
+  czar_endrun: 0,
+  feud: 0,
+  vp_issue: 0,
+  hawk_push: 1,
+  midterms: 0,
+  blockade: 1,
+  war_begins: 0,
+  war_exempt: 2,
+  war_cyber: 1,
+  war_escalate: 1,
+  war_talks: 1,
+  cable_cut: 0,
+  tsmc_shield: 0,
+  redline_due: 0,
+};
 function expertGenome() {
   const G = {};
   PROJ.forEach((p, i) => G['proj.' + p] = 1 - i * 0.1);
@@ -51,11 +151,70 @@ function expertGenome() {
   Object.keys(GATE).forEach(p => G['gate.' + p] = 0);
   Object.keys(PGATE).forEach(p => G['pgate.' + p] = 0);
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
-  Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
-    mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', secretLead: -1, licRelMin: 101, hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
-    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, probeSup: 0, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, pledgeScr: false, sound: 0, oMin: 0, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0, reassure: false, reassureLead: 4, redline: false, redlineLead: 4 });
+  Object.assign(G, {
+    meetEvery: 4,
+    meetA: 'vp',
+    meetB: 'cos',
+    favReserve: 8,
+    briefR: 0.68,
+    briefOdds: 0.5,
+    briefIc: 0,
+    briefIcOdds: 0.9,
+    saveIc: 0,
+    saveReserve: 0,
+    speechIc: 0,
+    alliesIdle: true,
+    mech: 'charter',
+    mechHostile: 'charter',
+    mechCut: 2,
+    charterMin: 0,
+    mechNoSign: 'dpa',
+    secretLead: -1,
+    licRelMin: 101,
+    hillMoving: false,
+    thr: '1e21',
+    auto: true,
+    trig: '200c',
+    seq: 'first',
+    seqIc: 6,
+    dealBelow: 0.55,
+    dealMinShare: 0.15,
+    waitFull: true,
+    scrIdle: 'remote',
+    scrOffer: false,
+    statute: true,
+    hillP0: false,
+    cheatDismiss: 'never',
+    summitConf: 'low',
+    intelTarget: 0,
+    threatLead: 7,
+    fundFirst: true,
+    hwOver: 5,
+    speechSup: 35,
+    probeSup: 0,
+    alliesCoal: 55,
+    senateT: 70,
+    surge: 'lowest',
+    meetSup: 45,
+    covertWithin: 0,
+    gofirstIc: 0,
+    p1proj: true,
+    ceasefire: true,
+    pledgeScr: false,
+    sound: 0,
+    oMin: 0,
+    warnK: 'none',
+    warnLead: 5,
+    openP1: false,
+    ratchetGap: 0,
+    reassure: false,
+    reassureLead: 4,
+    redline: false,
+    redlineLead: 4,
+  });
   PEOPLE.forEach(p => G['fav.' + p] = false);
-  ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips', 'misuse'].forEach(t => G['o.' + t] = false);
+  ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true);
+  ['relief', 'visas', 'freeze', 'chips', 'misuse'].forEach(t => G['o.' + t] = false);
   EVENTS.forEach(e => G['ev.' + e] = PREF[e] || 0);
   return G;
 }
@@ -249,4 +408,20 @@ function loadGenome(file) {
   return G;
 }
 const genes = G => Object.keys(G).filter(k => k[0] !== '_');
-module.exports = { GENES, GROUPS, expertGenome, play, evaluate, evaluateEach, setTrace, PROJ, POL0, EVENTS, GATE, PGATE, rulesStamp, loadGenome, genes };
+module.exports = {
+  GENES,
+  GROUPS,
+  expertGenome,
+  play,
+  evaluate,
+  evaluateEach,
+  setTrace,
+  PROJ,
+  POL0,
+  EVENTS,
+  GATE,
+  PGATE,
+  rulesStamp,
+  loadGenome,
+  genes,
+};
