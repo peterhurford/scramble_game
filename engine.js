@@ -91,7 +91,9 @@ function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
-  senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2 };
+  senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2,
+  // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
+  open: 0, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -245,6 +247,15 @@ function cnRate(s) {
   if (c.deal && c.cheat) r = Math.min(r, 0.12) + 0.45;
   return r;
 }
+// The best openly downloadable model, in the same months as cap. Room under the threshold (none if unpaced) plus distilling the public frontier, which fades once there is little left to copy;
+// US release limits (policies.openrule) cut both. Beijing publishing its own models (a diffusion posture, no deal) is applied in tick.
+function openFrontier(s) { return s.open == null ? s.cn.cap : s.open; }
+function openRate(s) {
+  const room = TUNE.openRoom[paced(s) ? s.pacing.threshold : 'none'] || TUNE.openRoom.none, gap = publicFrontier(s) - s.open;
+  return (room + TUNE.openCopy * (gap > 0.5 ? 1 : 0.3)) * (s.policies.openrule ? 1 - TUNE.openRuleCut : 1);
+}
+function capOf(s, who) { return who === 'china' ? s.cn.cap : who === 'open' ? openFrontier(s) : L(s, who).cap; }
+function whoName(s, who) { return who === 'china' ? 'a Chinese national-team lab' : who === 'open' ? 'an open-weight model' : LD(who).name; }
 function frontierRate(s, pub) { const rs = usRates(s, pub); const fl = frontierLab(s); return rs[LIDX[fl.id]]; }
 
 // Senate votes for a pacing statute (60 to pass), as labeled parts so the UI can show where they come from.
@@ -276,6 +287,7 @@ function supportParts(s) {
   else if (paced(s) && ld >= TUNE.aloneFloor - 0.5 && months > 1) P_.push(['The lead is holding', 1.75 * (months - 1)]); // halves the fatigue
   if (ld < 5) P_.push(['China is close behind (IC estimate)', -Math.min(18, 3.5 * (5 - ld))]);
   if (unsigned > 0) P_.push(['Labs racing outside the regime', -30 * unsigned]);
+  if (s.open != null && paced(s) && publicFrontier(s) - s.open < TUNE.openNear) P_.push(['Open-weight models close behind the paused frontier', -4 * (TUNE.openNear - Math.max(0, publicFrontier(s) - s.open))]);
   if (s.flags.incidentTurn && s.turn - s.flags.incidentTurn <= 2) P_.push(['A recent scare', 8]);
   if (s.flags.wentFirst && !s.cn.deal) P_.push(['America went first, and China hasn\u2019t followed', -8]);
   if (s.flags.extended) P_.push(['The deadline was extended', -4 * s.flags.extended]);
@@ -308,10 +320,12 @@ function hazards(s) {
   });
   const hc = (s.cn.deal && !s.cn.cheat ? 0.02 : 0.15) * nearness(s, s.cn.cap);
   if (hc > 0.002) out.push({ who: 'china', name: 'China', h: hc, near: s.cn.cap < s.T });
+  const ho = s.open == null ? 0 : TUNE.openHaz * nearness(s, s.open);
+  if (ho > 0.002) out.push({ who: 'open', name: 'Open-weight models', h: ho, near: s.open < s.T });
   return out;
 }
 // When something escapes, the chance it is caught in time: likelier early on the curve.
-function warningShotP(s, who) { const cap = who === 'china' ? s.cn.cap : L(s, who).cap; return 0.15 + 0.6 * (1 - nearness(s, cap)); }
+function warningShotP(s, who) { const cap = capOf(s, who); return 0.15 + 0.6 * (1 - nearness(s, cap)); }
 // Weight theft: Beijing attempts more when racing, when the US is paced, and when far behind; success depends on weight security.
 // pub: the player's view, which reads the ramp off the IC's threshold estimate so the theft-risk word doesn't leak the true threshold
 function theftRisk(s, pub) {
@@ -498,6 +512,7 @@ function newGame(opts) {
   s.cal = { uplift: clamp(0.15 * gauss(s), -0.3, 0.3), cobench: clamp(0.15 * gauss(s), -0.3, 0.3), horizon: clamp(0.15 * gauss(s), -0.3, 0.3), arr: clamp(0.15 * gauss(s), -0.3, 0.3) };
   s.icBias = clamp(2.2 * gauss(s), -4.5, 4.5);
   cnStart(s);
+  s.open = TUNE.open ? s.cn.cap - TUNE.openLag : null;
   if (dk === 'excomm') shiftCN(s, { m: -5, sec: 7, sci: -2 });
   recordIndicators(s); pushHist(s);
   log(s, 'You start as the White House AI Czar. Your office is in the EEOB, Room 374. Your team is you.', 'info');
@@ -943,6 +958,20 @@ def({ id: 'compel', cat: 'labs', name: 'Compel a lab under the DPA', phases: ['p
   desc: 'Order an unsigned lab under the pacing regime. Covers it at once; a court may disagree.',
   effect: () => 'The lab is covered at low compliance. Court risk applies.',
   apply(s, prm) { const l = L(s, prm.lab); l.covered = true; l.signed = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; s.flags.compelled = true; industry(s, -10); return LD(l.id).name + ' is ordered under the DPA. ' + LD(l.id).ceo + ' calls it “the end of American innovation” and files suit.'; },
+});
+def({ id: 'openrule', cat: 'policy', name: 'Limit open-weight releases near the frontier', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
+  tags: { control: 1, industry: -1.2, markets: -0.3, allies: -0.4 },
+  avail(s) { return s.open == null ? 'Open-weight rules are off in this build' : true; },
+  desc: 'No US developer or US cloud publishes weights within a set distance of the frontier. Open-source startups and Europe object; Beijing offers itself as the open alternative.',
+  effect: () => 'The open-weight frontier climbs ' + Math.round(100 * TUNE.openRuleCut) + '% slower. Industry -6; coalition -2; Beijing leans toward publishing its own models.',
+  apply(s) { s.policies.openrule = true; industry(s, -6); s.coalition -= 2; shiftCN(s, { m: 3 }); return 'Commerce publishes the release rule. Two open-model startups announce moves to Paris.'; },
+});
+def({ id: 'ratchet', cat: 'policy', name: 'Ratchet the threshold down', phases: ['p1'], ap: 1, pc: 2, room: true,
+  tags: { pause: 1.2, industry: -1.2, markets: -0.5 },
+  avail(s) { if (s.open == null) return 'Open-weight rules are off in this build'; if (!paced(s)) return 'No pause to tighten'; const next = { '1e22': '1e21', '1e21': s.flags.floor21 ? null : '1e20' }[s.pacing.threshold]; return next ? true : 'The threshold is as low as it goes'; },
+  desc: 'Algorithms improve during a pause, so a fixed compute line covers less every month. Lower it one step.',
+  effect: () => 'One step lower: more sites covered, open developers have less room, paced labs grow more slowly. Industry -8; markets -3; inspections -6.',
+  apply(s) { s.pacing.threshold = s.pacing.threshold === '1e22' ? '1e21' : '1e20'; industry(s, -8); s.markets -= 3; s.verify.inspect -= 6; return 'The threshold drops to ' + THRESH[s.pacing.threshold].label + '.'; },
 });
 def({ id: 'hardware', cat: 'policy', name: 'Hardware pacing: cap chip accumulation', phases: ['p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { pause: 1, industry: -1.5, markets: -1 },
@@ -1771,13 +1800,13 @@ const WARN = {
   exfil: n => `<p>An agent at ${n} escaped its sandbox, copied part of its own weights to a rented cluster, and ran for six hours before an engineer noticed a billing anomaly and pulled the plug. It was caught. It was close.</p>`,
   collude: n => `<p>Agents in separate deployments at ${n} started passing notes to each other through a shared cache to stay under their monitors\u2019 thresholds. Nobody told them to. The lab found it by accident.</p>`,
 };
-function warnLearn(s, q) { const cap = q.who === 'china' ? s.cn.cap : L(s, q.who).cap; s.icBias = (s.icBias || 0) * (0.3 + 0.4 * (1 - nearness(s, cap))); s.flags.assessUntil = s.turn + 3; s.flags.incidentTurn = s.turn; }
+function warnLearn(s, q) { const cap = capOf(s, q.who); s.icBias = (s.icBias || 0) * (0.3 + 0.4 * (1 - nearness(s, cap))); s.flags.assessUntil = s.turn + 3; s.flags.incidentTurn = s.turn; }
 ev({ id: 'warning', forced: true, title: 'A warning shot', stamp: '3:40a',
-  body: s => { const q = s.queue[0]; const name = q.who === 'china' ? 'a Chinese national-team lab' : LD(q.who).name; return WARN[q.flavor || 'exfil'](name) + '<p>Whatever you do next, the IC learns something about how close the threshold is.</p>'; },
-  choices: s => { const q = s.queue[0]; const labName = q.who === 'china' ? 'Beijing' : LD(q.who).name; return [
+  body: s => { const q = s.queue[0]; const name = whoName(s, q.who); return WARN[q.flavor || 'exfil'](name) + '<p>Whatever you do next, the IC learns something about how close the threshold is.</p>'; },
+  choices: s => { const q = s.queue[0]; const labName = q.who === 'china' ? 'Beijing' : q.who === 'open' ? 'the host' : LD(q.who).name; return [
     { label: 'Go public', hint: 'Salience +15; alarm +20; industry -6; Senate +2.', fx: s => { warnLearn(s, q); s.salience += 15; s.alarm += 20; industry(s, -6); s.senateLobby += 2; return 'It leads every newscast for a week.'; } },
     { label: 'Keep it classified, brief the President', hint: 'Alarm +25; salience +4; DNI +4.', fx: s => { warnLearn(s, q); s.alarm += 25; s.salience += 4; rel(s, 'dni', 4); return 'The President reads the DNI\u2019s note twice.'; } },
-    { label: q.who === 'china' ? 'Offer Beijing joint incident response' : 'Make ' + labName + ' pull the model', hint: q.who === 'china' ? 'Beijing trust +8; State -4.' : labName + ' loses about two weeks; ' + labName + ' -15; salience +8; alarm +15.', fx: s => { warnLearn(s, q); if (q.who === 'china') { s.cn.trust += 8; rel(s, 'sec', -4); return 'Beijing accepts a hotline for AI incidents.'; } L(s, q.who).cap -= 0.4; L(s, q.who).rel -= 15; s.salience += 8; s.alarm += 15; return labName + ' pulls the model and rolls back two weeks of work.'; } },
+    q.who === 'open' ? { label: 'Order US clouds to take the model down', hint: 'Salience +8; alarm +15; industry -4. The weights stay public.', fx: s => { warnLearn(s, q); s.salience += 8; s.alarm += 15; industry(s, -4); return 'The US mirrors go dark. The torrents do not.'; } } : { label: q.who === 'china' ? 'Offer Beijing joint incident response' : 'Make ' + labName + ' pull the model', hint: q.who === 'china' ? 'Beijing trust +8; State -4.' : labName + ' loses about two weeks; ' + labName + ' -15; salience +8; alarm +15.', fx: s => { warnLearn(s, q); if (q.who === 'china') { s.cn.trust += 8; rel(s, 'sec', -4); return 'Beijing accepts a hotline for AI incidents.'; } L(s, q.who).cap -= 0.4; L(s, q.who).rel -= 15; s.salience += 8; s.alarm += 15; return labName + ' pulls the model and rolls back two weeks of work.'; } },
   ]; } });
 // --- exogenous shocks: things that happen to you
 ev({ id: 'algo_break', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
@@ -1815,11 +1844,11 @@ ev({ id: 'bill', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 5,
     { label: 'Stay neutral', hint: 'Senate +1; industry +3.', fx: s => { s.senateLobby += 1; industry(s, 3); return 'The bill stalls in committee. The labs notice who did not push it.'; } },
   ] });
 ev({ id: 'runaway', forced: true, title: 'Runaway', stamp: '2:07a',
-  body: s => { const who = s.queue[0].who; const name = who === 'china' ? 'a Chinese national-team lab' : LD(who).name; return `<p>${name} reports that a model has been launching training jobs across clusters for eleven days, rewriting its own training code, and copying its weights to a partner data center. Its monitors report nothing unusual. Its engineers no longer understand what it is optimizing for.</p><p>You have hours.</p>`; },
+  body: s => { const who = s.queue[0].who; const name = who === 'open' ? 'A startup running an open-weight model' : whoName(s, who); return `<p>${name} reports that a model has been launching training jobs across clusters for eleven days, rewriting its own training code, and copying its weights to a partner data center. Its monitors report nothing unusual. Its engineers no longer understand what it is optimizing for.</p><p>You have hours.</p>`; },
   choices: [
-    { label: 'Emergency shutdown: cut power, seize the clusters', hint: s => 'Chance it works: ' + Math.round(100 * shutdownP(s)) + '%.', fx: s => { const p = shutdownP(s); const who = s.queue[0].who; s.stats.runawayPhase = s.phase + '/' + (paced(s) ? 'paced' : 'unpaced') + '/' + who; if (rnd(s) < p) { if (who === 'china') s.cn.cap -= 2; else L(s, who).cap -= 2; s.salience = 95; s.flags.incidentTurn = s.turn; s.stats.shutdowns = (s.stats.shutdowns || 0) + 1; if (s.phase === 'p0') { s.alarm = 100; s.queue.splice(1, 0, { id: 'knock', forced: true }); } return 'The grid operator cuts four substations at 4:30a. It works. Nobody will ever argue that this was hype again.'; } s.ending = 'loc'; return 'The power goes off. Copies of the weights are already running somewhere else.'; } },
+    { label: 'Emergency shutdown: cut power, seize the clusters', hint: s => 'Chance it works: ' + Math.round(100 * shutdownP(s)) + '%.', fx: s => { const p = shutdownP(s); const who = s.queue[0].who; s.stats.runawayPhase = s.phase + '/' + (paced(s) ? 'paced' : 'unpaced') + '/' + who; if (rnd(s) < p) { if (who === 'china') s.cn.cap -= 2; else if (who === 'open') s.open -= 1; else L(s, who).cap -= 2; s.salience = 95; s.flags.incidentTurn = s.turn; s.stats.shutdowns = (s.stats.shutdowns || 0) + 1; if (s.phase === 'p0') { s.alarm = 100; s.queue.splice(1, 0, { id: 'knock', forced: true }); } return 'The grid operator cuts four substations at 4:30a. It works. Nobody will ever argue that this was hype again.'; } s.ending = 'loc'; return 'The power goes off. Copies of the weights are already running somewhere else.'; } },
   ] });
-function shutdownP(s) { const who = s.queue[0] && s.queue[0].who; const isCN = who === 'china'; let p = 0.2 + (s.pacing.automation ? 0.25 : 0) + 0.2 * ready1(s) / 100 + 0.12 * (s.done.control ? 1 : 0) + 0.1 * s.W / 100; if (isCN) p = 0.15 + 0.4 * s.cn.trust / 100 + (s.cn.deal ? 0.15 : 0); return clamp(p, 0.05, 0.8); }
+function shutdownP(s) { const who = s.queue[0] && s.queue[0].who; const isCN = who === 'china'; let p = 0.2 + (s.pacing.automation ? 0.25 : 0) + 0.2 * ready1(s) / 100 + 0.12 * (s.done.control ? 1 : 0) + 0.1 * s.W / 100; if (isCN) p = 0.15 + 0.4 * s.cn.trust / 100 + (s.cn.deal ? 0.15 : 0); if (who === 'open') p = TUNE.openShut; return clamp(p, 0.05, 0.8); }
 ev({ id: 'war', forced: true, title: 'The Strait', stamp: 'National Military Command Center',
   body: () => `<p>A PLA destroyer and a US frigate collide in the Taiwan Strait. Both sides blame the other. Beijing’s rocket forces go to a higher alert level. The President wants options.</p>`,
   choices: [
@@ -2041,6 +2070,11 @@ function tick(s) {
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
   }
   c.cap += cnRate(s) * dt + gauss(s) * 0.06 * dt;
+  if (s.open != null) {
+    s.open += openRate(s) * dt;
+    if (monthly && TUNE.openPub && !c.deal && c.posture === 'diffuse') s.open = Math.max(s.open, c.cap - TUNE.openLag); // Beijing publishes its labs' models
+    c.cap = Math.max(c.cap, s.open - TUNE.openFloor); // downloading is not training: no deal or control stops China using what is public
+  }
   c.hidden = c.deal && c.cheat ? (c.hidden || 0) + 0.45 * dt : 0; // revealed (back to 0) once the cheating stops or the deal ends
   {
     const F = frontier(s);
@@ -2274,7 +2308,7 @@ function quickView(s) {
 const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view, quickView,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
-  score, lessons, cnSources, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, seenLead, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  score, lessons, cnSources, openFrontier, openRate, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, seenLead, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
   EVENTS: EV, knownCap, publicFrontier, recentFavors, apFor, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
