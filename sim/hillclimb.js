@@ -24,7 +24,8 @@ const PIN = process.env.PIN ? JSON.parse(process.env.PIN) : {};
 const NW = +(process.env.NW || Math.min(12, Math.max(1, os.cpus().length - 1)));
 const LOCK = path.join(__dirname, '.search.lock');
 
-const fit = r => r.win + r.score / 1e5;
+// Fitness is mean score, so a B ending without a deal counts for something; FIT=win restores the Phase 2 rate. RACE_MARGIN is in these units (0.03 = 30 points).
+const fit = process.env.FIT === 'win' ? r => r.win + r.score / 1e5 : r => r.score / 1000 + r.win / 1e5;
 let workers = [];
 // One queue of (genome, seed chunk) jobs shared by every worker, so no core waits for another genome to finish.
 function evalMany(Gs, seeds) {

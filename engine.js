@@ -2198,7 +2198,7 @@ const ENDINGS = {
   fired: { tone: 'bad', tag: 'FIRED', title: 'Your badge stops working on a Tuesday.', text: 'The President thanks you for your service on social media. The next AI Czar is a venture capitalist who calls pacing \u201cunilateral disarmament.\u201d' },
 };
 function score(s) {
-  const base = { phase2: 600, cnwins: 30, betrayed: 40, uneasy: 380, alone: 260, race: 120, overtaken: 80, loc: 0, war: 0, wartime: 100, fired: 60 }[s.ending] || 0;
+  const base = { phase2: 600, cnwins: 30, betrayed: 40, uneasy: 480, alone: 450, race: 120, overtaken: 80, loc: 0, war: 0, wartime: 100, fired: 60 }[s.ending] || 0;
   let sc = base;
   if (['phase2', 'uneasy', 'alone'].indexOf(s.ending) >= 0) sc += Math.min(150, 10 * Math.max(0, lead(s)));
   sc += Math.round(200 * (1 - s.riskExposure));
