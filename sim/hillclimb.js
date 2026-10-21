@@ -5,7 +5,7 @@
 // GROUP_P=0.3 (default) of children resample a whole S.GROUPS group, so moves that need several genes at once are reachable.
 // RUNS=0,1,2 runs several searches in one process, so every run uses the code loaded at the start.
 // OUT=sim/v13 writes sim/v13_run<N>.json instead of best_genome[_runN].json. START=genome.json seeds the search (START=a.json,b.json,c.json: one per run).
-// A lock file (sim/.search.lock) makes a second search wait for the first instead of splitting the cores.
+// A lock file (the main checkout's sim/.search.lock) makes a second search wait for the first instead of splitting the cores.
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 // The main thread loads the rules only once it holds the lock, so a queued search runs the code current when it starts.
 let S = isMainThread ? null : require('./strategy.js');
@@ -22,7 +22,8 @@ const RUNS = (process.env.RUNS || process.argv[5] || '0').split(',').map(Number)
 const PIN = process.env.PIN ? JSON.parse(process.env.PIN) : {};
 // Throughput peaks at about one worker per performance core (an M3 Max's 10, plus 2): more workers on the efficiency cores slow everyone.
 const NW = +(process.env.NW || Math.min(12, Math.max(1, os.cpus().length - 1)));
-const LOCK = path.join(__dirname, '.search.lock');
+// One lock for every worktree of the repo (searches run from detached worktrees), kept in the main checkout's sim/.
+const LOCK = (() => { try { const g = require('child_process').execSync('git rev-parse --path-format=absolute --git-common-dir', { cwd: __dirname, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); return path.join(path.dirname(g), 'sim', '.search.lock'); } catch (e) { return path.join(__dirname, '.search.lock'); } })();
 
 // Fitness is mean score, so a B ending without a deal counts for something; FIT=win restores the Phase 2 rate. RACE_MARGIN is in these units (0.03 = 30 points).
 const fit = process.env.FIT === 'win' ? r => r.win + r.score / 1e5 : r => r.score / 1000 + r.win / 1e5;
@@ -94,6 +95,8 @@ async function search(RUN) {
   }
   const batch = b => Array.from({ length: GAMES }, (_, i) => 100000 + RUN * 50000 + b * GAMES + i);
   const out = process.env.OUT ? path.resolve(process.env.OUT + '_run' + RUN + '.json') : __dirname + '/best_genome' + (RUN ? '_run' + RUN : '') + '.json';
+  // the genome is written as .partial.json while the run is in progress and renamed when it ends
+  const part = out.replace(/\.json$/, '.partial.json');
   const logf = process.env.OUT ? path.resolve(process.env.OUT + '_run' + RUN + '.log') : __dirname + '/hillclimb.log';
   // genes a START genome lacks keep the expert's values
   // START may list one genome per run, in RUNS order
@@ -116,10 +119,11 @@ async function search(RUN) {
       parent = kids[bi]; pr = res[bi];
       const line = `run ${RUN} gen ${gen}  win ${(100 * pr.win).toFixed(1)}%  score ${pr.score.toFixed(0)}  loc ${(100 * pr.loc).toFixed(1)}%  changed: ${changed.join(', ')}`;
       console.log(line); fs.appendFileSync(logf, line + '\n');
-      fs.writeFileSync(out, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1));
+      fs.writeFileSync(part, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1));
     }
   }
   const secs = ((Date.now() - T0) / 1000).toFixed(0);
+  fs.writeFileSync(out, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1)); try { fs.unlinkSync(part); } catch (_) {}
   if (process.env.NOVAL) { console.log(`run ${RUN}: ${GENS} generations in ${secs} s; ${RACE.alive} of ${RACE.kids} raced children finished the batch`); return; }
   // validate on fresh seeds neither saw
   const fresh = Array.from({ length: 4000 }, (_, i) => 900000 + i);
