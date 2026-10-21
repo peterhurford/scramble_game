@@ -159,6 +159,9 @@ function log(s, text, tone) { s.log.push({ t: s.t, turn: s.turn, text, tone: ton
 function shiftCN(s, d) { const f = s.cn.f; for (const k in d) f[k] = Math.max(3, f[k] + d[k]); const sum = f.m + f.sec + f.sci; f.m *= 100 / sum; f.sec *= 100 / sum; f.sci *= 100 / sum; }
 
 function frontier(s) { return Math.max.apply(null, s.labs.map(l => l.cap)); }
+// What Washington can see: a lab cheating on the pause hides its extra progress (l.hidden) until it is caught or stops.
+function knownCap(l) { return l.cap - (l.hidden || 0); }
+function publicFrontier(s) { return Math.max.apply(null, s.labs.map(knownCap)); }
 function frontierLab(s) { let b = s.labs[0]; s.labs.forEach(l => { if (l.cap > b.cap) b = l; }); return b; }
 function lead(s) { return frontier(s) - s.cn.cap; }
 // The gap as Washington sees it (the IC's estimate): what US politics react to. Beijing knows its own position and acts on lead().
@@ -402,7 +405,7 @@ function rObserved(s) {
 }
 function icEstimate(s) {
   // the IC's estimate of months until RSI becomes possible, with its error bar
-  const F = frontier(s), rate = Math.max(0.05, frontierRate(s, true));
+  const F = publicFrontier(s), rate = Math.max(0.05, frontierRate(s, true));
   // error grows as the frontier nears the threshold: nobody has seen this regime before
   const err = (2.5 + 5 * (1 - s.intelQ / 100) * (s.flags.assessUntil >= s.turn ? 0.45 : 1)) + 4 * Math.max(0, F / s.T - 0.6);
   const bias = (hash01(s.seed, 'Test', Math.floor(s.turn / 3)) - 0.5) * err;
@@ -418,7 +421,7 @@ function cnEstimate(s) {
   for (const key in src) src[key] = Math.max(0, src[key] * (1 + noise(key)));
   const comp = cnComp(s) * (1 + noise('comp')), sum = Object.values(src).reduce((a, x) => a + x, 0) || 1;
   for (const key in src) src[key] *= comp / sum;
-  return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, cnRate(s) * (1 + noise('rate'))), rel,
+  return { comp, src, dist: clamp(c.dist + noise('dist') * 0.6, 0, 1), rate: Math.max(0, (cnRate(s) - (s.cn.deal && s.cn.cheat ? 0.45 : 0)) * (1 + noise('rate'))), rel, // cheating under a deal is hidden
     cyber: Math.max(0.2, (c.cyber || 1) * (1 + noise('cyber'))), hide: Math.max(0.2, (c.hide || 1) * (1 + noise('hide'))) };
 }
 // hash01(seed, 'cn' + key, k), cached per game: the readout asks for the same draws many times a turn.
@@ -456,7 +459,7 @@ function leadEstimate(s) {
   const err = 0.3 + 2.4 * (1 - s.intelQ / 100);
   const k = Math.floor(s.turn / 3), fr = (s.turn % 3) / 3;
   const bias = ((hash01(s.seed, 'lead', k) * (1 - fr) + hash01(s.seed, 'lead', k + 1) * fr) - 0.5) * 2 * err;
-  return { mid: lead(s) + bias, err };
+  return { mid: publicFrontier(s) - (s.cn.cap - (s.cn.hidden || 0)) + bias, err }; // neither side's hidden cheating shows
 }
 // Months until China passes the US frontier at today's rates, as Beijing sees it (true gap); Infinity if it isn't closing.
 function cnCatchUp(s) { const gap = lead(s), dr = cnRate(s) - frontierRate(s); return gap <= 0 ? 0 : dr <= 0.01 ? Infinity : gap / dr; }
@@ -521,7 +524,7 @@ function courtRead(s) {
   return { word, text: word, seen: s.done.legal ? est : [0.65, 1, 1.35][i] };
 }
 const cnBase = s => s.cn.base || { remote: 1, smuggle: 1, dist: 1 };
-function pushHist(s) { s.hist.push({ t: s.t, F: frontier(s), cn: s.cn.cap, cnEst: leadEstimate(s).mid, labs: s.labs.map(l => l.cap), paced: paced(s), phase: s.phase, salience: s.salience, tension: s.tension, markets: s.markets }); }
+function pushHist(s) { s.hist.push({ t: s.t, F: publicFrontier(s), cn: s.cn.cap, cnEst: leadEstimate(s).mid, labs: s.labs.map(knownCap), paced: paced(s), phase: s.phase, salience: s.salience, tension: s.tension, markets: s.markets }); }
 
 /* ================= the room ================= */
 function stanceOn(s, p, tags, key, extra) {
@@ -2004,7 +2007,8 @@ function tick(s) {
 
   // --- US labs
   const rates = usRates(s);
-  s.labs.forEach((l, i) => { l.cap += rates[i] * dt + gauss(s) * 0.08 * dt; });
+  const declared = usRates(s, true);
+  s.labs.forEach((l, i) => { l.cap += rates[i] * dt + gauss(s) * 0.08 * dt; l.hidden = l.defect && covered(s, l) ? (l.hidden || 0) + (rates[i] - declared[i]) * dt : 0; });
   // defection and detection
   if (monthly && paced(s)) {
     const det = detection(s);
@@ -2030,6 +2034,7 @@ function tick(s) {
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
   }
   c.cap += cnRate(s) * dt + gauss(s) * 0.06 * dt;
+  c.hidden = c.deal && c.cheat ? (c.hidden || 0) + 0.45 * dt : 0; // revealed (back to 0) once the cheating stops or the deal ends
   {
     const F = frontier(s);
     const tr = theftRisk(s);
@@ -2225,12 +2230,12 @@ function lessons(s) {
 function view(s) {
   const le = leadEstimate(s), ic = icEstimate(s), r2 = ready2(s);
   // Who sits past the near edge of the IC's RSI window: what the player can see, unlike the hazards, which use the true threshold.
-  const zoneAt = frontier(s) + ic.lo * Math.max(0.05, frontierRate(s, true));
-  const inZone = s.labs.filter(l => l.cap >= zoneAt).map(l => LD(l.id).name).concat(frontier(s) - le.mid >= zoneAt ? ['China'] : []);
+  const PF = publicFrontier(s), zoneAt = PF + ic.lo * Math.max(0.05, frontierRate(s, true));
+  const inZone = s.labs.filter(l => knownCap(l) >= zoneAt).map(l => LD(l.id).name).concat(PF - le.mid >= zoneAt ? ['China'] : []);
   return {
     date: dateLabel(s.t), month: monthLabel(s.t), phase: s.phase,
     phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)) + (s.war ? ' · At war' : s.blockade ? ' · Taiwan quarantined' : ''),
-    F: frontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
+    F: publicFrontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
     risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s, true), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
@@ -2249,7 +2254,7 @@ const API = {
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
   score, lessons, cnSources, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
-  EVENTS: EV, recentFavors, apFor, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
+  EVENTS: EV, knownCap, publicFrontier, recentFavors, apFor, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.ScrambleEngine = API;
 })(typeof self !== 'undefined' ? self : this);

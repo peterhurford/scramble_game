@@ -252,7 +252,7 @@ function raceStrip(v) {
   if (Tm <= x1) g += `<line x1="${X(Tm)}" x2="${X(Tm)}" y1="${Y - 16}" y2="${Y + 16}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
   g += `<line x1="${L}" x2="${W - R}" y1="${Y}" y2="${Y}" stroke="var(--rule)" stroke-width="2"/>`;
   for (let m = Math.ceil(x0 - F); m <= Math.floor(x1 - F); m++) { if (m % 3) continue; const x = X(F + m); g += `<line x1="${x}" x2="${x}" y1="${Y + 3}" y2="${Y + 7}" stroke="var(--faint)"/><text x="${x}" y="${Y + 34}" text-anchor="middle">${m === 0 ? 'now' : (m > 0 ? '+' : '') + m + ' mo'}</text>`; }
-  E.LABS.forEach(ld => { g += `<circle cx="${X(E.L(S, ld.id).cap)}" cy="${Y}" r="3" fill="var(--us)" opacity=".5"><title>${esc(ld.name)}</title></circle>`; });
+  E.LABS.forEach(ld => { g += `<circle cx="${X(E.knownCap(E.L(S, ld.id)))}" cy="${Y}" r="3" fill="var(--us)" opacity=".5"><title>${esc(ld.name)}</title></circle>`; });
   g += `<rect x="${X(cn - le.err)}" y="${Y - 3}" width="${Math.max(0, X(cn + le.err) - X(cn - le.err))}" height="6" rx="3" fill="var(--cn)" opacity=".2"><title>Uncertainty in China’s position</title></rect>`;
   // The gap label names whoever leads; the RSI label sits at the zone's left edge, or its right end if that would overlap the gap label.
   const gapText = (le.mid < 0 ? 'China ahead by ' + f1(-le.mid) : 'US ahead by ' + f1(le.mid)) + ' ± ' + f1(le.err) + ' mo';
@@ -342,14 +342,14 @@ function labPanel(v) {
   const i = S.ind[S.ind.length - 1];
   const sharp = S.flags.assessUntil >= S.turn;
   const frac = d => { const x = i[d.k]; return d.log ? Math.max(0, Math.min(1, 1 + Math.log(x / d.mark) / Math.log(20))) : Math.min(1, x / d.mark); };
-  const F = E.frontier(S);
+  const F = v.F; // what Washington can see
   return `<div class="sb"><div class="row"><div class="lbl">Is RSI close?</div><span class="sp"></span><span class="sub">${sharp ? 'IC assessment: sharp' : 'noisy readings'}</span></div>
       ${IND.map(d => { const f = frac(d); return `<div class="ind" title="Fills toward ${d.markLabel}, one definition of “RSI is possible.”"><div class="n">${d.name}</div><div class="val">${d.fmt(i[d.k])}</div>${meter(100 * f, f > 0.85 ? 'bad' : f > 0.65 ? 'warn' : '')}<div class="mkl">of ${d.markLabel}</div></div>`; }).join('')}</div>
     <div class="sb"><div class="row"><div class="lbl">The labs</div><span class="sp"></span><span class="sub">coverage ${v.coverage}%</span></div>
       ${E.LABS.map(ld => {
         const l = E.L(S, ld.id);
         const status = E.covered(S, l) ? '<span class="pill good">Paced</span>' : l.signed ? '<span class="pill acc">Signed</span>' : l.refused ? '<span class="pill bad">Refused</span>' : S.pacing.active ? '<span class="pill warn">Unbound</span>' : '<span class="pill muted">Racing</span>';
-        const behind = F - l.cap;
+        const behind = F - E.knownCap(l);
         return `<div class="lab" title="${Math.round(ld.share * 100)}% of compute · safety ${ld.safety}"><div class="lt"><b>${esc(ld.name)}</b><span class="sub">${behind < 0.05 ? 'at the frontier' : f1(behind) + ' mo back'}${E.covered(S, l) ? ' · compliance ' + (l.comp < 40 ? 'shaky' : l.comp < 70 ? 'mixed' : 'solid') : ''}</span></div><span class="rel ${l.rel >= 0 ? 'up' : 'dn'}">${l.rel > 0 ? '+' : ''}${Math.round(l.rel)}</span>${status}</div>`;
       }).join('')}
       <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0]).join(', ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${dragWord(v.drag.total)}</span>
