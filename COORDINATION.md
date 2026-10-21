@@ -23,7 +23,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| (none open) | | |
+| markets2 (e2d790e, queued for v31) | 44 | markets: mktCred 0.8 to 1.3; marketNews line (hash01, play unchanged) |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
