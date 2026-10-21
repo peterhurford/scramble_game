@@ -9,7 +9,7 @@ const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offs
 // Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
 const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield'];
+const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
@@ -26,7 +26,7 @@ g('mech', 'choice', ['charter', 'dpa', 'license']); g('mechHostile', 'choice', [
 g('trig', 'choice', ['200c', '200', '425', 'none']); g('seq', 'choice', ['first', 'deadline', 'together', 'adaptive']); g('seqIc', 'real', 2, 10);
 g('dealBelow', 'real', 0, 1); g('dealMinShare', 'real', 0, 0.3); g('waitFull', 'bool'); g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']); g('scrOffer', 'bool');
 ['inspect', 'lane', 'institute', 'relief', 'visas', 'freeze', 'chips'].forEach(t => g('o.' + t, 'bool'));
-g('threatLead', 'real', 4, 15); g('fundFirst', 'bool'); g('hwOver', 'real', 2, 10); g('speechSup', 'real', 15, 60); g('alliesCoal', 'real', 30, 80); g('senateT', 'real', 55, 90);
+g('threatLead', 'real', 4, 15); g('fundFirst', 'bool'); g('hwOver', 'real', 2, 10); g('speechSup', 'real', 15, 60); g('probeSup', 'real', 0, 60); g('alliesCoal', 'real', 30, 80); g('senateT', 'real', 55, 90);
 g('statute', 'bool'); g('hillP0', 'bool'); g('hillMoving', 'bool'); g('cheatDismiss', 'choice', ['never', 'low', 'moderate']); g('summitConf', 'choice', ['low', 'moderate', 'high']); g('intelTarget', 'real', 0, 100);
 g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70); g('covertWithin', 'real', 0, 5); g('gofirstIc', 'real', 0, 8); g('p1proj', 'bool'); g('ceasefire', 'bool');
 g('guard', 'bool'); g('pledgeScr', 'bool'); g('sound', 'int', 0, 3); g('oMin', 'real', 0, 0.8); g('ultLead', 'real', 4, 16);
@@ -52,7 +52,7 @@ function expertGenome() {
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
     mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', secretLead: -1, licRelMin: 101, hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
-    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, guard: false, pledgeScr: false, sound: 0, oMin: 0, ultLead: 16, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0 });
+    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, probeSup: 0, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, guard: false, pledgeScr: false, sound: 0, oMin: 0, ultLead: 16, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0 });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips'].forEach(t => G['o.' + t] = false);
   EVENTS.forEach(e => G['ev.' + e] = PREF[e] || 0);
@@ -175,6 +175,7 @@ function turn(s, G) {
       if (s.overhang > G.hwOver && tryAct(s, 'hardware', {}, G, 'overhang above ' + G.hwOver.toFixed(1) + ' months')) { step(); continue; }
       if (G.openP1 && tryAct(s, 'openrule', {}, G, 'open-weight release limits still missing')) { step(); continue; }
       if (G.ratchetGap > 0.5 && E.publicFrontier(s) - E.openFrontier(s) < G.ratchetGap && tryAct(s, 'ratchet', {}, G, 'open models within ' + G.ratchetGap.toFixed(1) + ' months of the paused frontier')) { step(); continue; }
+      if (v.support < G.probeSup && tryAct(s, 'probe', {}, G, 'pacing support below ' + Math.round(G.probeSup) + ': a friendly chair investigates')) { step(); continue; }
       if (v.support < G.speechSup && tryAct(s, 'speech', {}, G, 'pacing support below ' + Math.round(G.speechSup))) { step(); continue; }
       if ((s.coalition < G.alliesCoal || v.senate < G.senateT) && tryAct(s, 'allies', {}, G, 'coalition below ' + Math.round(G.alliesCoal) + ' or Senate below ' + Math.round(G.senateT))) { step(); continue; }
       if (!G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
