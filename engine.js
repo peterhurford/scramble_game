@@ -232,6 +232,17 @@ const TUNE = {
   agents: 1,
   agentOpen: 1.5,
   agentBase: 33,
+  // misuse pact: what offering it costs the DNI and State, how much it slows sovereign-agent growth, and the share of its worth to Beijing that counts toward a deal
+  pactDni: 8,
+  pactSec: 6,
+  pactAgent: 0.7,
+  pactWorth: 1,
+  // cabinet: initiative odds multiplier, Commerce's share of industry hits, a meeting's base relationship gain, months before an ignored ask costs goodwill, share of losses an Ally takes
+  cabOdds: 3,
+  docIndustry: 0.25,
+  meetBase: 16,
+  askNeglect: 6,
+  allySticky: 0.5,
   // markets: points away from 100 per capital a turn, Senate and pacing-support votes per point, President's extra weight on market costs per point below 100, credibility a month per 20 points
   mktCap: 30,
   mktSenate: 0.15,
@@ -324,8 +335,8 @@ const LIDX = {}; LABS.forEach((l, i) => LIDX[l.id] = i);
 function P(s, id) { return s.principals[PIDX[id]]; }
 function PD(s, id) { const st = P(s, id); const base = PRINCIPALS[PIDX[id]]; if (!st.alt) return base; const a = ALTS[id]; return Object.assign({}, base, { bio: a.bio, moods: ALT_MOODS, prefs: Object.assign({ pause: 0, hawk: 0, markets: 0, deal: 0, control: 0, industry: 0, military: 0, commerce: 0, ic: 0, allies: 0 }, a.prefs), sal: a.sal }); }
 // 'Industry' = the labs and the Commerce Secretary, who speaks for them.
-function industry(s, d) { s.labs.forEach(l => { l.rel = clamp(l.rel + 0.6 * d, -100, 100); }); rel(s, 'doc', 0.5 * d); }
-function rel(s, id, d) { const p = P(s, id); p.rel = clamp(p.rel + d, -100, 100); }
+function industry(s, d) { s.labs.forEach(l => { l.rel = clamp(l.rel + 0.6 * d, -100, 100); }); rel(s, 'doc', TUNE.docIndustry * d); }
+function rel(s, id, d) { const p = P(s, id); p.rel = clamp(p.rel + (d < 0 && p.rel >= 40 ? TUNE.allySticky : 1) * d, -100, 100); } // an Ally shrugs off half of any loss
 function infl(s, id, d) { const p = P(s, id); p.infl = clamp(p.infl + d, 0, 100); }
 function L(s, id) { return s.labs[LIDX[id]]; }
 function LD(id) { return LABS[LIDX[id]]; }
@@ -478,6 +489,7 @@ function supportParts(s) {
   if (s.flags.extended) P_.push(['The deadline was extended', -4 * s.flags.extended]);
   if (s.flags.outbreak && s.turn - s.flags.outbreak <= 6) P_.push(['After the outbreak', 15]);
   if (paced(s) && s.flags.medCarve) P_.push(['Medical research is carved out', 4]);
+  if (tierSign(s, 'vp')) P_.push([isAlly(s, 'vp') ? 'The Vice President is selling the pause' : 'The Vice President is campaigning against the pause', 6 * tierSign(s, 'vp')]);
   if (paced(s) && (s.agents || 0) > 20) P_.push(['Sovereign agents run loose, and the pause doesn\u2019t touch them', -Math.min(8, (s.agents - 20) / 5)]);
   if (s.war) P_.push(['A war in the Pacific: the Pentagon wants every model', -15]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -8]);
   return P_;
@@ -493,14 +505,14 @@ function misuseLevel(s) { return clamp(misuseCap(s) / s.T, 0, 1.5); }
 // A deal with the joint misuse term: Beijing's clouds and labs join screening and takedowns.
 function misusePact(s) { return !!(s.cn.deal && s.cn.deal.terms.misuse); }
 // What the pact is worth to Beijing: more as open models get dangerous, with its science faction up and its security services (who use agents too) down, and after joint work on an incident.
-function misusePactWorth(s) { return clamp(0.02 + 0.25 * misuseLevel(s), 0, 0.35) + 0.005 * (s.cn.f.sci - 20) - 0.004 * (s.cn.f.sec - 30) + (s.flags.misuseChannel ? 0.1 : 0); }
+function misusePactWorth(s) { return TUNE.pactWorth * (clamp(0.02 + 0.25 * misuseLevel(s), 0, 0.35) + 0.005 * (s.cn.f.sci - 20) - 0.004 * (s.cn.f.sec - 30) + (s.flags.misuseChannel ? 0.1 : 0)); }
 // Sovereign agents scale the open-weight runaway hazard around a typical level (TUNE.agentBase), so openHaz keeps its meaning at the usual agent count.
 function agentMult(s) { return Math.max(0.5, 1 + TUNE.agentOpen * ((s.agents || 0) - TUNE.agentBase) / 100); }
 // Monthly odds of each kind of incident; defenses cut them.
 function cyberP(s) { const m = misuseLevel(s); return TUNE.misuse * clamp((0.04 + 0.3 * m * m) * (s.policies.cyberdef ? 0.45 : 1) * (s.flags.dodCyber ? 0.85 : 1) * (s.war ? 1.5 : 1) * (misusePact(s) ? 0.8 : 1), 0, 0.45); }
 function bioP(s) { const m = misuseLevel(s); return m < 0.45 ? 0 : TUNE.misuse * clamp(0.16 * (m - 0.45) / 0.55, 0, 0.18) * (s.policies.synth ? 0.6 : 1) * (misusePact(s) ? 0.5 : 1); }
 // Sovereign agents: self-funding AI agents with no human principal, 0-100. They spread with open capability, and compute KYC slows them.
-function agentGrowth(s) { const m = misuseLevel(s); return TUNE.agents * 6 * Math.max(0, m - 0.3) * (s.policies.kyc ? 0.3 : 1) * (s.flags.openExempt ? 1.3 : 1) * (misusePact(s) ? 0.5 : 1); }
+function agentGrowth(s) { const m = misuseLevel(s); return TUNE.agents * 6 * Math.max(0, m - 0.3) * (s.policies.kyc ? 0.3 : 1) * (s.flags.openExempt ? 1.3 : 1) * (misusePact(s) ? TUNE.pactAgent : 1); }
 function agentsP(s) { return clamp(0.02 + (s.agents || 0) / 250, 0, 0.3); }
 // Where the forensics point: a Chinese open-weight model when open capability is near the US frontier, else a jailbroken US API.
 function misuseSource(s) { return openCap(s) >= publicFrontier(s) - 2.5 ? 'cn' : 'us'; }
@@ -542,7 +554,7 @@ const INITIATIVES = {
          hurt: ['The DNI stops sending analysts to your verification meetings.', s => { s.verify.survey -= 3; }] },
 };
 function cabinetMoves(s) {
-  const odds = p => { const t = relTier(p.rel), w = p.infl / 60; return t === 'Ally' || t === 'Hostile' ? 0.08 * w : t === 'Friendly' || t === 'Cool' ? 0.03 * w : 0; };
+  const odds = p => { const t = relTier(p.rel), w = p.infl / 60; return TUNE.cabOdds * (t === 'Ally' || t === 'Hostile' ? 0.08 * w : t === 'Friendly' || t === 'Cool' ? 0.03 * w : 0); };
   for (const p of s.principals) {
     if (rnd(s) >= odds(p)) continue;
     const m = INITIATIVES[p.id][p.rel > 0 ? 'help' : 'hurt'];
@@ -558,6 +570,24 @@ function misuseTick(s) {
   if (due) { seen[due[1]] = true; log(s, due[0][1], 'info'); }
 }
 // Relationship tiers. Each point also moves that principal's vote on every Oval decision.
+// What each principal does for you as an Ally (40+) and against you when Hostile (-40 or less), on top of their vote.
+const TIER_FX = {
+  vp:  ['Sells the pause on the road: pacing support +6.', 'Campaigns against the pause: pacing support -6.'],
+  cos: ['Finds you time with the President: +1 Oval decision a turn.', 'Keeps you off the calendar: -1 Oval decision a turn.'],
+  tsy: ['Talks the markets down from every scare: markets +0.6 a month.', 'Talks your policies down to the markets: markets -0.6 a month.'],
+  doc: ['Runs licensing in good faith (licensed labs comply more) and closes smuggling routes.', 'Leaks your plans to the labs and slow-walks licensing.'],
+  sec: ['Carries your offers in Beijing: China likelier to accept a deal.', 'Undercuts your offers in Beijing: China less likely to accept a deal.'],
+  war: ['Keeps the Pentagon calm: Beijing temperature -0.5 a month.', 'Rattles sabres you have to answer for: Beijing temperature +0.5 a month.'],
+  dni: ['Reads you in: intelligence quality +1 a month.', 'Cuts you out: intelligence quality -1 a month.'],
+};
+const isAlly = (s, id) => P(s, id).rel >= 40, isHostile = (s, id) => P(s, id).rel <= -40;
+const tierSign = (s, id) => isAlly(s, id) ? 1 : isHostile(s, id) ? -1 : 0;
+function tierTick(s) {
+  s.markets += 0.6 * tierSign(s, 'tsy');
+  s.tension -= 0.5 * tierSign(s, 'war');
+  s.intelQ += tierSign(s, 'dni');
+  if (isAlly(s, 'doc')) s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.01);
+}
 function relTier(r) { return r >= 40 ? 'Ally' : r >= 15 ? 'Friendly' : r > -15 ? 'Neutral' : r > -40 ? 'Cool' : 'Hostile'; }
 // Hostile principals undercut you with the President: 2 credibility a month at influence 60, scaled by influence, at most 3 in total.
 function hostileDrain(s) { return Math.min(3, s.principals.reduce((a, p) => a + (p.rel <= -40 ? 2 * p.infl / 60 : 0), 0)); }
@@ -833,7 +863,7 @@ function presBias(s, tags) {
   return b;
 }
 // Oval decisions a turn: one a month in Phase 0 (so two in its two-month turns), two in the scramble and Phase 1; an Ally Chief of Staff adds one.
-function roomMax(s) { if (s.phase === 'scramble') return 2; return (s.phase === 'p0' ? TUNE.slowMonths : 2) + (P(s, 'cos').rel >= 40 ? 1 : 0); }
+function roomMax(s) { if (s.phase === 'scramble') return 2; return (s.phase === 'p0' ? TUNE.slowMonths : 2) + tierSign(s, 'cos'); }
 function roomPreview(s, id, params) {
   const a = ACT[id]; params = params || {};
   const tags = typeof a.tags === 'function' ? a.tags(s, params) : a.tags;
@@ -873,14 +903,14 @@ PROJECTS.forEach(pr => def({
 def({ id: 'meet', cat: 'politics', name: 'Meet one-on-one', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 0,
   params: { kind: 'principal' },
   desc: 'An hour in their office. Builds the relationship and moves their view on pacing a little.',
-  effect: (s, prm) => 'Relationship +10; their stance on pacing shifts toward yours.' + (prm && prm.who && meetMult(s, prm.who) < 1 ? ' You met recently, so this one does ' + Math.round(100 * meetMult(s, prm.who)) + '% as much.' : ''),
+  effect: (s, prm) => 'Relationship +' + TUNE.meetBase + '; their stance on pacing shifts toward yours.' + (prm && prm.who && meetMult(s, prm.who) < 1 ? ' You met recently, so this one does ' + Math.round(100 * meetMult(s, prm.who)) + '% as much.' : ''),
   avail(s, prm) { if (prm && prm.who && s.flags['met_' + prm.who] === s.turn) return 'Already met this turn'; return true; },
   apply(s, prm) {
     const p = P(s, prm.who); const d = PD(s, prm.who); const per = d.persuade || 1;
     // back-to-back meetings (within two months) with the same person each do 60% of the last
     p.streak = p.lastMet != null && s.turn - p.lastMet <= 2 ? (p.streak || 0) + 1 : 0; p.lastMet = s.turn;
     const m = Math.pow(TUNE.meetDecay, p.streak);
-    rel(s, prm.who, (10 + (s.cred > 60 ? 3 : 0)) * (0.4 + 0.6 * per) * m); rivalHit(s, prm.who, 2); p.shift = Math.min(1.4, p.shift + (0.12 + 0.1 * Math.max(0, (s.salience - 30) / 50)) * per * m); s.flags['met_' + prm.who] = s.turn;
+    rel(s, prm.who, (TUNE.meetBase + (s.cred > 60 ? 3 : 0)) * (0.4 + 0.6 * per) * m); rivalHit(s, prm.who, 2); p.shift = Math.min(1.4, p.shift + (0.12 + 0.1 * Math.max(0, (s.salience - 30) / 50)) * per * m); s.flags['met_' + prm.who] = s.turn;
     return 'The ' + d.name + ' gives you the hour. ' + (p.streak ? pick(s, ['You have been here a lot lately. They mostly repeat themselves.', 'They check their phone twice.']) : pick(s, ['They listen more than you expected.', 'They push back hard, then ask good questions.', 'You leave with a promise to keep talking.'].concat(p.alt ? [] : MEET[prm.who])));
   },
 });
@@ -1253,7 +1283,7 @@ const TERMS = [
   { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work. Shared research worries the Pentagon and the IC: offering it costs the Secretary of War 4, the DNI 3 and 3 Senate votes for 6 months.' },
   { id: 'relief', label: 'Entity List relief', desc: 'Sanctions relief for Chinese AI firms; some of it helps their compute. Offering it costs State 4 and 3 Senate votes for 6 months.' },
   { id: 'visas', label: 'Eased visas for researchers', desc: 'A carrot with a counterintelligence cost. Offering it costs the DNI 5.' },
-  { id: 'misuse', label: 'Joint misuse response', desc: 'Shared DNA synthesis screening, joint takedowns of sovereign agents, and a hotline for AI-enabled attacks. Beijing fears the same things; it is worth more to them as open models get dangerous. Offering it costs the DNI 4 and State 3: sharing screening data means sharing what we watch.' },
+  { id: 'misuse', label: 'Joint misuse response', desc: 'Shared DNA synthesis screening, joint takedowns of sovereign agents, and a hotline for AI-enabled attacks. Beijing fears the same things; it is worth more to them as open models get dangerous. Offering it costs the DNI 8 and State 6: sharing screening data means sharing what we watch.' },
   { id: 'chips', label: 'Resume legal chip sales', desc: 'A carrot that directly feeds their compute. Offering it costs every hawk 4 and 6 Senate votes for 6 months.' },
   { id: 'threat', label: 'Threaten a full cutoff if they refuse', desc: 'Credible only with a big lead.' },
 ];
@@ -1307,6 +1337,7 @@ function cnParts(s, terms, pub) {
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
   if (terms.freeze) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
+  if (tierSign(s, 'sec')) P_.push([isAlly(s, 'sec') ? 'The Secretary of State is carrying your offer' : 'The Secretary of State is undercutting your offer', 0.25 * tierSign(s, 'sec')]);
   if (terms.misuse) P_.push(['Joint misuse response (worth more as open models get dangerous)', misusePactWorth(s)]);
   CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
   // export controls are leverage: Beijing values getting back what you took
@@ -1416,7 +1447,7 @@ function makeOffer(s, terms) {
   if (terms.lane) industry(s, -3);
   if (terms.visas) rel(s, 'dni', -5);
   if (terms.institute) { s.flags.instituteOffered = s.t; rel(s, 'war', -TUNE.inst.war); rel(s, 'dni', -TUNE.inst.dni); }
-  if (terms.misuse) { rel(s, 'dni', -4); rel(s, 'sec', -3); }
+  if (terms.misuse) { rel(s, 'dni', -TUNE.pactDni); rel(s, 'sec', -TUNE.pactSec); }
   const p = cnAcceptP(s, terms);
   const cnRoll = rnd(s); const accepted = cnRoll < p;
   s.cn.cooldown = s.phase === 'scramble' ? 2 : 1;
@@ -2342,6 +2373,14 @@ ev({ id: 'cn_scientist', p: 0.15, once: true, phases: ['p0', 'p1'], when: s => s
     { label: 'Have the IC find out who pulled it down', hint: 'Intelligence quality +6; a sharp read on Beijing for three months.', fx: s => { s.intelQ += 6; s.flags.assessUntil = Math.max(s.flags.assessUntil || 0, s.turn + 3); return 'The order came from the Central Propaganda Department, not the military. That tells you something about who is winning the argument.'; } },
     { label: 'Ignore it', hint: 'Nothing changes.', fx: () => 'The translation circulates in Washington for a week.' },
   ] });
+ev({ id: 'us_defect', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 2,
+  title: 'A one-way ticket', stamp: 'FBI Counterintelligence',
+  body: s => `<p>A senior researcher from ${LD(frontierLab(s).id).name}'s pretraining team lands in Beijing on a Chinese passport. ${paced(s) ? 'Friends say the pause left them with nothing to build.' : 'Friends say Beijing offered a lab of their own.'} The FBI thinks the training recipes went with them, in their head if not on a drive.</p>`,
+  choices: [
+    { label: 'Indict them and chase the know-how', hint: 'China gains less (+0.3 months instead of +0.5). Beijing temperature +5; DNI +5; State -4; salience +3.', fx: s => { s.cn.cap += 0.3; s.tension += 5; rel(s, 'dni', 5); rel(s, 'sec', -4); s.salience += 3; return 'The indictment names the recipes. Beijing calls it a kidnapping charge in reverse.'; } },
+    { label: 'Clearances for frontier lab staff', hint: 'China gains +0.5 months. Labs -8; intelligence quality +4; DNI +6.', fx: s => { s.cn.cap += 0.5; s.labs.forEach(l => l.rel -= 8); s.intelQ += 4; rel(s, 'dni', 6); return 'Every frontier researcher gets an SF-86. Two more quit rather than fill it out.'; } },
+    { label: 'Let it go quietly', hint: 'China gains +0.5 months. Beijing trust +3; War -6.', fx: s => { s.cn.cap += 0.5; s.cn.trust += 3; rel(s, 'war', -6); return 'Beijing notices that you noticed and said nothing. So does the Secretary of War.'; } },
+  ] });
 ev({ id: 'state_law', p: 0.15, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
   title: 'Sacramento', stamp: 'California State Capitol',
   body: () => `<p>California passes a frontier AI safety law with incident reporting, third-party audits and a kill-switch requirement. The labs want federal preemption. Twelve other states are drafting copies.</p>`,
@@ -2585,11 +2624,12 @@ function tick(s) {
     s.markets += (100 - 30 * dragNow - s.markets) * 0.08 + (paced(s) ? -1.2 * (s.flags.marketPlan ? 0.5 : 1) : 0.4) + (c.deal ? 0.8 : 0);
     s.cred += TUNE.mktCred * (s.markets - 100) / 20;
     marketNews(s);
-    s.principals.forEach(p => { p.askAge++; if (p.askAge > 4) { p.rel -= 3; p.askAge = 0; } });
+    s.principals.forEach(p => { p.askAge++; if (p.askAge > TUNE.askNeglect) { p.rel -= 3; p.askAge = 0; } });
     // firing
     s.principals.forEach(p => { const d = PRINCIPALS[PIDX[p.id]]; if (d.fireable && !p.alt && p.infl < 12) { const old = PD(s, p.id).name; p.alt = true; p.infl = 45; p.rel = 0; p.shift = 0; s.queue.push({ id: 'fired_p', pid: p.id, name: old }); log(s, 'The ' + old + ' is out.', 'pol'); } });
     s.cred -= hostileDrain(s);
     misuseTick(s);
+    tierTick(s);
     cabinetMoves(s);
   }
   if (s.phase === 'p0') {
@@ -2860,6 +2900,7 @@ const API = {
   senateParts,
   supportParts,
   relTier,
+  TIER_FX,
   allyCount,
   capitalIncome,
   marketCapital,
