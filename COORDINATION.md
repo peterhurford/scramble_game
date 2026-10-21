@@ -24,6 +24,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 | Branch | Session | Touches |
 |---|---|---|
 | markets2 (e2d790e, queued for v31) | 44 | markets: mktCred 0.8 to 1.3; marketNews line (hash01, play unchanged) |
+| cabinet (36eca18, queued for v31) | f3 | principals: standing tiers, cabinet odds, pact cost, event us_defect; Treasury tier moves markets. One-line conflict with markets2 at the askAge tick (keep both) |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
