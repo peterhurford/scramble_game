@@ -89,7 +89,7 @@ const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.25, drag: 
 function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const age = s.t - (s.flags.sl5Since == null ? s.t : s.flags.sl5Since); return l.drag + (l.dragStart - l.drag) * Math.max(0, 1 - age / 12); }
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
-const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
+const TUNE = { inst: { war: 4, dni: 3, senate: 3, trust: 8, sci: 3, insp: 2 }, theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2,
   // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
@@ -266,6 +266,7 @@ function senateParts(s) {
   // offering a carrot costs votes from the day the package goes to Beijing, for 6 months or for as long as a deal holds it
   const offered = k => (s.cn.deal && s.cn.deal.terms[k]) || (s.flags[k + 'Offered'] != null && s.t - s.flags[k + 'Offered'] < 6);
   if (offered('chips')) P_.push([s.cn.deal && s.cn.deal.terms.chips ? 'Deal resumes chip sales' : 'You offered Beijing chips', -6]);
+  if (offered('institute') && TUNE.inst.senate) P_.push([s.cn.deal && s.cn.deal.terms.institute ? 'Deal shares safety research with Beijing' : 'You offered Beijing a joint institute', -TUNE.inst.senate]);
   if (offered('relief')) P_.push([s.cn.deal && s.cn.deal.terms.relief ? 'Deal gives sanctions relief' : 'You offered Beijing sanctions relief', -3]);
   if (s.flags.senateFlipped) P_.push(['Opposition Senate holding AI hearings', TUNE.senateFlip]);
   if (s.war) P_.push(['Pausing AI in wartime looks like disarmament', -10]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -5]);
@@ -986,7 +987,7 @@ const TERMS = [
   { id: 'inspect', label: 'Mutual on-site inspections', desc: 'Inspectors at each other’s threshold sites. Required for Phase 2. Beijing’s security services hate it.' },
   { id: 'freeze', label: 'Freeze the current ratio', desc: 'The 1922 Washington Naval Treaty clause: lock in today’s gap. Hawks like it; Beijing doesn’t.' },
   { id: 'lane', label: 'Market lane and open-weight ceiling', desc: 'The SALT I logic: Chinese sub-frontier models keep selling, including in the US, and both sides keep published weights at least 3 months below the paced frontier. Without it, Beijing can keep publishing its models under a deal. Offering it costs industry 3.' },
-  { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work. Costs nothing at home.' },
+  { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work. Shared research worries the Pentagon and the IC: offering it costs the Secretary of War 4, the DNI 3 and 3 Senate votes for 6 months.' },
   { id: 'relief', label: 'Entity List relief', desc: 'Sanctions relief for Chinese AI firms; some of it helps their compute. Offering it costs State 4 and 3 Senate votes for 6 months.' },
   { id: 'visas', label: 'Eased visas for researchers', desc: 'A carrot with a counterintelligence cost. Offering it costs the DNI 5.' },
   { id: 'chips', label: 'Resume legal chip sales', desc: 'A carrot that directly feeds their compute. Offering it costs every hawk 4 and 6 Senate votes for 6 months.' },
@@ -1128,6 +1129,7 @@ function makeOffer(s, terms) {
   if (terms.relief) { s.flags.reliefOffered = s.t; rel(s, 'sec', -4); }
   if (terms.lane) industry(s, -3);
   if (terms.visas) rel(s, 'dni', -5);
+  if (terms.institute) { s.flags.instituteOffered = s.t; rel(s, 'war', -TUNE.inst.war); rel(s, 'dni', -TUNE.inst.dni); }
   const p = cnAcceptP(s, terms);
   const cnRoll = rnd(s); const accepted = cnRoll < p;
   s.cn.cooldown = s.phase === 'scramble' ? 2 : 1;
@@ -1137,7 +1139,7 @@ function makeOffer(s, terms) {
     if (terms.lane) { rel(s, 'vp', -8); industry(s, -5); rel(s, 'tsy', 10); shiftCN(s, { m: 5 }); }
     if (terms.relief) { s.cn.legalT = Math.max(s.cn.legalT, 0.4); rel(s, 'sec', -10); }
     if (terms.chips) { s.cn.legalT = 1; rel(s, 'sec', -20); rel(s, 'war', -10); }
-    if (terms.institute) { s.cn.trust += 15; shiftCN(s, { sci: 6 }); s.verify.inspect += 4; }
+    if (terms.institute) { s.cn.trust += TUNE.inst.trust; shiftCN(s, { sci: TUNE.inst.sci }); s.verify.inspect += TUNE.inst.insp; }
     if (terms.inspect) s.verify.inspect += 8;
     if (terms.freeze || terms.ultimatum) rel(s, 'sec', 8);
     if (terms.ultimatum) s.cn.trust -= 5;
