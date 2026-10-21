@@ -2133,7 +2133,7 @@ function tick(s) {
   }
 
   // --- midterms
-  if (!s.seen.midterms && s.t >= 0.75) { s.flags.senateFlipped = rnd(s) < logistic((5 - 0.4 * (s.markets - 100) - 0.1 * s.salience) / 3); s.queue.push({ id: 'midterms' }); s.seen.midterms = s.turn; }
+  if (!s.seen.midterms && s.t >= 0.75) { s.flags.senateFlipped = rnd(s) < logistic((3.4 - 0.4 * (s.markets - 100) - 0.1 * s.salience) / 3); s.queue.push({ id: 'midterms' }); s.seen.midterms = s.turn; }
   if (!s.seen.uae && s.t >= 15.6) { s.queue.push({ id: 'uae' }); s.seen.uae = s.turn; }
 
   // --- the pacing bill comes to a vote
