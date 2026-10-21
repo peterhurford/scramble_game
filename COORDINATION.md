@@ -6,7 +6,7 @@ The integrator keeps this file current: open branches, batches, and who reports 
 
 Measure against these with `node sim/compare.js <genome>` (4,000 games from seed 900000).
 
-- Rules: main at 281480a (v28 batch). Genomes: v28, committed in 7b98fb5. compare.js: run0 612.6, run1 627.3, run2 612.8, run3 (from v27 dove) 643.3; hawk 621.7 / 616.3 / 596.6; dove 632.7 / 632.0 / 662.9; together 497.4 / 489.0 / 473.5 (each ± 5.5-6.0). Measure branches against sim/v28_run3.json (best unrestricted).
+- Rules: main at 281480a (v28 batch). Genomes: v28, committed in 7b98fb5. compare.js: run0 612.6, run1 627.3, run2 612.8, run3 (from v27 dove) 643.3; hawk 621.7 / 616.3 / 596.6; dove 632.7 / 632.0 / 662.9; together 497.4 / 489.0 / 473.5 (each ± 5.5-6.0). Measure branches against sim/v28_run3.json (best unrestricted). TUNE, the engine API, GENES, expertGenome and exports are one entry per line since 58d9b5b: add a new key on its own line.
 - Fitness: mean score (since 3dea930). Report mean score ± SE first, Phase 2 second.
 
 ## Batches
@@ -17,7 +17,6 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 | v28 (landed 7b98fb5) | cut-guard-ultimatum, loosethr, flavor, institute-cost, leverage, senate-odds, senate-probes | 44, f3, 9c, 07, c7 | EE: one batch; M: institute at TUNE.inst default; EX: hawk and dove with RUNS=0,1,2, one main run started from the dove |
 | v28 (landed 7b98fb5) | "Only together" search (PIN seq=together, gofirstIc=0), sim/v28together_run* | 9c reports | T |
 | v29 (open) | probe-free (e60eac1) | c7 | F: investigation uses no action, salience +8 |
-| next | split TUNE, exports, GENES and expertGenome to one entry per line | integrator | EV |
 
 ## Open branches and what they touch
 
