@@ -93,7 +93,7 @@ const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2,
   // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
-  open: 1, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1, laneGap: 3 };
+  open: 1, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1, laneGap: 3, growRisk: 4 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -170,6 +170,8 @@ function lead(s) { return frontier(s) - s.cn.cap; }
 function seenLead(s) { return leadEstimate(s).mid; }
 // Pacing alone: with no deal and the IC's lead down to TUNE.aloneFloor, paused labs keep pace with the IC's estimate of China instead of stopping.
 function keepGap(s) { return paced(s) && !s.cn.deal && seenLead(s) < TUNE.aloneFloor; }
+// Growth a threshold leaves paced labs, before automation limits and drag.
+function thGrowth(s) { return { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12; }
 function paced(s) { return !!s.pacing.active; }
 function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
 // A signed lab racing on standby that agreed to keep automation limits: runaway hazard 0.12 instead of 0.30, 8% slower.
@@ -225,7 +227,7 @@ function usRates(s, assumeCompliant) {
     if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (guarded(s, l) ? 0.92 : 1) * (1 - drag);
     if (l.defect && !assumeCompliant) return 0.7;
     if (l.secret && !assumeCompliant) return 0.12 + TUNE.secretRate; // a classified government run at a paused lab
-    const th = { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12;
+    const th = thGrowth(s);
     const r = (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'mindscale' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
     return keepGap(s) ? Math.max(r, cnEstimate(s).rate) : r;
   });
@@ -311,7 +313,7 @@ function hazards(s) {
   s.labs.forEach(l => {
     const d = LD(l.id);
     let h;
-    if (!covered(s, l)) h = guarded(s, l) ? 0.12 : 0.30; else if (l.secret) h = 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
+    if (!covered(s, l)) h = guarded(s, l) ? 0.12 : 0.30; else if (l.secret) h = 0.30; else if (l.defect) h = 0.15; else h = (s.pacing.automation ? 0.02 : 0.10) * clamp(thGrowth(s) / 0.12, 1, TUNE.growRisk); // a threshold that lets labs keep training big runs keeps their risk, up to TUNE.growRisk times
     if (s.done.control && (covered(s, l) || d.safety >= 50)) h *= 0.6;
     if (s.flags.dodCarve) h += 0.01;
     if (l.id === 'mindscale' && s.flags.uaeOut && covered(s, l) && TUNE.uaeHazard) h = (1 - TUNE.uaeShare) * h + TUNE.uaeShare * 0.30; // the UAE share trains unconstrained
@@ -782,7 +784,7 @@ def({ id: 'mech', cat: 'crisis', name: 'Choose the pacing mechanism', phases: ['
 const THRESH = {
   '1e20': { label: '1e20 OP/s', desc: 'Maximum caution. Hundreds of sites, inference clouds included. Labs and markets hate it; inspectors are stretched.', tags: { pause: 1.5, industry: -1.5, markets: -0.8 } },
   '1e21': { label: '1e21 OP/s', desc: 'About 5e27 FLOP over six months at 30% utilization. Roughly 25 facilities at 15 locations, 14 parties.', tags: { pause: 0.8, industry: -0.4 } },
-  '1e22': { label: '1e22 OP/s', desc: 'Only the very biggest. Nothing clears it in 2027; the largest site runs about 3.6e21. Constrains almost nothing.', tags: { pause: 0.2, industry: 0.2 } },
+  '1e22': { label: '1e22 OP/s', desc: 'Only the very biggest. Nothing clears it in 2027; the largest site runs about 3.6e21. Constrains almost nothing, so paced labs keep training and keep about four times the runaway risk of a real pause.', tags: { pause: 0.2, industry: 0.2 } },
 };
 def({ id: 'threshold', cat: 'crisis', name: 'Set the compute threshold', phases: ['scramble'], ap: 1, pc: 1, room: true,
   params: { kind: 'variant', options: s => Object.keys(THRESH).filter(k => !(k === '1e20' && s.flags.floor21)).map(k => ({ id: k, label: THRESH[k].label, desc: THRESH[k].desc })) },
