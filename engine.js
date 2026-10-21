@@ -228,6 +228,12 @@ const TUNE = {
   agents: 1,
   agentOpen: 1.5,
   agentBase: 33,
+  // markets: points away from 100 per capital a turn, Senate and pacing-support votes per point, President's extra weight on market costs per point below 100, credibility a month per 20 points
+  mktCap: 30,
+  mktSenate: 0.15,
+  mktSupport: 0.6,
+  mktPres: 0.005,
+  mktCred: 0.8,
 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -422,7 +428,7 @@ function frontierRate(s, pub) { const rs = usRates(s, pub); const fl = frontierL
 
 // Senate votes for a pacing statute (60 to pass), as labeled parts so the UI can show where they come from.
 function senateParts(s) {
-  const P_ = [['Base', TUNE.senateBase], ['Salience', 0.35 * s.salience], ['Markets', 0.12 * (s.markets - 100)], ['Coalition of allies', 0.12 * s.coalition], ['Your work on the Hill', s.senateLobby]];
+  const P_ = [['Base', TUNE.senateBase], ['Salience', 0.35 * s.salience], ['Markets', TUNE.mktSenate * (s.markets - 100)], ['Coalition of allies', 0.12 * s.coalition], ['Your work on the Hill', s.senateLobby]];
   if (s.cn.deal) P_.push(['A deal with Beijing in force', 6]);
   P_.push(['The US lead, as the IC reads it', 0.6 * clamp(seenLead(s) - 2, -3, 8)]);
   // offering a carrot costs votes from the day the package goes to Beijing, for 6 months or for as long as a deal holds it
@@ -445,7 +451,7 @@ function supportParts(s) {
   const unsigned = s.labs.reduce((a, l) => a + (covered(s, l) ? (l.id === 'mindscale' && s.flags.uaeOut && TUNE.uaeSupport ? LD(l.id).share * TUNE.uaeShare : 0) : LD(l.id).share), 0);
   const ld = seenLead(s);
   const months = s.flags.monthsInP1 || 0;
-  const P_ = [['Base', 30], ['Pause fatigue (' + months + ' months)', -(paced(s) ? 3.5 * Math.max(0, months - 1) : 0)], ['Salience', 0.35 * (s.salience - 30)], ['The cabinet\u2019s view of pacing', 30 * pauseMood(s)], ['Markets', 0.5 * (s.markets - 100)]];
+  const P_ = [['Base', 30], ['Pause fatigue (' + months + ' months)', -(paced(s) ? 3.5 * Math.max(0, months - 1) : 0)], ['Salience', 0.35 * (s.salience - 30)], ['The cabinet\u2019s view of pacing', 30 * pauseMood(s)], ['Markets', TUNE.mktSupport * (s.markets - 100)]];
   if (s.cn.deal) P_.push(['China has signed on', 12]);
   else if (paced(s) && ld >= TUNE.aloneFloor - 0.5 && months > 1) P_.push(['The lead is holding', 1.75 * (months - 1)]); // halves the fatigue
   if (ld < 5) P_.push(['China is close behind (IC estimate)', -Math.min(18, 3.5 * (5 - ld))]);
@@ -540,8 +546,8 @@ function relTier(r) { return r >= 40 ? 'Ally' : r >= 15 ? 'Friendly' : r > -15 ?
 // Hostile principals undercut you with the President: 2 credibility a month at influence 60, scaled by influence, at most 3 in total.
 function hostileDrain(s) { return Math.min(3, s.principals.reduce((a, p) => a + (p.rel <= -40 ? 2 * p.infl / 60 : 0), 0)); }
 function allyCount(s) { return s.principals.filter(p => p.rel >= 40).length; }
-// Capital income per turn. Markets add or subtract 1 per 20 points from 100; fractions carry over between turns.
-function marketCapital(s) { return (s.markets - 100) / 20; }
+// Capital income per turn. Markets add or subtract 1 per TUNE.mktCap points from 100; fractions carry over between turns.
+function marketCapital(s) { return (s.markets - 100) / TUNE.mktCap; }
 function capitalIncome(s) { return (s.phase === 'scramble' ? 2 : (s.phase === 'p1' ? 2 : 1) + Math.floor(s.cred / 35)) + Math.floor(allyCount(s) / 3) + marketCapital(s) + (s.war && s.war.months < 3 ? 1 : 0); }
 // Per-month probability that something escapes control, for each actor. The threshold is fuzzy: danger rises
 // smoothly with capability (about 10% of full strength 3 months short, 75% at the threshold, nearly full past it).
@@ -807,7 +813,7 @@ function presBias(s, tags) {
   const hawk = TUNE.hawkBase + TUNE.hawkProvoke * Math.min(3, s.provoked || 0) + (s.cn.posture === 'race' ? TUNE.hawkRace : 0) + (s.war ? 0.15 : s.blockade ? 0.08 : 0);
   let b = 0.06 * (tags.control || 0) + hawk * (tags.hawk || 0) + 0.03 * (tags.military || 0);
   if (tags.deal) b += 0.05 * tags.deal * (seenLead(s) > 3 ? 1 : -1);
-  b += (0.02 + 0.004 * Math.max(0, 100 - s.markets)) * (tags.markets || 0); // the worse the markets, the more the President weighs market costs
+  b += (0.02 + TUNE.mktPres * Math.max(0, 100 - s.markets)) * (tags.markets || 0); // the worse the markets, the more the President weighs market costs
   return b;
 }
 // Oval decisions a turn: one a month in Phase 0 (so two in its two-month turns), two in the scramble and Phase 1; an Ally Chief of Staff adds one.
@@ -2565,6 +2571,7 @@ function tick(s) {
     const dragNow = usDrag(s).total;
     if (dragNow > 0.05) s.labs.forEach(l => { l.rel -= 10 * dragNow; });
     s.markets += (100 - 30 * dragNow - s.markets) * 0.08 + (paced(s) ? -1.2 * (s.flags.marketPlan ? 0.5 : 1) : 0.4) + (c.deal ? 0.8 : 0);
+    s.cred += TUNE.mktCred * (s.markets - 100) / 20;
     s.principals.forEach(p => { p.askAge++; if (p.askAge > 4) { p.rel -= 3; p.askAge = 0; } });
     // firing
     s.principals.forEach(p => { const d = PRINCIPALS[PIDX[p.id]]; if (d.fireable && !p.alt && p.infl < 12) { const old = PD(s, p.id).name; p.alt = true; p.infl = 45; p.rel = 0; p.shift = 0; s.queue.push({ id: 'fired_p', pid: p.id, name: old }); log(s, 'The ' + old + ' is out.', 'pol'); } });
