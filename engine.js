@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.10, remote: 0.06, smuggle: 0.05, dist: 0.04 }, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -217,6 +217,7 @@ function usRates(s, assumeCompliant) {
     const drag = usDrag(s).total;
     if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (guarded(s, l) ? 0.92 : 1) * (1 - drag);
     if (l.defect && !assumeCompliant) return 0.7;
+    if (l.secret && !assumeCompliant) return 0.12 + TUNE.secretRate; // a classified government run at a paused lab
     const th = { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12;
     return (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'mindscale' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
   });
@@ -291,7 +292,7 @@ function hazards(s) {
   s.labs.forEach(l => {
     const d = LD(l.id);
     let h;
-    if (!covered(s, l)) h = guarded(s, l) ? 0.12 : 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
+    if (!covered(s, l)) h = guarded(s, l) ? 0.12 : 0.30; else if (l.secret) h = 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
     if (s.done.control && (covered(s, l) || d.safety >= 50)) h *= 0.6;
     if (s.flags.dodCarve) h += 0.01;
     if (l.id === 'mindscale' && s.flags.uaeOut && covered(s, l) && TUNE.uaeHazard) h = (1 - TUNE.uaeShare) * h + TUNE.uaeShare * 0.30; // the UAE share trains unconstrained
@@ -1136,6 +1137,7 @@ def({ id: 'summit', cat: 'diplo', name: 'Convene the Phase 2 summit', phases: ['
   effect: s => 'If the President agrees, Beijing decides. Estimated chance Beijing signs: ' + Math.round(100 * summitP(s)) + '%.' + (s.flags.statute ? ' Pacing is law, so the courts cannot void it.' : ' No statute: chance a court voids the US side, ' + Math.round(100 * summitCourtP(s)) + '%.') + ' Your confidence Beijing will comply: ' + betrayWord(s) + '.',
   apply(s) {
     const p = summitP(s);
+    if (s.labs.some(l => l.secret) && rnd(s) < 0.7) { s.labs.forEach(l => { l.secret = false; }); s.cn.trust -= 30; s.tension += 15; cnAggrieve(s); if (s.cn.deal) s.cn.deal = null; s.flags.summitFailed = (s.flags.summitFailed || 0) + 1; log(s, 'Phase 2 inspectors found the secret run. Beijing walks out.', 'bad'); return 'On the second day of the summit, Chinese inspectors walk into a cluster that should have been dark. Beijing walks out, and the interim deal goes with it.'; }
     if (rnd(s) < p) {
       if (!s.flags.statute && rnd(s) < summitCourtP(s)) { s.cred -= 10; s.cn.trust -= 10; s.flags.summitFailed = (s.flags.summitFailed || 0) + 1; log(s, 'A court voids the executive orders implementing Phase 2.', 'bad'); return 'Beijing signs. Nine days later a federal court rules the executive orders implementing it exceed your authority. Beijing suspends its side until Congress acts.'; }
       if (rnd(s) < betrayP(s)) { s.ending = 'betrayed'; log(s, 'Phase 2 is signed. Beijing was hiding a program.', 'bad'); return 'Beijing signs. Months later you learn what your intelligence missed.'; }
@@ -1170,6 +1172,18 @@ def({ id: 'covert', cat: 'covert', name: 'Covert disruption of Chinese AI', phas
   desc: 'Cyber operations on training clusters and interdicted chip shipments. Deniable in principle; Beijing will know anyway.',
   effect: () => '60%: China loses about 1.5 months. Beijing temperature +20; their security faction surges. If attributed (35%), Beijing retaliates and the US frontier loses two weeks.',
   apply(s) { s.stats.covert++; s.tension += 20; shiftCN(s, { sec: 10, sci: -5 }); if (rnd(s) < 0.6) s.cn.cap -= 1.5; if (rnd(s) < 0.35) { s.flags.covertExposed = s.turn; s.cn.trust -= 15; frontierLab(s).cap -= 0.5; return 'The operation works, and it is attributed within days. Beijing answers in kind: a frontier lab loses two weeks to a wiper attack. Any deal just got harder.'; } return 'Three checkpoints are corrupted. Beijing says nothing in public, which worries the DNI more than threats would.'; },
+});
+def({ id: 'secret', cat: 'covert', name: 'A secret US training run', phases: ['p1'], ap: 1, pc: 2, room: true,
+  tags: { military: 1.5, hawk: 1.5, deal: -1, control: -1 },
+  avail(s) { if (!paced(s)) return 'Only while the pause is in force'; if (s.labs.some(l => l.secret)) return 'A run is already under way'; return true; },
+  desc: 'Keep the frontier moving while America is publicly paused: a classified run at the leading lab, on government orders. Beijing is looking for exactly this.',
+  effect: () => 'The leading lab keeps advancing about half a month a month, outside the pause\u2019s safeguards. Each month Beijing may catch it (likelier if the deal has inspections), and Phase 2 inspectors would probably find it.',
+  apply(s) { const l = frontierLab(s); l.secret = true; s.flags.secretSince = s.turn; return 'The order is signed in a SCIF. ' + LD(l.id).name + '\u2019s largest cluster keeps training under a classified program.'; },
+});
+def({ id: 'endsecret', cat: 'covert', name: 'Shut down the secret run', phases: ['p1'], ap: 1, pc: 0,
+  avail(s) { return s.labs.some(l => l.secret) ? true : 'No secret run under way'; },
+  desc: 'Stop the classified run before Beijing finds it.', effect: () => 'The lab goes back to the pause.',
+  apply(s) { s.labs.forEach(l => { l.secret = false; }); return 'The cluster goes quiet. The paperwork goes into a safe.'; },
 });
 def({ id: 'strike', cat: 'covert', name: 'Kinetic strike on frontier facilities', phases: ['scramble', 'p1'], ap: 2, pc: 5, room: true,
   tags: { military: 3, hawk: 2, deal: -3, markets: -2 },
@@ -1695,6 +1709,20 @@ ev({ id: 'walkout', forced: true, title: 'A walkout', stamp: 'Lab general counse
     { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (rnd(s) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
     { label: 'Let them go', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
   ]; } });
+// Beijing's grievance: for six months after catching America cheating, Beijing is likelier to cheat on a deal itself.
+function cnAggrieve(s) { s.flags.cnGrievance = s.turn + 6; }
+ev({ id: 'us_exposed', forced: true, title: 'Beijing has the receipts', stamp: 'PRC Embassy, 7:10a',
+  body: s => `<p>China\u2019s ambassador hands over thermal imagery and power-draw logs from ${LD((s.labs.find(l => l.secret) || frontierLab(s)).id).name}\u2019s largest cluster, running flat out during the pause. \u201cWe would like to understand what America means by pacing.\u201d</p>`,
+  choices: [
+    { label: 'Stop the run and hand over the logs', hint: 'The run ends. Beijing trust -20; temperature +8; for six months Beijing is likelier to cheat. Any deal survives.', fx: s => { s.labs.forEach(l => { l.secret = false; }); s.cn.trust -= 20; s.tension += 8; cnAggrieve(s); return 'The cluster goes quiet within the hour. Beijing accepts the logs, coldly.'; } },
+    { label: 'Deny everything', hint: 'The run continues. Any deal with Beijing collapses; trust -35; temperature +20; Beijing turns to its security services.', fx: s => { s.cn.trust -= 35; s.tension += 20; shiftCN(s, { sec: 10, sci: -5 }); cnAggrieve(s); if (s.cn.deal) { s.cn.deal = null; log(s, 'Beijing walks away from the interim deal.', 'bad'); } return 'Beijing publishes the imagery the same afternoon and suspends the deal.'; } },
+  ] });
+ev({ id: 'us_lab_caught', forced: true, title: 'A complaint from Beijing', stamp: 'Verification channel',
+  body: s => `<p>Beijing\u2019s verification office reports that ${LD(s.queue[0].lab).name} is training above the threshold, split across clusters and labeled as inference. Its evidence is good.</p>`,
+  choices: [
+    { label: 'Admit it and stop the run', hint: 'The lab stops; Beijing trust -6.', fx: s => { const l = L(s, s.queue[0].lab); l.defect = false; s.cn.trust -= 6; return 'You confirm it and order the run stopped. Beijing notes that the system worked.'; } },
+    { label: 'Deny it', hint: 'Beijing trust -15; temperature +6; for six months Beijing is likelier to cheat itself.', fx: s => { s.cn.trust -= 15; s.tension += 6; cnAggrieve(s); return '\u201cWe have no information about that.\u201d Beijing does.'; } },
+  ] });
 ev({ id: 'tinder', forced: true, title: 'Dry tinder', stamp: 'Commerce chip data',
   body: s => `<p>Chip production did not pause. Threshold sites have stockpiled about ${Math.round(s.overhang)} months of extra compute. When the pause ends, the first run would be enormous.</p>`,
   choices: [{ label: 'Note it', hint: 'Hardware pacing is now on the table. Phase 2 needs it if the overhang tops 8.', fx: () => 'You add it to the Phase 2 checklist.' }] });
@@ -1709,7 +1737,7 @@ ev({ id: 'collapse', forced: true, title: 'The pause breaks', stamp: 'Oval Offic
   choices: [{ label: 'Start over', hint: 'Back to Phase 0. You can try for another scramble.', fx: s => { endPacing(s); return 'You start rebuilding the case.'; } }] });
 function endPacing(s) {
   s.pacing.active = false; s.pacing.collapsed++; s.phase = 'p0'; s.alarm = 45; s.cred -= 10;
-  s.labs.forEach(l => { l.covered = false; l.defect = false; });
+  s.labs.forEach(l => { l.covered = false; l.defect = false; l.secret = false; });
   s.pacing.mech = null; s.pacing.threshold = null; s.pacing.automation = null; s.pacing.trigger = null; s.pacing.seq = null; s.pacing.armed = false; s.pacing.deadline = null; s.flags.extended = 0; s.flags.wentFirst = false; s.flags.verifyEnjoined = false;
   s.labs.forEach(l => { l.signed = false; l.refused = false; });
   s.apMax = Math.max(DIFFS[s.diff].ap + (s.done.team ? 1 : 0), s.apMax - 1);
@@ -1996,7 +2024,7 @@ function tick(s) {
   if (monthly && c.deal) {
     // a deal reached in cold conditions is brittle: low trust, and controls still in force, make Beijing likelier to cheat
     const held = ['chips', 'remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
-    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held)) c.cheat = true;
+    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held) * ((s.flags.cnGrievance || 0) >= s.turn ? 1.6 : 1)) c.cheat = true;
     const quiet = (s.flags.cheatQuiet || 0) >= s.turn || s.queue.some(q => q.id === 'cn_cheat');
     if (!quiet && c.cheat && rnd(s) < cnVisibility(s)) s.queue.push({ id: 'cn_cheat', real: true, conf: cheatConf(s, true) });
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
@@ -2087,6 +2115,9 @@ function tick(s) {
     if (s.flags.appeal === s.turn) { if (rnd(s) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
     if (s.overhang >= 5 && !s.seen.tinder) { s.queue.push({ id: 'tinder' }); s.seen.tinder = s.turn; }
+    // Beijing is watching too: a secret US run (likelier with inspections in the deal and a hard-pushing cyber service), or a US lab cheating under a deal
+    if (s.labs.some(l => l.secret) && !s.queue.some(q => q.id === 'us_exposed') && rnd(s) < TUNE.usCatch + (s.cn.deal && s.cn.deal.terms.inspect ? 0.25 : 0) + 0.1 * clamp((s.cn.cyber || 1) - 1, -0.5, 0.8)) s.queue.push({ id: 'us_exposed' });
+    if (s.cn.deal) s.labs.forEach(l => { if (l.defect && !l.cnSaw && rnd(s) < TUNE.cnSeesUS) { l.cnSaw = true; s.queue.push({ id: 'us_lab_caught', lab: l.id }); } });
     // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
     if (s.pacing.mech === 'charter' && !s.flags.statute && !s.queue.some(q => q.id === 'walkout')) s.labs.forEach(l => {
       if (!l.covered || !l.signedVoluntary) return;

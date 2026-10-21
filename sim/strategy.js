@@ -9,7 +9,7 @@ const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offs
 // Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
 const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['warn_due', 'walkout', 'rider', 'knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield'];
+const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
@@ -22,7 +22,7 @@ PEOPLE.forEach(p => g('fav.' + p, 'bool'));
 g('favReserve', 'int', 0, 8);
 g('briefR', 'real', 0.3, 0.95); g('briefOdds', 'real', 0.1, 0.95); g('briefIc', 'real', 0, 10); g('briefIcOdds', 'real', 0.05, 0.9);
 g('saveIc', 'real', 0, 10); g('saveReserve', 'int', 0, 6); g('speechIc', 'real', 0, 10); g('alliesIdle', 'bool');
-g('mech', 'choice', ['charter', 'dpa', 'license']); g('mechHostile', 'choice', ['charter', 'dpa', 'license']); g('mechCut', 'real', 0.5, 2); g('charterMin', 'real', 0, 0.9); g('mechNoSign', 'choice', ['dpa', 'license']); g('licRelMin', 'real', -40, 101); g('thr', 'choice', ['1e20', '1e21', '1e22']); g('auto', 'bool');
+g('mech', 'choice', ['charter', 'dpa', 'license']); g('mechHostile', 'choice', ['charter', 'dpa', 'license']); g('mechCut', 'real', 0.5, 2); g('charterMin', 'real', 0, 0.9); g('mechNoSign', 'choice', ['dpa', 'license']); g('secretLead', 'real', -1, 10); g('licRelMin', 'real', -40, 101); g('thr', 'choice', ['1e20', '1e21', '1e22']); g('auto', 'bool');
 g('trig', 'choice', ['200c', '200', '425', 'none']); g('seq', 'choice', ['first', 'deadline', 'together', 'adaptive']); g('seqIc', 'real', 2, 10);
 g('dealBelow', 'real', 0, 1); g('dealMinShare', 'real', 0, 0.3); g('waitFull', 'bool'); g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']); g('scrOffer', 'bool');
 ['inspect', 'lane', 'institute', 'relief', 'visas', 'freeze', 'chips'].forEach(t => g('o.' + t, 'bool'));
@@ -43,7 +43,7 @@ function expertGenome() {
   Object.keys(PGATE).forEach(p => G['pgate.' + p] = 0);
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
-    mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', licRelMin: 101, hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
+    mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', secretLead: -1, licRelMin: 101, hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
     statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, guard: false, pledgeScr: false, sound: 0, oMin: 0, ultLead: 16, warnK: 'none', warnLead: 5 });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips'].forEach(t => G['o.' + t] = false);
@@ -153,6 +153,7 @@ function turn(s, G) {
       if (confOk && tryAct(s, 'summit', {}, G, 'every Phase 2 requirement is met and confidence Beijing will comply is ' + E.betrayWord(s))) { step(); continue; }
       if (s.intelQ < G.intelTarget && tryAct(s, 'assess', {}, G, 'intelligence below ' + Math.round(G.intelTarget))) { step(); continue; }
       if (s.pacing.armed && !s.pacing.active && v.ic.mid < G.gofirstIc && tryAct(s, 'gofirst', {}, G, 'on standby and IC says RSI within ' + G.gofirstIc.toFixed(1) + ' months')) { step(); continue; }
+      if (v.leadEst.mid < G.secretLead && tryAct(s, 'secret', {}, G, 'IC lead under ' + G.secretLead.toFixed(1) + ' months: keep the frontier moving in secret')) { step(); continue; }
       if (G.covertWithin > 0.5 && v.leadEst.mid < G.covertWithin && tryAct(s, 'covert', {}, G, 'China within ' + G.covertWithin.toFixed(1) + ' months')) { step(); continue; }
       if (G.auto && !s.pacing.automation && tryAct(s, 'automation', {}, G, 'automation limits still missing')) { step(); continue; }
       if (G.trig !== 'none' && !s.pacing.trigger && tryAct(s, 'trigger', { variant: G.trig }, G, 'monitoring trigger still missing')) { step(); continue; }
