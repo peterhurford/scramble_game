@@ -73,6 +73,7 @@ g('oMin', 'real', 0, 0.8);
 g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']);
 g('warnLead', 'real', 0, 10);
 g('openP1', 'bool');
+g('ctrlLate', 'bool');
 g('reassure', 'bool');
 g('reassureLead', 'real', 0, 10);
 g('redline', 'bool');
@@ -205,6 +206,7 @@ function expertGenome() {
     warnK: 'none',
     warnLead: 5,
     openP1: false,
+    ctrlLate: false,
     reassure: false,
     reassureLead: 4,
     redline: false,
@@ -245,6 +247,13 @@ function seen(s) {
   const c = s.cn, b = E.cnSources({ sme: 1, remote: 1, smuggle: 1, legal: 1 }), src = t ? E.cnSources(c) : { offshore: b.offshore * Math.min(1, c.remoteT), smuggled: b.smuggled * Math.min(1, c.smuggleT), legal: b.legal * c.legalT };
   return Object.assign(src, extra, { dist: t ? c.dist : Math.min(1, c.distT), cyber: t ? c.cyber : 1, hide: t ? c.hide : 1 });
 }
+// ctrlLate (the true hawk): keep imposing the four export controls after Phase 0 in priority order, and drop one once the President rejects it.
+const CTRL = ['chips', 'remote', 'distill', 'smuggle'], REJ = new WeakMap(), rejOf = s => REJ.get(s) || REJ.set(s, new Set()).get(s);
+function ctrlNow(s, G) {
+  const id = CTRL.filter(p => G['pol.' + p] >= 0 && !s.policies[p] && !rejOf(s).has(p) && !(GATE[p] && gated(s, G, p) !== false)).sort((a, b) => G['pol.' + b] - G['pol.' + a])[0];
+  if (!id || !tryAct(s, id, {}, G, 'true hawk: an export control is still missing')) return false;
+  if (!s.policies[id]) rejOf(s).add(id); return true;
+}
 const gated = (s, G, p) => { const gt = G['gate.' + p]; if (!gt) return false; const x = seen(s)[GATE[p][0]]; return x < gt ? x : false; };
 const pgated = (s, G, p) => { const gt = G['pgate.' + p]; return !!gt && seen(s)[PGATE[p][0]] < gt; };
 // The mechanism: licensing when Commerce is warm enough; otherwise one choice when counsel reads the courts below the cut,
@@ -269,7 +278,7 @@ function turn(s, G) {
     const saving = v0.ic.mid < G.saveIc;
     if (v0.ic.mid < G.speechIc && v0.briefOdds < 0.5 && tryAct(s, 'speech', {}, G, 'IC says RSI within ' + G.speechIc.toFixed(1) + ' months and the meeting is not yet winnable')) step();
     const pols = POL0.filter(p => G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a]);
-    for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { step(); if (s.phase !== 'p0' || s.roomUsed >= E.roomMax(s)) break; } }
+    for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (G.ctrlLate && rejOf(s).has(id)) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { if (G.ctrlLate && CTRL.includes(id) && !s.policies[id]) rejOf(s).add(id); step(); if (s.phase !== 'p0' || s.roomUsed >= E.roomMax(s)) break; } }
     if (s.phase !== 'p0') return;
     const v1 = E.quickView(s);
     const wantBrief = (v1.rObs > G.briefR && v1.briefOdds > G.briefOdds) || (v1.ic.mid < G.briefIc && v1.briefOdds > G.briefIcOdds);
@@ -306,6 +315,7 @@ function turn(s, G) {
         if (tryAct(s, id, prm, G, id === 'mech' ? 'courts read ' + E.courtRead(s).word + ', Mindscale ' + Math.round(100 * E.charterOdds(s, 'mindscale', false)) + '% to sign' : 'scramble plan, in order')) { did = true; step(); break; }
       }
       if (did) continue;
+      if (G.ctrlLate && ctrlNow(s, G)) { step(); continue; }
       if (leverNow(s, G)) { step(); continue; }
       if (G.scrIdle === 'remote' && tryAct(s, 'remote', {}, G, 'spare scramble action')) { step(); continue; }
       if ((G.scrIdle === 'meet' || G.scrIdle === 'remote') && tryAct(s, 'meet', { who: 'doc' }, G, 'spare scramble action: work on the Commerce Secretary')) { step(); continue; }
@@ -319,6 +329,7 @@ function turn(s, G) {
       const v = E.quickView(s);
       const confOk = CONF.indexOf(E.betrayWord(s)) >= CONF.indexOf(G.summitConf);
       if (confOk && tryAct(s, 'summit', {}, G, 'every Phase 2 requirement is met and confidence Beijing will comply is ' + E.betrayWord(s))) { step(); continue; }
+      if (G.ctrlLate && ctrlNow(s, G)) { step(); continue; }
       if (s.intelQ < G.intelTarget && tryAct(s, 'assess', {}, G, 'intelligence below ' + Math.round(G.intelTarget))) { step(); continue; }
       if (s.pacing.armed && !s.pacing.active && v.ic.mid < G.gofirstIc && tryAct(s, 'gofirst', {}, G, 'on standby and IC says RSI within ' + G.gofirstIc.toFixed(1) + ' months')) { step(); continue; }
       if (v.leadEst.mid < G.secretLead && tryAct(s, 'secret', {}, G, 'IC lead under ' + G.secretLead.toFixed(1) + ' months: keep the frontier moving in secret')) { step(); continue; }

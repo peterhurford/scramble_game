@@ -182,6 +182,10 @@ const TUNE = {
   cheatResent: 0.15,
   cnWin: 0.10,
   ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 },
+  ctrlHeat: 0.5,
+  ctrlMkt: 1,
+  ctrlHawk: 3,
+  cnCompW: 0.4,
   secretRate: 0.5,
   usCatch: 0.1,
   cnSeesUS: 0.15,
@@ -403,11 +407,12 @@ function cnRate(s) {
   const p = paced(s);
   // metr_graph's split of China's pace, in US-pace units: own research 0.26, compute 0.15, distillation 0.27, leaked methods 0.22.
   // Compute is raised to 0.25 (own research down to 0.16) as a hedge: the split measures compute at its growth rate, not a sudden cut.
+  // TUNE.cnCompW (0.4) is the slope on changes in compute; each game's starting pace stays at the 0.25 calibration (c.comp0 is compute at newGame).
   // Under a pause, as in metr_graph: distillation keeps copying the paused frontier, falling with the gap left (gap / gap at the pause);
   // leaked methods fade as China absorbs what already leaked, over a year. Copying shrinks when there is little left to copy.
   const gap0 = s.pacing.gap0 || Math.max(0.5, gap), pm = p ? Math.max(0, s.t - (s.pacing.since == null ? s.t : s.pacing.since)) : 0;
   const copy = (0.34 * c.dist * (p ? clamp(gap / gap0, 0, 1) : 1) + 0.22 * (c.leak == null ? 1 : c.leak) * (p ? Math.max(0, 1 - pm / 12) : 1)) * (gap > 0.5 ? 1 : 0.3);
-  let r = (c.inno == null ? 0.16 : c.inno) + 0.25 * cnComp(s) + copy;
+  let r = (c.inno == null ? 0.16 : c.inno) + TUNE.cnCompW * cnComp(s) - (TUNE.cnCompW - 0.25) * (c.comp0 == null ? cnComp(s) : c.comp0) + copy;
   // game-balance choice, not an estimate: each channel a control has cut also slows China's own research (tools, cloud, talent), by up to TUNE.ctrlBite
   const b = cnBase(s), B = TUNE.ctrlBite;
   r *= 1 - (B.legal * (1 - c.legal) + B.remote * Math.max(0, 1 - c.remote / b.remote) + B.smuggle * Math.max(0, 1 - c.smuggle / b.smuggle) + B.dist * Math.max(0, 1 - c.dist / b.dist));
@@ -758,7 +763,7 @@ function newGame(opts) {
   // hidden per-game miscalibration: each indicator's marker sits somewhat off the true threshold, and the IC has a standing bias
   s.cal = { uplift: clamp(0.15 * gauss(s), -0.3, 0.3), cobench: clamp(0.15 * gauss(s), -0.3, 0.3), horizon: clamp(0.15 * gauss(s), -0.3, 0.3), arr: clamp(0.15 * gauss(s), -0.3, 0.3) };
   s.icBias = clamp(2.2 * gauss(s), -4.5, 4.5);
-  cnStart(s);
+  cnStart(s); s.cn.comp0 = cnComp(s);
   s.open = TUNE.open ? s.cn.cap - TUNE.openLag : null;
   if (dk === 'excomm') shiftCN(s, { m: -5, sec: 7, sci: -2 });
   recordIndicators(s); pushHist(s);
@@ -938,15 +943,15 @@ def({ id: 'assess', cat: 'intel', name: 'Commission an IC assessment', phases: [
 def({ id: 'distill', cat: 'policy', name: 'Anti-distillation crackdown', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.5, industry: 0.6, commerce: 0.5 },
   desc: 'KYC for frontier APIs, a cutoff for resellers, lawsuits against account farms, detection shared across labs.',
-  effect: s => 'The US-model outputs China harvests fall by about 95% over three months. Each 10x of harvested data is worth only about a quarter of the gain, so China keeps about two-thirds of its distillation boost. Worth the most early: much of its value is a one-time boost already baked into where China stands. Costs US labs about 1.5% of their pace (customer friction).',
-  apply(s) { s.cn.distT = Math.min(s.cn.distT, 0.68 * cnBase(s).dist); s.tension += 5; shiftCN(s, { sec: 3, m: -3 }); return 'Commerce and the labs announce the crackdown together, including a cutoff for resellers. Three Chinese labs lose 24,000 accounts overnight.'; },
+  effect: s => 'The US-model outputs China harvests fall by about 95% over three months. Each 10x of harvested data is worth only about a quarter of the gain, so China keeps about two-thirds of its distillation boost. Worth the most early: much of its value is a one-time boost already baked into where China stands. Costs US labs about 1.5% of their pace (customer friction).' + ctrlGainText(),
+  apply(s) { ctrlGain(s); s.cn.distT = Math.min(s.cn.distT, 0.68 * cnBase(s).dist); s.tension += 5 * TUNE.ctrlHeat; shiftCN(s, { sec: 3 * TUNE.ctrlHeat, m: -3 * TUNE.ctrlHeat }); return 'Commerce and the labs announce the crackdown together, including a cutoff for resellers. Three Chinese labs lose 24,000 accounts overnight.'; },
 });
 def({ id: 'remote', cat: 'policy', name: 'Close the remote-access loophole', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.8, markets: -0.4, allies: -0.5, commerce: 1 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
   desc: 'Chinese firms train their largest runs on data centers abroad, above all in Johor, Malaysia. Close the cloud loophole.',
-  effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +8. US clouds lose foreign revenue: US labs 2% slower.',
-  apply(s) { s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8; shiftCN(s, { sec: 4, m: -2 }); s.coalition -= 3; return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
+  effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +' + Math.round(8 * TUNE.ctrlHeat) + '. US clouds lose foreign revenue: US labs 2% slower.' + ctrlGainText(),
+  apply(s) { ctrlGain(s); s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8 * TUNE.ctrlHeat; shiftCN(s, { sec: 4 * TUNE.ctrlHeat, m: -2 * TUNE.ctrlHeat }); s.coalition -= 3; return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
 });
 def({ id: 'methods', cat: 'policy', name: 'Stop the leak of US methods', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.2, industry: -0.8, control: 0.4 },
@@ -957,15 +962,15 @@ def({ id: 'methods', cat: 'policy', name: 'Stop the leak of US methods', phases:
 def({ id: 'smuggle', cat: 'policy', name: 'Chip smuggling enforcement surge', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1, room: true, once: true,
   tags: { hawk: 1, commerce: 1, control: 0.5 },
   desc: 'BIS agents in Singapore and the Gulf, location verification on export licenses, prosecutions.',
-  effect: () => 'Smuggled compute falls by about half; chip accounting +8.',
-  apply(s) { s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.5 * cnBase(s).smuggle); s.verify.inspect += 4; s.tension += 2; return 'Forty new enforcement agents deploy. The first indictment comes within weeks.'; },
+  effect: () => 'Smuggled compute falls by about half; chip accounting +8.' + ctrlGainText(),
+  apply(s) { ctrlGain(s); s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.5 * cnBase(s).smuggle); s.verify.inspect += 4; s.tension += 2 * TUNE.ctrlHeat; return 'Forty new enforcement agents deploy. The first indictment comes within weeks.'; },
 });
 def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
   tags: { hawk: 1.6, markets: -1.2, industry: -0.6, deal: -0.8, allies: -0.4 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
   desc: 'Pull the licenses for chips sold legally to Chinese firms, close the smuggled-HBM channel, and get the Dutch and Japanese to stop servicing chipmaking tools in China. The big, expensive lever, and nearly all of it comes from the legal chips.',
-  effect: s => 'China loses legal chips now (−16% compute); HBM curbs trim its domestic output over a year (up to −2% more; the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets -3, Beijing temperature +12, Treasury unhappy. US labs 3% slower, and Beijing may answer with mineral export curbs that slow them much more.',
-  apply(s) { const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12; shiftCN(s, { m: -5, sec: 7 }); rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
+  effect: s => 'China loses legal chips now (−16% compute); HBM curbs trim its domestic output over a year (up to −2% more; the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets ' + (TUNE.ctrlMkt >= 3 ? '+' : '') + (TUNE.ctrlMkt - 3) + ', Beijing temperature +' + Math.round(12 * TUNE.ctrlHeat) + ', Treasury unhappy. US labs 3% slower, and Beijing may answer with mineral export curbs that slow them much more.' + ctrlGainText(true),
+  apply(s) { ctrlGain(s); const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12 * TUNE.ctrlHeat; shiftCN(s, { m: -5 * TUNE.ctrlHeat, sec: 7 * TUNE.ctrlHeat }); rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
 });
 def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
@@ -1096,6 +1101,9 @@ const SEQ = {
   together: { label: 'Only together', desc: 'The labs sign, but nobody stops until Beijing signs too. The hawks are happy and markets are calm. The labs keep racing toward the threshold. Beijing believes it only as far as you have prepared: a matched-pause law, verification ready, a presidential pledge.', tags: { pause: 0.3, hawk: 1.4, deal: 0.2, military: 0.4 } },
 };
 const HAWKS = ['vp', 'sec', 'war', 'doc'];
+// Each export control reassures markets a little (TUNE.ctrlMkt) and wins standing with the hawks (TUNE.ctrlHawk), which feeds capital through allies.
+function ctrlGain(s) { s.markets += TUNE.ctrlMkt; HAWKS.forEach(id => rel(s, id, TUNE.ctrlHawk)); }
+const ctrlGainText = noMkt => (noMkt ? '' : ' Markets +' + TUNE.ctrlMkt + ';') + ' Hawks +' + TUNE.ctrlHawk + '.';
 def({ id: 'sequence', cat: 'crisis', name: 'Go first, or wait for Beijing?', phases: ['scramble'], ap: 1, pc: 1, room: true,
   params: { kind: 'variant', options: () => Object.keys(SEQ).map(k => ({ id: k, label: SEQ[k].label, desc: SEQ[k].desc })) },
   tags: (s, prm) => SEQ[prm.variant || 'first'].tags,
