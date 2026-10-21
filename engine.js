@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, theftShare: 0.5, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -1750,7 +1750,7 @@ function endPacing(s) {
 
 // --- crisis events ---
 ev({ id: 'theft', forced: true, title: 'The weights are gone', stamp: 'NSA Operations, 3:12a',
-  body: s => `<p>A state-backed actor spent six days inside ${LD(s.queue[0].lab).name}’s network and moved 1.9 TB out through a compromised build server: the weights of its best model. A Chinese lab can run it within weeks. China closes about half the gap as it absorbs it.</p>`,
+  body: s => `<p>A state-backed actor spent six days inside ${LD(s.queue[0].lab).name}’s network and moved 1.9 TB out through a compromised build server: the weights of its best model. A Chinese lab can run it within weeks. The lead you built collapses to about one month.</p>`,
   choices: [
     { label: 'Degrade it with cyber operations', hint: '55%: China loses 2.5 months. Beijing temperature +20.', fx: s => { s.tension += 20; shiftCN(s, { sec: 8 }); s.stats.covert++; if (rnd(s) < 0.55) { s.cn.cap -= 2.5; return 'Two clusters lose a month to corrupted checkpoints.'; } return 'The operation is detected early. Beijing hardens and disperses.'; } },
     { label: 'Go public and rally allies', hint: 'Salience +8; coalition +10; Senate +3; Beijing trust -5.', fx: s => { s.salience += 8; s.coalition += 10; s.senateLobby += 3; s.cn.trust -= 5; s.tension += 6; s.flags.incidentTurn = s.turn; return 'Allies are outraged. Two fence-sitting governments back the regime.'; } },
@@ -2040,7 +2040,7 @@ function tick(s) {
     const tr = theftRisk(s);
     if (rnd(s) < tr.attempt * dt) {
       const tgt = frontierLab(s);
-      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap += (F - 0.6 - c.cap) * TUNE.theftShare; /* a stolen model closes part of the gap: China still has to absorb it */ s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); log(s, 'Frontier model weights were stolen.', 'bad'); }
+      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); log(s, 'Frontier model weights were stolen.', 'bad'); }
       else if (rnd(s) < 0.5) s.queue.push({ id: 'theft_foiled', lab: tgt.id });
     }
   }
@@ -2211,7 +2211,7 @@ function lessons(s) {
   const out = [];
   if (s.ending === 'betrayed') out.push('Phase 2 was signed with intelligence quality ' + Math.round(s.intelQ) + '. Weak intelligence and thin verification let Beijing hide a program; the GEOINT baseline, verification funding and IC assessments are what make an agreement enforceable.');
   if (s.stats.scrambleStart != null) out.push(s.flags.statute ? 'Congress made pacing law, so the courts could not take it away.' : 'The pause ran on executive authority alone, one injunction away from unraveling. A statute takes Hill work and two months, but ends the court risk.');
-  out.push(s.sl >= 4 ? 'Labs reached SL' + s.sl + '. Security cost speed, and a stolen frontier model would have closed about half the gap.' : 'Labs stayed at SL3. A stolen frontier model closes about half the gap' + (s.stats.thefts ? ', and it happened ' + s.stats.thefts + ' time' + (s.stats.thefts > 1 ? 's' : '') + '.' : '.'));
+  out.push(s.sl >= 4 ? 'Labs reached SL' + s.sl + '. Security cost speed, and a stolen frontier model would have collapsed the gap to about a month.' : 'Labs stayed at SL3. A stolen frontier model collapses the gap to about a month' + (s.stats.thefts ? ', and it happened ' + s.stats.thefts + ' time' + (s.stats.thefts > 1 ? 's' : '') + '.' : '.'));
   if (s.done.memo) out.push('The memo was ready before the knock on the door. Work done before the scramble matters most.');
   else if (s.stats.scrambleStart != null) out.push('Nobody had written the memo for the emergency meeting. It is one of the cheapest things to have ready.');
   if (s.done.zk) out.push('Proof-of-training is real work, but it did not count during Phase 1: the government does not trust novel tools on day one.');
