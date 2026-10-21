@@ -1,8 +1,9 @@
 {
  "_rules": {
-  "hash": "9ae576abd077",
+  "hash": "fc51337ab3ce",
   "commit": "a8b1032",
-  "at": "2026-10-21T03:53:10.028Z"
+  "at": "2026-10-21T03:53:10.028Z",
+  "restamped": "b3f9c27: war text only, ending/month/score md5 identical over 1500 games"
  },
  "proj.team": 0.8539654894054537,
  "proj.memo": 1,
