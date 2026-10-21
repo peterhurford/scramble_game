@@ -968,12 +968,12 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   effect: () => 'Orders SL4. It takes effect after 1 more action implementing it: then a theft attempt succeeds 25% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
   apply(s) { s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
-def({ id: 'probe', cat: 'politics', name: 'Ask a friendly chair for an investigation', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
+def({ id: 'probe', cat: 'politics', name: 'Ask a friendly chair for an investigation', phases: ['p0', 'scramble', 'p1'], ap: 0, pc: 1,
   tags: { pause: 0.5, industry: -1 },
   avail(s) { if (!s.seen.midterms || s.flags.senateFlipped) return 'Only while the President\u2019s party holds the Senate'; return (s.flags.cooldowns.probe || -9) > s.turn - 3 ? 'Too soon after the last one' : true; },
   desc: 'A committee chair from the President\u2019s party opens an investigation into how the labs handle safety.',
-  effect: () => 'Salience +6; industry -6.',
-  apply(s) { s.flags.cooldowns.probe = s.turn; s.salience += 6; industry(s, -6); return pick(s, ['The Commerce chair subpoenas red-team reports from both labs.', 'The Intelligence chair asks why a lab\u2019s weights left a contractor\u2019s laptop.', 'Mindscale\u2019s general counsel spends a week preparing for a deposition.']); },
+  effect: () => 'Salience +8; industry -6. Uses no action.',
+  apply(s) { s.flags.cooldowns.probe = s.turn; s.salience += 8; industry(s, -6); return pick(s, ['The Commerce chair subpoenas red-team reports from both labs.', 'The Intelligence chair asks why a lab\u2019s weights left a contractor\u2019s laptop.', 'Mindscale\u2019s general counsel spends a week preparing for a deposition.']); },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
   tags: { pause: 1, industry: -1, markets: -0.5 },
