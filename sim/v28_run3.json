@@ -1,8 +1,9 @@
 {
  "_rules": {
-  "hash": "f0605e00c954",
+  "hash": "35f1eeac9d91",
   "commit": "281480a",
-  "at": "2026-10-21T06:18:46.093Z"
+  "at": "2026-10-21T06:18:46.093Z",
+  "restamped": "58d9b5b: EV text-only split; TUNE, GENES, expertGenome and 4500 games hash identical"
  },
  "proj.team": -0.9774243858020073,
  "proj.memo": 0.5775405296532126,
