@@ -50,7 +50,7 @@ const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WA
 const EVTYPE = {
   crisis: ['bio_attack', 'cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'redline_due', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
   beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un'],
-  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
+  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
 };
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'] };
@@ -306,6 +306,7 @@ const catchWord = p => p < 0.15 ? 'rarely' : p < 0.35 ? 'sometimes' : p < 0.6 ? 
 const stanceCol = st => st > 0.25 ? 'var(--good)' : st < -0.25 ? 'var(--bad)' : 'var(--faint)';
 // What saying yes to an ask does, beyond the ask itself.
 function grantTip(id, ask) { const n = E.recentFavors(S) * E.TUNE.favorCred; return `Do what they ask now: 1 action and ${ask.pc} capital${n ? `, and ${n} credibility (you granted another favor in the last four months)` : ''}. They warm to you a lot (relationship +25, influence +4); their rivals cool a little. Ignoring an ask for four months costs a little goodwill.`; }
+function tierTip(id) { const fx = E.TIER_FX[id]; return `Ally (40+): ${fx[0]} An Ally shrugs off half of any loss. Hostile (-40 or less): ${fx[1]} Every three Allies give +1 capital a turn; each Hostile costs about 2 credibility a month. Every 10 points tilts their vote toward you.`; }
 function roomPanel(v) {
   const ps = S.principals.map(p => ({ p, d: E.PD(S, p.id), st: pStance(p.id) }));
   const tot = ps.reduce((a, x) => a + x.p.infl, 0) || 1;
@@ -318,7 +319,7 @@ function roomPanel(v) {
     ${ps.map(({ p, d, st }) => {
       const ask = E.currentAsk(S, p.id); const fav = E.availability(S, 'favor', { who: p.id }), favCred = E.recentFavors(S) * E.TUNE.favorCred;
       return `<div class="pc"><button class="av" data-who="${p.id}" style="background:${stanceCol(st)}" title="${st > 0.25 ? 'For' : st < -0.25 ? 'Against' : 'Open on'} pacing · influence ${Math.round(p.infl)}. Click to meet.">${SEAT[p.id]}</button>
-        <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · ${esc(d.bio)} Click to meet.">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="Ally 40+: every three Allies give +1 capital a turn. Hostile -40 or less: costs you 2 credibility a month. Every 10 points tilts their vote toward you.">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
+        <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · ${esc(d.bio)} Click to meet.">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="${esc(tierTip(p.id))}">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
         ${d.moods ? `<div class="sub mood">${esc(d.moods[E.relTier(p.rel)])}</div>` : ''}
         <div class="ask"><span>Asks you: ${esc(ask.text)}</span><button class="ghost sm" data-favor="${p.id}" ${fav === true ? '' : 'disabled'} title="${esc(fav === true ? grantTip(p.id, ask) : fav)}">Say yes ${costHtml({ ap: 1, pc: ask.pc })}${favCred ? `<span class="dn">\u2212${favCred} cred</span>` : ''}</button></div>${fav === true ? '' : `<div class="sub">${esc(fav)}</div>`}</div></div>`;
     }).join('')}`;
