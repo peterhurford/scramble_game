@@ -5,6 +5,8 @@
 // GROUP_P=0.3 (default) of children resample a whole S.GROUPS group, so moves that need several genes at once are reachable.
 // RUNS=0,1,2 runs several searches in one process, so every run uses the code loaded at the start.
 // OUT=sim/v13 writes sim/v13_run<N>.json instead of best_genome[_runN].json. START=genome.json seeds the search (START=a.json,b.json,c.json: one per run).
+// KEEP (default on, KEEP=0 off): at the end the start and the final play 4000 held-out games (seeds 700000+, apart from training and
+// compare.js's 900000+); the run keeps the better, so it never ends below its start.
 // A lock file (the main checkout's sim/.search.lock) makes a second search wait for the first instead of splitting the cores.
 const { Worker, isMainThread, parentPort } = require('worker_threads');
 // The main thread loads the rules only once it holds the lock, so a queued search runs the code current when it starts.
@@ -119,6 +121,7 @@ async function search(RUN) {
   let parent = start ? Object.assign(S.expertGenome(), S.loadGenome(start)) : S.expertGenome();
   delete parent._rules;
   Object.assign(parent, PIN); PARENT = parent;
+  const first = parent;
   const T0 = Date.now(), stamp = S.rulesStamp();
   let b = 0, seeds = batch(b);
   let pr = (await evalMany([parent], seeds))[0];
@@ -138,6 +141,12 @@ async function search(RUN) {
     }
   }
   const secs = ((Date.now() - T0) / 1000).toFixed(0);
+  if (process.env.KEEP !== '0' && parent !== first) {
+    const held = Array.from({ length: 4000 }, (_, i) => 700000 + i), [hf, hs] = await evalMany([parent, first], held);
+    const line = `run ${RUN} KEEP on 4000 held-out games: final ${hf.score.toFixed(1)}, start ${hs.score.toFixed(1)}; keeping the ${fit(hs) > fit(hf) ? 'start' : 'final'}`;
+    console.log(line); fs.appendFileSync(logf, line + '\n');
+    if (fit(hs) > fit(hf)) parent = first;
+  }
   fs.writeFileSync(out, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1)); try { fs.unlinkSync(part); } catch (_) {}
   const reuse = `${(100 * REUSED.games / Math.max(1, REUSED.games + REUSED.played)).toFixed(0)}% of games reused`;
   if (process.env.NOVAL) { console.log(`run ${RUN}: ${GENS} generations in ${secs} s; ${RACE.alive} of ${RACE.kids} raced children finished the batch; ${reuse}`); return; }
