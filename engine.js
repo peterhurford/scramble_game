@@ -237,7 +237,7 @@ const TUNE = {
   mktSenate: 0.15,
   mktSupport: 0.6,
   mktPres: 0.005,
-  mktCred: 0.8,
+  mktCred: 1.3,
 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -329,6 +329,17 @@ function rel(s, id, d) { const p = P(s, id); p.rel = clamp(p.rel + d, -100, 100)
 function infl(s, id, d) { const p = P(s, id); p.infl = clamp(p.infl + d, 0, 100); }
 function L(s, id) { return s.labs[LIDX[id]]; }
 function LD(id) { return LABS[LIDX[id]]; }
+// A news line, at most every three months, hinting at what a weak or strong market does to your capital, credibility and votes. Uses hash01, not rnd, so play is unchanged.
+const MARKET_NEWS = {
+  low: ['Futures slide again. Donors call the Chief of Staff, and your own calls come back a little slower.', 'CNBC runs a segment on \u201cthe AI pause trade.\u201d Two members who backed you go quiet on the Hill.', 'Treasury circulates a memo on market confidence. Your office is in the second paragraph.', 'A 401(k) chart goes viral. Nobody at the senior staff meeting asks for your view.'],
+  high: ['The S&P closes at a record. The West Wing is in a generous mood, and your asks clear faster.', 'Markets shrug off the AI headlines. Members who were nervous start returning your calls.'],
+};
+function marketNews(s) {
+  const band = s.markets < 90 ? 'low' : s.markets > 110 ? 'high' : null;
+  if (!band || s.turn - (s.flags.marketNews || -9) < 3 || hash01(s.seed, 'mktnews', s.turn) > 0.5) return;
+  const xs = MARKET_NEWS[band]; s.flags.marketNews = s.turn;
+  log(s, xs[Math.floor(hash01(s.seed, 'mktline', s.turn) * xs.length)], band === 'low' ? 'bad' : 'good');
+}
 function log(s, text, tone) { s.log.push({ t: s.t, turn: s.turn, text, tone: tone || 'info' }); }
 function shiftCN(s, d) { const f = s.cn.f; for (const k in d) f[k] = Math.max(3, f[k] + d[k]); const sum = f.m + f.sec + f.sci; f.m *= 100 / sum; f.sec *= 100 / sum; f.sci *= 100 / sum; }
 
@@ -2573,6 +2584,7 @@ function tick(s) {
     if (dragNow > 0.05) s.labs.forEach(l => { l.rel -= 10 * dragNow; });
     s.markets += (100 - 30 * dragNow - s.markets) * 0.08 + (paced(s) ? -1.2 * (s.flags.marketPlan ? 0.5 : 1) : 0.4) + (c.deal ? 0.8 : 0);
     s.cred += TUNE.mktCred * (s.markets - 100) / 20;
+    marketNews(s);
     s.principals.forEach(p => { p.askAge++; if (p.askAge > 4) { p.rel -= 3; p.askAge = 0; } });
     // firing
     s.principals.forEach(p => { const d = PRINCIPALS[PIDX[p.id]]; if (d.fireable && !p.alt && p.infl < 12) { const old = PD(s, p.id).name; p.alt = true; p.infl = 45; p.rel = 0; p.shift = 0; s.queue.push({ id: 'fired_p', pid: p.id, name: old }); log(s, 'The ' + old + ' is out.', 'pol'); } });
