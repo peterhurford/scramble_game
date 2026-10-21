@@ -73,7 +73,6 @@ g('oMin', 'real', 0, 0.8);
 g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']);
 g('warnLead', 'real', 0, 10);
 g('openP1', 'bool');
-g('ratchetGap', 'real', 0, 6);
 g('reassure', 'bool');
 g('reassureLead', 'real', 0, 10);
 g('redline', 'bool');
@@ -206,7 +205,6 @@ function expertGenome() {
     warnK: 'none',
     warnLead: 5,
     openP1: false,
-    ratchetGap: 0,
     reassure: false,
     reassureLead: 4,
     redline: false,
@@ -335,7 +333,6 @@ function turn(s, G) {
       if (G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
       if (s.overhang > G.hwOver && tryAct(s, 'hardware', {}, G, 'overhang above ' + G.hwOver.toFixed(1) + ' months')) { step(); continue; }
       if (G.openP1 && tryAct(s, 'openrule', {}, G, 'open-weight release limits still missing')) { step(); continue; }
-      if (G.ratchetGap > 0.5 && E.publicFrontier(s) - E.openFrontier(s) < G.ratchetGap && tryAct(s, 'ratchet', {}, G, 'open models within ' + G.ratchetGap.toFixed(1) + ' months of the paused frontier')) { step(); continue; }
       if (v.support < G.probeSup && tryAct(s, 'probe', {}, G, 'pacing support below ' + Math.round(G.probeSup) + ': a friendly chair investigates')) { step(); continue; }
       if (v.support < G.speechSup && tryAct(s, 'speech', {}, G, 'pacing support below ' + Math.round(G.speechSup))) { step(); continue; }
       if ((s.coalition < G.alliesCoal || v.senate < G.senateT) && tryAct(s, 'allies', {}, G, 'coalition below ' + Math.round(G.alliesCoal) + ' or Senate below ' + Math.round(G.senateT))) { step(); continue; }
