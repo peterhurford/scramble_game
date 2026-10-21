@@ -91,7 +91,7 @@ function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
-  strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
+  strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -316,7 +316,7 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (s.flags.ultRejected != null && s.turn - s.flags.ultRejected < 6 ? 1.5 : 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * (s.flags.ultRejected != null && s.turn - s.flags.ultRejected < 6 ? 1.5 : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -329,9 +329,9 @@ function straitParts(s, pub) {
   const T = pub ? Math.max(0.5, F + icEstimate(s).mid * Math.max(0.05, frontierRate(s, true))) : s.T;
   const x = clamp(F / T, 0, 1.2);
   const P_ = [['Background risk', TUNE.straitBase]];
-  if (s.tension > 45) P_.push(['Beijing temperature', 0.06 * Math.pow((s.tension - 45) / 40, 2)]);
+  if (s.tension > TUNE.straitHotFrom) P_.push(['Beijing temperature', TUNE.straitHot * Math.pow((s.tension - TUNE.straitHotFrom) / 40, 2)]);
   if (s.cn.posture === 'race') P_.push(['Beijing is racing', 0.012]);
-  const pre = 0.12 * clamp((ld - 3) / 6, 0, 1) * Math.pow(x, 3) * (paced(s) ? 0.35 : 1);
+  const pre = TUNE.straitPre * clamp((ld - 3) / 6, 0, 1) * Math.pow(x, 3) * (paced(s) ? 0.35 : 1);
   if (pre > 0.0005) P_.push([paced(s) ? 'A big US lead near the threshold, even paced' : 'A big US lead racing toward the threshold', pre]);
   return P_;
 }
