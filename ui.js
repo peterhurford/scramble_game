@@ -246,7 +246,7 @@ function raceStrip(v) {
   const F = v.F, le = v.leadEst, cn = F - le.mid;
   const ic = v.ic, rate = Math.max(0.05, v.usRate);
   const Tm = F + ic.mid * rate, Tlo = F + ic.lo * rate, Thi = F + ic.hi * rate;
-  const x0 = Math.min(cn - le.err - 1.2, F - 8), x1 = Math.max(Math.min(Thi, F + 14) + 1.5, F + 4);
+  const x0 = Math.min(cn - le.err - 1.2, F - 8, v.open == null ? Infinity : v.open - 1.2), x1 = Math.max(Math.min(Thi, F + 14) + 1.5, F + 4);
   const W = 1000, H = 92, L = 24, R = 24, Y = 48;
   const X = c => L + (c - x0) / (x1 - x0) * (W - L - R);
   let g = '';
@@ -263,6 +263,7 @@ function raceStrip(v) {
   const rsiAt = [[Math.min(dzx + 8, W - R - rw), 'start'], [W - R - 4, 'end']].find(([x, a]) => { const lo = a === 'start' ? x : x - rw; return lo > gx + gw + 8 || lo + rw < gx - gw - 8; }) || [W - R - 4, 'end'];
   g += `<text x="${rsiAt[0]}" y="${Y - 24}" text-anchor="${rsiAt[1]}" class="dz">RSI possible (IC estimate)</text>`;
   g += `<path d="M${X(cn)} ${Y - 17} V${Y - 21} H${X(F)} V${Y - 17}" fill="none" stroke="var(--faint)"/><text x="${gx}" y="${Y - 26}" text-anchor="middle" class="big">${gapText}</text>`;
+  if (v.open != null) g += `<circle cx="${X(v.open)}" cy="${Y}" r="7" fill="var(--sheet)" stroke="var(--faint)" stroke-width="2"><title>Best open-weight model: anyone can download it, China included</title></circle>`;
   g += `<circle cx="${X(cn)}" cy="${Y}" r="11" fill="var(--cn)"/><text x="${X(cn)}" y="${Y + 3.5}" text-anchor="middle" class="tok">CN</text>`;
   g += `<circle cx="${X(F)}" cy="${Y}" r="11" fill="var(--us)"/><text x="${X(F)}" y="${Y + 3.5}" text-anchor="middle" class="tok">${S.pacing.active ? '⏸' : 'US'}</text>`;
   // Where the lead is headed at today's speeds, six months out.
@@ -270,7 +271,7 @@ function raceStrip(v) {
   const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : Math.abs(ahead - le.mid) < 0.3 ? `Lead <b>steady</b> at this pace` : ahead <= 0 ? `At this pace China <b>catches up within 6 months</b>` : `In 6 months at this pace: ${ahead < 0 ? `China <b>~${f1(-ahead)} mo</b> ahead` : `<b>~${f1(ahead)} mo</b> lead`}`;
   const rsi = v.ic.lo > 24 ? 'RSI: 24+ months away' : `RSI possible in <b>${Math.round(v.ic.lo)}–${v.ic.hi > 24 ? '24+' : Math.round(v.ic.hi)} mo</b>`;
   return `<section class="panel race"><div class="ph"><h2>The race</h2><div class="readouts">
-      <span>${rsi}</span><span>${cross}</span>
+      <span>${rsi}</span><span>${cross}</span>${v.open != null ? `<span title="The best model anyone can download. China uses whatever is public; open models near the threshold can run away where no shutdown reaches.">Open weights <b>${f1(F - v.open)} mo</b> behind</span>` : ''}
       ${v.inZone.length ? `<span class="hot" title="Past the near edge of the IC’s RSI window. Nobody knows the true threshold; danger rises the deeper anyone goes.">In the RSI window: <b>${esc(v.inZone.join(', '))}</b></span>` : ''}
     </div></div>
     <div class="sx"><svg class="strip" viewBox="0 0 ${W} ${H}" role="img" aria-label="Race track: US, China and the RSI threshold">${g}</svg></div></section>`;

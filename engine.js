@@ -93,7 +93,7 @@ const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2,
   // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
-  open: 0, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1 };
+  open: 1, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1, laneGap: 3 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -248,7 +248,7 @@ function cnRate(s) {
   return r;
 }
 // The best openly downloadable model, in the same months as cap. Room under the threshold (none if unpaced) plus distilling the public frontier, which fades once there is little left to copy;
-// US release limits (policies.openrule) cut both. Beijing publishing its own models (a diffusion posture, no deal) is applied in tick.
+// US release limits (policies.openrule) cut both. Beijing publishing its own models (a diffusion posture) and the deal's ceiling (the lane term) are applied in tick.
 function openFrontier(s) { return s.open == null ? s.cn.cap : s.open; }
 function openRate(s) {
   const room = TUNE.openRoom[paced(s) ? s.pacing.threshold : 'none'] || TUNE.openRoom.none, gap = publicFrontier(s) - s.open;
@@ -985,7 +985,7 @@ const TERMS = [
   { id: 'cap', label: 'Mutual compute cap at the threshold', fixed: true, desc: 'The core of any deal. Both sides stop training above the line.' },
   { id: 'inspect', label: 'Mutual on-site inspections', desc: 'Inspectors at each other’s threshold sites. Required for Phase 2. Beijing’s security services hate it.' },
   { id: 'freeze', label: 'Freeze the current ratio', desc: 'The 1922 Washington Naval Treaty clause: lock in today’s gap. Hawks like it; Beijing doesn’t.' },
-  { id: 'lane', label: 'Market lane for Chinese open-weight models', desc: 'The SALT I logic: Chinese sub-frontier models keep selling, including in the US, while they stay below agreed levels. Offering it costs industry 3.' },
+  { id: 'lane', label: 'Market lane and open-weight ceiling', desc: 'The SALT I logic: Chinese sub-frontier models keep selling, including in the US, and both sides keep published weights at least 3 months below the paced frontier. Without it, Beijing can keep publishing its models under a deal. Offering it costs industry 3.' },
   { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work. Costs nothing at home.' },
   { id: 'relief', label: 'Entity List relief', desc: 'Sanctions relief for Chinese AI firms; some of it helps their compute. Offering it costs State 4 and 3 Senate votes for 6 months.' },
   { id: 'visas', label: 'Eased visas for researchers', desc: 'A carrot with a counterintelligence cost. Offering it costs the DNI 5.' },
@@ -2071,8 +2071,10 @@ function tick(s) {
   }
   c.cap += cnRate(s) * dt + gauss(s) * 0.06 * dt;
   if (s.open != null) {
-    s.open += openRate(s) * dt;
-    if (monthly && TUNE.openPub && !c.deal && c.posture === 'diffuse') s.open = Math.max(s.open, c.cap - TUNE.openLag); // Beijing publishes its labs' models
+    // an honest deal with the lane term holds every published model TUNE.laneGap below the paced frontier; weights already out stay out
+    const ceil = c.deal && c.deal.terms.lane && !c.cheat ? publicFrontier(s) - TUNE.laneGap : Infinity;
+    if (s.open < ceil) s.open = Math.min(ceil, s.open + openRate(s) * dt);
+    if (monthly && TUNE.openPub && c.posture === 'diffuse') s.open = Math.max(s.open, Math.min(ceil, c.cap - TUNE.openLag)); // Beijing publishes its labs' models
     c.cap = Math.max(c.cap, s.open - TUNE.openFloor); // downloading is not training: no deal or control stops China using what is public
   }
   c.hidden = c.deal && c.cheat ? (c.hidden || 0) + 0.45 * dt : 0; // revealed (back to 0) once the cheating stops or the deal ends
@@ -2287,7 +2289,7 @@ function view(s) {
   const le = leadEstimate(s), ic = icEstimate(s), r2 = ready2(s);
   // Who sits past the near edge of the IC's RSI window: what the player can see, unlike the hazards, which use the true threshold.
   const PF = publicFrontier(s), zoneAt = PF + ic.lo * Math.max(0.05, frontierRate(s, true));
-  const inZone = s.labs.filter(l => knownCap(l) >= zoneAt).map(l => LD(l.id).name).concat(PF - le.mid >= zoneAt ? ['China'] : []);
+  const inZone = s.labs.filter(l => knownCap(l) >= zoneAt).map(l => LD(l.id).name).concat(PF - le.mid >= zoneAt ? ['China'] : []).concat(s.open != null && s.open >= zoneAt ? ['open-weight models'] : []);
   return {
     date: dateLabel(s.t), month: monthLabel(s.t), phase: s.phase,
     phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)) + (s.war ? ' · At war' : s.blockade ? ' · Taiwan quarantined' : ''),
@@ -2295,7 +2297,7 @@ function view(s) {
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
     risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s, true), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
-    rObs: rObserved(s), pauseMood: pauseMood(s), inZone, strait: straitEstimate(s),
+    rObs: rObserved(s), pauseMood: pauseMood(s), inZone, strait: straitEstimate(s), open: s.open, // public weights: benchmarked by anyone, so seen exactly
   };
 }
 
