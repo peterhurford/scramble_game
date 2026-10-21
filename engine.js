@@ -91,7 +91,7 @@ function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
-  strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2 };
+  senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -256,7 +256,7 @@ function senateParts(s) {
   const offered = k => (s.cn.deal && s.cn.deal.terms[k]) || (s.flags[k + 'Offered'] != null && s.t - s.flags[k + 'Offered'] < 6);
   if (offered('chips')) P_.push([s.cn.deal && s.cn.deal.terms.chips ? 'Deal resumes chip sales' : 'You offered Beijing chips', -6]);
   if (offered('relief')) P_.push([s.cn.deal && s.cn.deal.terms.relief ? 'Deal gives sanctions relief' : 'You offered Beijing sanctions relief', -3]);
-  if (s.flags.houseFlipped) P_.push(['Opposition House holding AI hearings', 2]);
+  if (s.flags.senateFlipped) P_.push(['Opposition Senate holding AI hearings', TUNE.senateFlip]);
   if (s.war) P_.push(['Pausing AI in wartime looks like disarmament', -10]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -5]);
   return P_;
 }
@@ -630,11 +630,12 @@ def({ id: 'brief', cat: 'crisis', name: 'Ask for an emergency meeting', phases: 
 });
 function briefOdds(s) { const ev = 70 * Math.max(0, rObserved(s) - 0.45); return logistic((s.alarm * 0.8 + s.cred * 0.5 + ev + s.salience * 0.3 - 92) / 9); }
 
+function hillGain(s) { return 5 * (s.flags.senateFlipped ? TUNE.flipHill : 1); }
 def({ id: 'hill', cat: 'politics', name: 'Work the Hill', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
   avail(s) { return s.flags.statute ? 'Pacing is already law' : s.senateLobby >= TUNE.hillCap ? 'You have done all the Hill work you can' : true; },
   desc: 'Classified briefings for committee chairs, favors for leadership, cosponsors lined up. Builds the votes a pacing statute needs.',
-  effect: () => 'Senate +5.',
-  apply(s) { s.senateLobby = Math.min(TUNE.hillCap, s.senateLobby + 5); return pick(s, ['The Armed Services chair asks for the classified annex.', 'Two Commerce Committee Republicans agree to cosponsor.', 'Leadership wants a bill it can pass before recess.']); },
+  effect: s => 'Senate +' + hillGain(s) + (s.flags.senateFlipped ? ' (the opposition Senate discounts your work)' : '') + '.',
+  apply(s) { s.senateLobby = Math.min(TUNE.hillCap, s.senateLobby + hillGain(s)); return pick(s, ['The Armed Services chair asks for the classified annex.', 'Two Commerce Committee Republicans agree to cosponsor.', 'Leadership wants a bill it can pass before recess.']); },
 });
 def({ id: 'authorize', cat: 'politics', name: 'Ask Congress for pacing authority', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2,
   avail(s) { if (s.flags.statute) return 'Pacing is already law'; if (s.flags.billDue) return 'The bill is moving; the vote is in ' + monthLabel(s.flags.billDue); if (s.flags.billBack > s.t) return 'Leadership will not bring it back before ' + monthLabel(s.flags.billBack); const v = senateVotes(s); return v >= 60 ? true : 'Needs 60 Senate votes to start (now ' + v + ')'; },
@@ -1361,10 +1362,10 @@ function startScramble(s) {
 }
 
 ev({ id: 'midterms', forced: true, title: 'Midterms', stamp: 'Election night, 3 Nov 2026',
-  body: s => s.flags.houseFlipped
-    ? `<p>The opposition takes the House by eleven seats. Its incoming committee chairs have promised hearings on frontier AI. Hearings raise salience and pull senators toward a treaty, but the White House sees them as an attack.</p>`
-    : `<p>The President\u2019s party holds the House by four seats. The Chief of Staff calls it a mandate. A mandate for what is up for grabs.</p>`,
-  choices: s => s.flags.houseFlipped ? [
+  body: s => s.flags.senateFlipped
+    ? `<p>The opposition takes the Senate, 52 to 48. Its incoming committee chairs have promised hearings on frontier AI. Hearings raise salience and pull senators toward a treaty, but the White House sees them as an attack.</p>`
+    : `<p>The President\u2019s party holds the Senate, 51 to 49. The Chief of Staff calls it a mandate. A mandate for what is up for grabs.</p>`,
+  choices: s => s.flags.senateFlipped ? [
     { label: 'Quietly help the new chairs plan AI hearings', hint: 'Senate +6; salience +6; Chief of Staff -12 (the Chief controls your hiring).', fx: s => { s.salience += 6; s.senateLobby += 6; rel(s, 'cos', -12); return 'The hearing schedule for February has your fingerprints on it, and the Chief of Staff knows it.'; } },
     { label: 'Close ranks with the White House', hint: 'Chief of Staff +10; salience +2.', fx: s => { rel(s, 'cos', 10); s.salience += 2; return 'You help draft the talking points against the hearings. They happen anyway, a little smaller.'; } },
   ] : [
@@ -2096,7 +2097,7 @@ function tick(s) {
   }
 
   // --- midterms
-  if (!s.seen.midterms && s.t >= 0.75) { s.flags.houseFlipped = rnd(s) < logistic((5 - 0.4 * (s.markets - 100) - 0.1 * s.salience) / 3); s.queue.push({ id: 'midterms' }); s.seen.midterms = s.turn; }
+  if (!s.seen.midterms && s.t >= 0.75) { s.flags.senateFlipped = rnd(s) < logistic((5 - 0.4 * (s.markets - 100) - 0.1 * s.salience) / 3); s.queue.push({ id: 'midterms' }); s.seen.midterms = s.turn; }
   if (!s.seen.uae && s.t >= 15.6) { s.queue.push({ id: 'uae' }); s.seen.uae = s.turn; }
 
   // --- the pacing bill comes to a vote

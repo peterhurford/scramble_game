@@ -61,7 +61,7 @@ P(`- **Congress:** ${G.statute ? 'works the Hill to 60 votes and sends a pacing 
 P(`7. Surge verification (${G.surge}); meet the VP if support < ${Math.round(G.meetSup)}; then leftover projects.\n`);
 
 P('## Every event choice\n');
-const dummy = E.newGame({ seed: 3 }); dummy.policies.remote = true; dummy.flags.houseFlipped = true;
+const dummy = E.newGame({ seed: 3 }); dummy.policies.remote = true; dummy.flags.senateFlipped = true;
 const ctx = { lab: 'mindscale', who: 'mindscale', pid: 'doc', name: 'Commerce Secretary' };
 S.EVENTS.forEach(id => {
   dummy.queue = [Object.assign({ id }, ctx)];
