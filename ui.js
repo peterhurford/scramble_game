@@ -678,12 +678,8 @@ function openOffer() {
   ui.offer = ui.offer || { inspect: true };
   const t = ui.offer;
   const pv = E.offerPreview(S, t);
-  const ultOk = E.ultimatumOk(S);
-  if (t.ultimatum && ultOk !== true) delete t.ultimatum;
-  if (t.ultimatum) E.CARROT_IDS.forEach(k => delete t[k]);
   const carrot = id => E.CARROT_IDS.indexOf(id) >= 0;
-  const off = x => x.fixed || (x.id === 'ultimatum' && ultOk !== true) || (carrot(x.id) && t.ultimatum);
-  const terms = E.TERMS.map(x => `<label class="term ${x.fixed || t[x.id] ? 'on' : ''}" ${off(x) && !x.fixed ? 'style="opacity:.45"' : ''}><input type="checkbox" id="term_${x.id}" data-term="${x.id}" ${x.fixed || t[x.id] ? 'checked' : ''} ${off(x) ? 'disabled' : ''}><b>${esc(x.label)}</b><small>${carrot(x.id) ? `Beijing: ${esc(E.termRead(S, x.id).text)}. ` : ''}${x.id === 'ultimatum' && ultOk !== true ? esc(ultOk) + '. ' : ''}${esc(x.desc)}</small></label>`).join('');
+  const terms = E.TERMS.map(x => `<label class="term ${x.fixed || t[x.id] ? 'on' : ''}"><input type="checkbox" id="term_${x.id}" data-term="${x.id}" ${x.fixed || t[x.id] ? 'checked' : ''} ${x.fixed ? 'disabled' : ''}><b>${esc(x.label)}</b><small>${carrot(x.id) ? `Beijing: ${esc(E.termRead(S, x.id).text)}. ` : ''}${esc(x.desc)}</small></label>`).join('');
   const f = S.cn.f;
   openModal(`<div class="mh"><span>${icon('globe')} Offer to Beijing</span><span>${esc(E.dateLabel(S.t))} · capital ${S.pc}</span></div><div class="mb">
     <h2>The offer table</h2>

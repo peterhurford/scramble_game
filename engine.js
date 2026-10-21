@@ -172,8 +172,6 @@ function seenLead(s) { return leadEstimate(s).mid; }
 function keepGap(s) { return paced(s) && !s.cn.deal && seenLead(s) < TUNE.aloneFloor; }
 function paced(s) { return !!s.pacing.active; }
 function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
-// A signed lab racing on standby that agreed to keep automation limits: runaway hazard 0.12 instead of 0.30, 8% slower.
-function guarded(s, lab) { return !!lab.guard && !!s.pacing.armed && !paced(s); }
 function coverage(s) { return Math.round(100 * s.labs.reduce((a, l) => a + (covered(s, l) ? LD(l.id).share * (l.id === 'mindscale' && s.flags.uaeOut ? 1 - TUNE.uaeShare : 1) : 0), 0)); }
 // China's compute by channel at baseline: IFP's end-2026 stocks (Fist, Adamson & Pilz, Oct 2026) scaled to 90%, plus 10% no rule reaches.
 // HBM and tool curbs (sme) trim at most 5% of domestic within the game: the servicing ban bites only once the fleet falls below China's HBM-limited output.
@@ -222,7 +220,7 @@ function usRates(s, assumeCompliant) {
   return s.labs.map(l => {
     const d = LD(l.id);
     const drag = usDrag(s).total;
-    if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (guarded(s, l) ? 0.92 : 1) * (1 - drag);
+    if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (1 - drag);
     if (l.defect && !assumeCompliant) return 0.7;
     if (l.secret && !assumeCompliant) return 0.12 + TUNE.secretRate; // a classified government run at a paused lab
     const th = { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12;
@@ -311,7 +309,7 @@ function hazards(s) {
   s.labs.forEach(l => {
     const d = LD(l.id);
     let h;
-    if (!covered(s, l)) h = guarded(s, l) ? 0.12 : 0.30; else if (l.secret) h = 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
+    if (!covered(s, l)) h = 0.30; else if (l.secret) h = 0.30; else if (l.defect) h = 0.15; else h = s.pacing.automation ? 0.02 : 0.10;
     if (s.done.control && (covered(s, l) || d.safety >= 50)) h *= 0.6;
     if (s.flags.dodCarve) h += 0.01;
     if (l.id === 'mindscale' && s.flags.uaeOut && covered(s, l) && TUNE.uaeHazard) h = (1 - TUNE.uaeShare) * h + TUNE.uaeShare * 0.30; // the UAE share trains unconstrained
@@ -334,7 +332,7 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * (s.flags.ultRejected != null && s.turn - s.flags.ultRejected < 6 ? 1.5 : 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -857,14 +855,6 @@ def({ id: 'gofirst', cat: 'crisis', name: 'Go first after all', phases: ['p1'], 
   effect: () => 'The pause starts today. Hawks -12, Beijing trust +10, science faction +6, markets -4.',
   apply(s) { s.pacing.seq = 'first'; activatePacing(s); seqEffects(s, 'first'); return 'The President announces that America will pause first. Beijing\u2019s foreign ministry calls it \u201ca serious step.\u201d The hawks call it something else.'; },
 });
-function guardOdds(s, l) { return clamp(logistic(-1.4 + LD(l.id).safety / 35 + l.rel / 35 + (s.done.control ? 0.8 : 0)), 0.05, 0.95); }
-def({ id: 'guard', cat: 'labs', name: 'Ask a lab to keep automation limits while it races', phases: ['p1'], ap: 1, pc: 1,
-  params: { kind: 'lab', filter: (s, l) => l.signed && !l.guard, note: (s, l) => 'agrees ' + oddsWord(guardOdds(s, l)) },
-  avail(s) { if (!(s.pacing.armed && !paced(s))) return 'Only while the pause is on standby'; return s.labs.some(l => l.signed && !l.guard) ? true : 'Every signed lab already keeps them'; },
-  desc: 'On standby the signed labs race at full speed, research automation and all. Ask one to keep human review and control evals on anyway. Safety-minded labs, labs that trust you and labs with AI control protocols say yes more often.',
-  effect: s => 'Chance each lab agrees: ' + s.labs.filter(l => l.signed && !l.guard).map(l => LD(l.id).name + ' ' + Math.round(100 * guardOdds(s, l)) + '%').join(', ') + '. If it agrees, its runaway risk while racing falls from 0.30 to 0.12 at full strength and it runs 8% slower; lab -3, industry -2. A refusal costs the lab -6.',
-  apply(s, prm) { const l = L(s, prm.lab), d = LD(l.id); if (rnd(s) < guardOdds(s, l)) { l.guard = true; l.rel = clamp(l.rel - 3, -100, 100); industry(s, -2); log(s, d.name + ' agrees to keep automation limits while it races.', 'good'); return d.ceo + ' agrees: human review stays on every training job until the pause begins.'; } l.rel = clamp(l.rel - 6, -100, 100); return d.ceo + ' refuses. \u201cWe signed to stop when China stops. Not to slow down while it doesn\u2019t.\u201d'; },
-});
 def({ id: 'launch', cat: 'crisis', name: 'Launch Phase 1', phases: ['scramble'], ap: 1, pc: 0,
   desc: 'End the scramble. Pacing starts now with whatever you have decided. Undecided pieces stay undecided.',
   effect: s => launchSummary(s),
@@ -991,7 +981,6 @@ const TERMS = [
   { id: 'visas', label: 'Eased visas for researchers', desc: 'A carrot with a counterintelligence cost. Offering it costs the DNI 5.' },
   { id: 'chips', label: 'Resume legal chip sales', desc: 'A carrot that directly feeds their compute. Offering it costs every hawk 4 and 6 Senate votes for 6 months.' },
   { id: 'threat', label: 'Threaten a full cutoff if they refuse', desc: 'Credible only with a big lead.' },
-  { id: 'ultimatum', label: 'Freeze now or never', desc: 'Sign a cap at today’s gap now, or face a permanent cutoff and an open race. No carrots. Needs a 6-month lead and two of China’s three outside channels closed. Market weighs it more the wider the gap; a refusal hands Beijing to Security, which races and steals.' },
 ];
 const TERM_SHORT = { lane: 'Market lane', relief: 'Entity List relief', visas: 'Eased visas', institute: 'Joint safety institute', chips: 'Legal chip sales' };
 // Beijing's priorities, hidden and drawn per game from the seed: each carrot's worth is its base times 0.3-1.7, and one keystone is worth 1.8x more.
@@ -1009,9 +998,6 @@ function termRead(s, k) {
   return { est, known, word, worth: worthOf(s, k, est), text: word + (known ? ', confirmed' : ', IC guess') };
 }
 function chanClosed(s) { return s.cn.legalT < 0.3 && s.cn.distT < 0.5 && s.cn.remoteT < 0.5; }
-// The ultimatum needs two of China's three outside channels closed (legal chips, distillation, remote access) and a 6-month lead on the IC's estimate.
-function chansClosed(s) { const c = s.cn; return (c.legalT < 0.3) + (c.distT <= 0.7 * cnBase(s).dist) + (c.remoteT < 0.5); }
-function ultimatumOk(s) { if (chansClosed(s) < 2) return 'Freeze now or never needs two of China’s three outside channels closed: legal chips, distillation, remote access'; if (leadEstimate(s).mid < 6) return 'Freeze now or never needs a lead of 6+ months on the IC’s estimate'; return true; }
 // How believable "Only together" is to Beijing, 0-1, as labeled parts. Standby counts 0.65 x this toward a deal (going first counts 0.65).
 function standbyParts(s) {
   return [['Congress authorized a matched pause', s.flags.statute || s.flags.matchLaw ? 0.4 : 0], ['Verification ready to watch both sides', 0.3 * clamp((ready1(s) - 15) / 45, 0, 1)], ['The President’s public pledge', s.flags.pledge ? 0.3 : 0]];
@@ -1027,8 +1013,7 @@ function offerTags(terms) {
   if (terms.relief) add({ hawk: -1.2, markets: 0.5, deal: 0.5 });
   if (terms.visas) add({ hawk: -0.3 });
   if (terms.chips) add({ hawk: -2, markets: 1, industry: 0.8 });
-  if (terms.threat && !terms.ultimatum) add({ hawk: 1, deal: -0.3 });
-  if (terms.ultimatum) add({ hawk: 1.5, deal: -0.4, military: 0.3 });
+  if (terms.threat) add({ hawk: 1, deal: -0.3 });
   return t;
 }
 // Beijing's willingness to take an offer, as labeled parts so the UI can show where they come from; 0 is even odds.
@@ -1044,7 +1029,7 @@ function cnParts(s, terms, pub) {
   else P_.push(['America is not pacing', -0.7]);
   if (s.flags.wentFirst) P_.push(['America went first', 0.15]); else if (s.pacing.seq === 'deadline' && paced(s)) P_.push(['America went first, with a deadline', 0.08]);
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
-  if (terms.freeze && !terms.ultimatum) P_.push(['Freeze the current ratio', -0.3]);
+  if (terms.freeze) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
   CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
   // export controls are leverage: Beijing values getting back what you took
@@ -1052,8 +1037,7 @@ function cnParts(s, terms, pub) {
   const held = ['remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
   if (terms.relief && held) P_.push(['Relief eases ' + held + ' control' + (held > 1 ? 's' : '') + ' you imposed', TUNE.reliefLever * held]);
   if (s.flags.warn && !s.policies[s.flags.warn.k]) P_.push(['Your threat to impose ' + CTRL_THREAT[s.flags.warn.k].short + ' (' + Math.round(100 * threatCred(s, pub)) + '% credible)', warnValue(s, pub)]);
-  if (terms.threat && !terms.ultimatum) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
-  if (terms.ultimatum) P_.push(['Freeze now or never (Market weighs the gap; Security hates it)', 0.11 * (Math.min(ld, 14) - 4) * f.m / 50 - 0.025 * (f.sec - 30)]);
+  if (terms.threat) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
   if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 months', -0.8]);
   if (s.flags.dodCarve) P_.push(['A Pentagon carve-out for one lab', -0.15]);
   if (s.flags.uaeOut && paced(s)) P_.push(['The UAE loophole', -TUNE.uaeDeal]);
@@ -1116,7 +1100,6 @@ function makeOffer(s, terms) {
   const a = ACT.offer;
   if (s.ap < a.ap || s.pc < a.pc) return { error: 'Not enough actions or capital' };
   if (s.roomUsed >= roomMax(s)) return { error: 'The President has no more time for decisions this turn' };
-  if (terms.ultimatum) { const ok = ultimatumOk(s); if (ok !== true) return { error: ok }; if (CARROT_IDS.some(k => terms[k])) return { error: 'Freeze now or never is a demand, not a bargain: no carrots' }; }
   s.ap -= a.ap; s.pc -= a.pc; s.roomUsed++;
   const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms));
   const roll = rnd(s); const pass = roll < rp.p;
@@ -1132,28 +1115,21 @@ function makeOffer(s, terms) {
   const cnRoll = rnd(s); const accepted = cnRoll < p;
   s.cn.cooldown = s.phase === 'scramble' ? 2 : 1;
   if (accepted) {
-    s.cn.deal = { terms: Object.assign({}, terms, terms.ultimatum ? { freeze: true, threat: false } : {}), since: s.t, turn: s.turn };
+    s.cn.deal = { terms: Object.assign({}, terms), since: s.t, turn: s.turn };
     s.tension -= 12; s.markets += 4; s.cred += 6;
     if (terms.lane) { rel(s, 'vp', -8); industry(s, -5); rel(s, 'tsy', 10); shiftCN(s, { m: 5 }); }
     if (terms.relief) { s.cn.legalT = Math.max(s.cn.legalT, 0.4); rel(s, 'sec', -10); }
     if (terms.chips) { s.cn.legalT = 1; rel(s, 'sec', -20); rel(s, 'war', -10); }
     if (terms.institute) { s.cn.trust += 15; shiftCN(s, { sci: 6 }); s.verify.inspect += 4; }
     if (terms.inspect) s.verify.inspect += 8;
-    if (terms.freeze || terms.ultimatum) rel(s, 'sec', 8);
-    if (terms.ultimatum) s.cn.trust -= 5;
+    if (terms.freeze) rel(s, 'sec', 8);
     if (s.flags.warn) { warnRec(s).won++; s.flags.warn = null; }
     log(s, 'Beijing accepts the interim deal.', 'good');
     if (s.pacing.armed && !s.pacing.active) { activatePacing(s); log(s, 'The pause begins on both sides.', 'good'); }
-    return { pass: true, accepted: true, room: rp, roll, p, cnRoll, text: 'Beijing accepts. The interim deal takes effect on the first of the month. ' + (terms.ultimatum ? 'Beijing takes the cap at today’s gap rather than race a widening one.' : terms.freeze ? 'Like Japan in 1922, China takes a frozen ratio over an open race.' : terms.lane ? 'Beijing’s “changing lanes to overtake” strategy never needed the frontier.' : 'Both capitals call it a pause for safety.') };
+    return { pass: true, accepted: true, room: rp, roll, p, cnRoll, text: 'Beijing accepts. The interim deal takes effect on the first of the month. ' + (terms.freeze ? 'Like Japan in 1922, China takes a frozen ratio over an open race.' : terms.lane ? 'Beijing’s “changing lanes to overtake” strategy never needed the frontier.' : 'Both capitals call it a pause for safety.') };
   }
   s.cn.trust -= 5; s.tension += 4;
   if (terms.threat) { s.flags.threatMade = s.turn; }
-  if (terms.ultimatum) {
-    // a refused ultimatum hands Beijing to Security: racing, theft attempts x1.5 for 6 months, no talks for 3
-    const c = s.cn; s.flags.ultRejected = s.turn; shiftCN(s, { sec: 10, m: -5 }); c.posture = 'race'; c.race = Math.min(1, c.race + 0.5); s.tension += 10; c.trust -= 10; c.cooldown = 3;
-    log(s, 'Beijing rejects the ultimatum. Its security services take the lead.', 'bad');
-    return { pass: true, accepted: false, room: rp, roll, p, cnRoll, text: 'Beijing says no, publicly. State media calls it “a demand for surrender.” Within the week the security services are running Beijing’s side, and the race is on.' };
-  }
   const hint = counterHint(s, terms);
   log(s, 'Beijing rejects the offer.', 'bad');
   return { pass: true, accepted: false, room: rp, roll, p, cnRoll, text: 'Beijing says no. ' + hint };
@@ -1282,7 +1258,6 @@ const CHIPS = {
   gofirst: () => ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious'],
   matchlaw: () => ['+Makes \u201cOnly together\u201d believable', '~Senate vote in a month'],
   pledge: () => ['+Makes \u201cOnly together\u201d believable', '+Beijing trust', '-Hawks uneasy'],
-  guard: () => ['+A racing lab much safer', '~It may refuse', '-Labs grumble'],
   sound: () => ['+Learn what Beijing wants', '+A little trust'],
   warn: () => ['+Leverage in every offer', '+No cost unless carried out', '-Must impose or back down in 3 months'],
   launch: () => ['+Pacing begins', '-Markets fall (less with a Treasury plan)'],
@@ -2310,7 +2285,7 @@ function quickView(s) {
 const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view, quickView,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
-  score, lessons, cnSources, openFrontier, openRate, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, seenLead, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  score, lessons, cnSources, openFrontier, openRate, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, CARROT_IDS, dateLabel, monthLabel, seenLead, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
   EVENTS: EV, knownCap, publicFrontier, recentFavors, apFor, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
