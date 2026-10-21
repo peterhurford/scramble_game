@@ -229,6 +229,11 @@ function evaluate(G, seeds, diff) {
   for (const sd of seeds) { const s = play(G, sd, diff); if (s.ending === 'phase2') wins++; if (s.ending === 'loc') loc++; score += E.score(s).score; }
   return { win: wins / seeds.length, score: score / seeds.length, loc: loc / seeds.length };
 }
+// Per game: the result and every gene the game read, so a search can reuse a game for a child whose changed genes it never read.
+function evaluateEach(G, seeds, diff) {
+  return seeds.map(sd => { const reads = new Set(), P = new Proxy(G, { get(t, k) { if (typeof k === 'string') reads.add(k); return t[k]; } });
+    const s = play(P, sd, diff); return { w: s.ending === 'phase2' ? 1 : 0, sc: E.score(s).score, loc: s.ending === 'loc' ? 1 : 0, reads: [...reads] }; });
+}
 // Which rules a genome was searched under: a hash of engine.js and the gene list (what the genome means), plus the commit for people.
 function rulesStamp() {
   const fs = require('fs'), path = require('path'), cp = require('child_process'), root = path.join(__dirname, '..');
@@ -244,4 +249,4 @@ function loadGenome(file) {
   return G;
 }
 const genes = G => Object.keys(G).filter(k => k[0] !== '_');
-module.exports = { GENES, GROUPS, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE, PGATE, rulesStamp, loadGenome, genes };
+module.exports = { GENES, GROUPS, expertGenome, play, evaluate, evaluateEach, setTrace, PROJ, POL0, EVENTS, GATE, PGATE, rulesStamp, loadGenome, genes };

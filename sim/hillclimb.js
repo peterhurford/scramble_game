@@ -11,7 +11,7 @@ const { Worker, isMainThread, parentPort } = require('worker_threads');
 let S = isMainThread ? null : require('./strategy.js');
 
 if (!isMainThread) {
-  parentPort.on('message', m => { const r = S.evaluate(m.G, m.seeds, m.diff); parentPort.postMessage({ id: m.id, r, n: m.seeds.length }); });
+  parentPort.on('message', m => { const recs = S.evaluateEach(m.G, m.seeds, m.diff); parentPort.postMessage({ id: m.id, recs }); });
   return;
 }
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -28,16 +28,31 @@ const LOCK = (() => { try { const g = require('child_process').execSync('git rev
 // Fitness is mean score, so a B ending without a deal counts for something; FIT=win restores the Phase 2 rate. RACE_MARGIN is in these units (0.03 = 30 points).
 const fit = process.env.FIT === 'win' ? r => r.win + r.score / 1e5 : r => r.score / 1000 + r.win / 1e5;
 let workers = [];
+// Exact reuse (REUSE=0 turns it off): each genome keeps its per-game results and the genes each game read. A child replays only the
+// games that read a gene it changed from the current parent (PARENT); the others are the parent's games, identical move for move.
+const REUSE = process.env.REUSE !== '0', RECS = new WeakMap(), REUSED = { games: 0, played: 0 };
+let PARENT = null;
+const recsOf = G => { let m = RECS.get(G); if (!m) RECS.set(G, m = new Map()); return m; };
 // One queue of (genome, seed chunk) jobs shared by every worker, so no core waits for another genome to finish.
 function evalMany(Gs, seeds) {
-  const nChunks = Math.max(1, Math.min(seeds.length, Math.ceil(NW * 2 / Gs.length)));
-  const size = Math.ceil(seeds.length / nChunks), jobs = [];
-  Gs.forEach((G, gi) => { for (let c = 0; c < nChunks; c++) { const sd = seeds.slice(c * size, (c + 1) * size); if (sd.length) jobs.push({ gi, G, seeds: sd }); } });
-  const acc = Gs.map(() => ({ win: 0, score: 0, loc: 0, n: 0 }));
+  const todo = Gs.map(G => {
+    const own = recsOf(G), pm = REUSE && PARENT && G !== PARENT ? recsOf(PARENT) : null;
+    const diff = pm ? Object.keys(G).filter(k => G[k] !== PARENT[k]) : null;
+    return seeds.filter(sd => {
+      if (own.has(sd)) { REUSED.games++; return false; }
+      const r = pm && pm.get(sd);
+      if (r && !diff.some(k => r.reads.has(k))) { own.set(sd, r); REUSED.games++; return false; }
+      return true;
+    });
+  });
+  const pending = todo.reduce((a, t) => a + t.length, 0); REUSED.played += pending;
+  const nChunks = Math.max(1, Math.ceil(NW * 2 / Math.max(1, Gs.length))), jobs = [];
+  todo.forEach((sds, gi) => { const size = Math.max(1, Math.ceil(sds.length / nChunks)); for (let c = 0; c * size < sds.length; c++) jobs.push({ gi, G: Gs[gi], seeds: sds.slice(c * size, (c + 1) * size) }); });
+  const summary = () => Gs.map(G => { const m = recsOf(G); let w = 0, sc = 0, loc = 0; for (const sd of seeds) { const r = m.get(sd); w += r.w; sc += r.sc; loc += r.loc; } return { win: w / seeds.length, score: sc / seeds.length, loc: loc / seeds.length }; });
   let next = 0, done = 0;
   return new Promise(res => {
-    if (!jobs.length) return res(acc);
-    const feed = w => { if (next >= jobs.length) return; const id = next++, j = jobs[id]; w.once('message', m => { const a = acc[j.gi]; a.win += m.r.win * m.n; a.score += m.r.score * m.n; a.loc += m.r.loc * m.n; a.n += m.n; if (++done === jobs.length) res(acc.map(a => ({ win: a.win / a.n, score: a.score / a.n, loc: a.loc / a.n }))); else feed(w); }); w.postMessage({ id, G: j.G, seeds: j.seeds, diff: DIFF }); };
+    if (!jobs.length) return res(summary());
+    const feed = w => { if (next >= jobs.length) return; const id = next++, j = jobs[id]; w.once('message', m => { const own = recsOf(j.G); m.recs.forEach((r, i) => own.set(j.seeds[i], { w: r.w, sc: r.sc, loc: r.loc, reads: new Set(r.reads) })); if (++done === jobs.length) res(summary()); else feed(w); }); w.postMessage({ id, G: j.G, seeds: j.seeds, diff: DIFF }); };
     workers.forEach(feed);
   });
 }
@@ -103,7 +118,7 @@ async function search(RUN) {
   const starts = (process.env.START || '').split(',').filter(Boolean), start = starts[RUNS.indexOf(RUN)] || starts[0];
   let parent = start ? Object.assign(S.expertGenome(), S.loadGenome(start)) : S.expertGenome();
   delete parent._rules;
-  Object.assign(parent, PIN);
+  Object.assign(parent, PIN); PARENT = parent;
   const T0 = Date.now(), stamp = S.rulesStamp();
   let b = 0, seeds = batch(b);
   let pr = (await evalMany([parent], seeds))[0];
@@ -116,7 +131,7 @@ async function search(RUN) {
     let bi = -1; res.forEach((r, i) => { if (fit(r) > fit(bi < 0 ? pr : res[bi])) bi = i; });
     if (bi >= 0) {
       const changed = Object.keys(kids[bi]).filter(k => kids[bi][k] !== parent[k]).map(k => k + '=' + (typeof kids[bi][k] === 'number' ? Math.round(kids[bi][k] * 100) / 100 : kids[bi][k]));
-      parent = kids[bi]; pr = res[bi];
+      parent = kids[bi]; pr = res[bi]; PARENT = parent;
       const line = `run ${RUN} gen ${gen}  win ${(100 * pr.win).toFixed(1)}%  score ${pr.score.toFixed(0)}  loc ${(100 * pr.loc).toFixed(1)}%  changed: ${changed.join(', ')}`;
       console.log(line); fs.appendFileSync(logf, line + '\n');
       fs.writeFileSync(part, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1));
@@ -124,7 +139,8 @@ async function search(RUN) {
   }
   const secs = ((Date.now() - T0) / 1000).toFixed(0);
   fs.writeFileSync(out, JSON.stringify(Object.assign({ _rules: stamp }, parent), null, 1)); try { fs.unlinkSync(part); } catch (_) {}
-  if (process.env.NOVAL) { console.log(`run ${RUN}: ${GENS} generations in ${secs} s; ${RACE.alive} of ${RACE.kids} raced children finished the batch`); return; }
+  const reuse = `${(100 * REUSED.games / Math.max(1, REUSED.games + REUSED.played)).toFixed(0)}% of games reused`;
+  if (process.env.NOVAL) { console.log(`run ${RUN}: ${GENS} generations in ${secs} s; ${RACE.alive} of ${RACE.kids} raced children finished the batch; ${reuse}`); return; }
   // validate on fresh seeds neither saw
   const fresh = Array.from({ length: 4000 }, (_, i) => 900000 + i);
   const [vb] = await evalMany([parent], fresh);
@@ -132,7 +148,7 @@ async function search(RUN) {
 }
 
 (async () => {
-  await lock();
+  if (!process.env.NOLOCK) await lock(); // NOLOCK=1 only for small tests that must run beside a search
   S = require('./strategy.js');
   workers = Array.from({ length: NW }, () => new Worker(__filename));
   for (const RUN of RUNS) await search(RUN);
