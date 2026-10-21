@@ -48,9 +48,9 @@ const DONE_RE = /^(Done|Decided|Already|Fully funded|Pacing is already law|A dea
 const FACTION_COLOR = { Populist: '#8A5A2B', Politics: '#5B5F97', Dealmaker: '#2E7D5B', Ambition: '#A35A1F', Hawk: '#9B2C2C', Agencies: '#3D5368', Builder: '#7D6A12', Industry: '#A35A1F' };
 const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WAR', dni: 'DNI' };
 const EVTYPE = {
-  crisis: ['war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
+  crisis: ['cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
   beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un'],
-  labs: ['algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
+  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
 };
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'] };
@@ -318,7 +318,8 @@ function roomPanel(v) {
     ${ps.map(({ p, d, st }) => {
       const ask = E.currentAsk(S, p.id); const fav = E.availability(S, 'favor', { who: p.id }), favCred = E.recentFavors(S) * E.TUNE.favorCred;
       return `<div class="pc"><button class="av" data-who="${p.id}" style="background:${stanceCol(st)}" title="${st > 0.25 ? 'For' : st < -0.25 ? 'Against' : 'Open on'} pacing · influence ${Math.round(p.infl)}. Click to meet.">${SEAT[p.id]}</button>
-        <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · click to meet">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="Ally 40+: every three Allies give +1 capital a turn. Hostile -40 or less: costs you 2 credibility a month. Every 10 points tilts their vote toward you.">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
+        <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · ${esc(d.bio)} Click to meet.">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="Ally 40+: every three Allies give +1 capital a turn. Hostile -40 or less: costs you 2 credibility a month. Every 10 points tilts their vote toward you.">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
+        ${d.moods ? `<div class="sub mood">${esc(d.moods[E.relTier(p.rel)])}</div>` : ''}
         <div class="ask"><span>Asks you: ${esc(ask.text)}</span><button class="ghost sm" data-favor="${p.id}" ${fav === true ? '' : 'disabled'} title="${esc(fav === true ? grantTip(p.id, ask) : fav)}">Say yes ${costHtml({ ap: 1, pc: ask.pc })}${favCred ? `<span class="dn">\u2212${favCred} cred</span>` : ''}</button></div>${fav === true ? '' : `<div class="sub">${esc(fav)}</div>`}</div></div>`;
     }).join('')}`;
 }
@@ -358,6 +359,10 @@ function labPanel(v) {
       }).join('')}
       <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0]).join(', ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${dragWord(v.drag.total)}</span>
         <span title="Beijing tries to steal weights now and then; SL4 and SL5 make an attempt much likelier to fail.">Security SL${S.sl} · theft risk</span><span class="v">${theftWord(v.theft.net)}</span></div></div>
+    <div class="sb"><div class="row"><div class="lbl">Misuse</div><span class="sp"></span><span class="sub">what open and jailbroken models can do</span></div>
+      <div class="kv"><span title="AI-enabled cyberattacks on hospitals, utilities, ports and banks. Defenders-first access cuts them.">Cyberattacks${S.policies.cyberdef ? ' · defenders first' : ''}</span><span class="v">${E.misuseWord(v.misuse.cyber)}</span>
+        <span title="Attempts to use AI to make a pathogen. They start once open models get strong enough; DNA synthesis screening catches them.">Bio near-misses${S.policies.synth ? ' · screened' : ''}</span><span class="v">${v.misuse.bio < 0.005 ? 'none yet' : E.misuseWord(v.misuse.bio)}</span></div>
+      <div class="vrow" title="Self-funding AI agents with no human owner. They spread as open models improve, drag on markets, and wear down support for a pause that does not touch them. Compute KYC slows them.${S.policies.kyc ? ' KYC is in force.' : ''}"><span>Agents</span>${meter(v.misuse.agents, v.misuse.agents >= 40 ? 'bad' : v.misuse.agents >= 15 ? 'warn' : '')}<span class="v">${Math.round(v.misuse.agents)}</span></div></div>
     <div class="sb"><div class="row"><div class="lbl">Verification</div><span class="sp"></span><span class="sub">funding ${S.warp}/2</span></div>
       ${E.COMPONENTS.map(c => `<div class="vrow" title="${esc(c.desc)}"><span>${esc(c.short)}${c.trusted ? '' : '*'}</span>${meter(S.verify[c.id], S.verify[c.id] >= 65 ? 'good' : S.verify[c.id] < 35 ? 'warn' : '', [65])}<span class="v">${Math.round(S.verify[c.id])}</span></div>`).join('')}
       <div class="sub" style="margin-top:6px">Phase 2 needs all three at 65. Cheating labs get caught <b>${catchWord(v.detection)}</b>. *Not trusted until Phase 2.</div></div>`;
