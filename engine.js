@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -166,6 +166,8 @@ function frontierLab(s) { let b = s.labs[0]; s.labs.forEach(l => { if (l.cap > b
 function lead(s) { return frontier(s) - s.cn.cap; }
 // The gap as Washington sees it (the IC's estimate): what US politics react to. Beijing knows its own position and acts on lead().
 function seenLead(s) { return leadEstimate(s).mid; }
+// Pacing alone: with no deal and the IC's lead down to TUNE.aloneFloor, paused labs keep pace with the IC's estimate of China instead of stopping.
+function keepGap(s) { return paced(s) && !s.cn.deal && seenLead(s) < TUNE.aloneFloor; }
 function paced(s) { return !!s.pacing.active; }
 function covered(s, lab) { if (!paced(s)) return false; return lab.covered; }
 // A signed lab racing on standby that agreed to keep automation limits: runaway hazard 0.12 instead of 0.30, 8% slower.
@@ -222,7 +224,8 @@ function usRates(s, assumeCompliant) {
     if (l.defect && !assumeCompliant) return 0.7;
     if (l.secret && !assumeCompliant) return 0.12 + TUNE.secretRate; // a classified government run at a paused lab
     const th = { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12;
-    return (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'mindscale' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
+    const r = (th + (s.pacing.automation ? 0 : 0.28) + (l.id === 'mindscale' && s.flags.uaeOut ? TUNE.uaeRate : 0)) * (1 - drag / 2);
+    return keepGap(s) ? Math.max(r, cnEstimate(s).rate) : r;
   });
 }
 function cnRate(s) {
@@ -270,6 +273,7 @@ function supportParts(s) {
   const months = s.flags.monthsInP1 || 0;
   const P_ = [['Base', 30], ['Pause fatigue (' + months + ' months)', -(paced(s) ? 3.5 * Math.max(0, months - 1) : 0)], ['Salience', 0.35 * (s.salience - 30)], ['The cabinet\u2019s view of pacing', 30 * pauseMood(s)], ['Markets', 0.5 * (s.markets - 100)]];
   if (s.cn.deal) P_.push(['China has signed on', 12]);
+  else if (paced(s) && ld >= TUNE.aloneFloor - 0.5 && months > 1) P_.push(['The lead is holding', 1.75 * (months - 1)]); // halves the fatigue
   if (ld < 5) P_.push(['China is close behind (IC estimate)', -Math.min(18, 3.5 * (5 - ld))]);
   if (unsigned > 0) P_.push(['Labs racing outside the regime', -30 * unsigned]);
   if (s.flags.incidentTurn && s.turn - s.flags.incidentTurn <= 2) P_.push(['A recent scare', 8]);
@@ -2114,6 +2118,7 @@ function tick(s) {
   if (s.phase === 'p1' && paced(s) && monthly) {
     s.stats.monthsPaced++;
     s.flags.monthsInP1 = (s.flags.monthsInP1 || 0) + 1;
+    if (keepGap(s) && !s.flags.keptGap) { s.flags.keptGap = s.turn; log(s, 'With no deal and the lead down to about ' + Math.round(seenLead(s)) + ' months, the paused labs now keep pace with China instead of stopping.', 'info'); }
     const ps = pacingSupport(s);
     if (ps < 25) s.pacing.low++; else s.pacing.low = Math.max(0, s.pacing.low - 1);
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
