@@ -127,8 +127,8 @@ async function search(RUN) {
   if (process.env.NOVAL) { console.log(`run ${RUN}: ${GENS} generations in ${secs} s; ${RACE.alive} of ${RACE.kids} raced children finished the batch`); return; }
   // validate on fresh seeds neither saw
   const fresh = Array.from({ length: 4000 }, (_, i) => 900000 + i);
-  const [ve, vb] = await evalMany([S.expertGenome(), parent], fresh);
-  console.log(`\nrun ${RUN} VALIDATION on 4000 fresh games (${DIFF}): expert ${(100 * ve.win).toFixed(1)}% (loc ${(100 * ve.loc).toFixed(1)}%, score ${ve.score.toFixed(0)})  vs  best ${(100 * vb.win).toFixed(1)}% (loc ${(100 * vb.loc).toFixed(1)}%, score ${vb.score.toFixed(0)})  [${secs} s, ${out}]`);
+  const [vb] = await evalMany([parent], fresh);
+  console.log(`\nrun ${RUN} VALIDATION on 4000 fresh games (${DIFF}): best ${(100 * vb.win).toFixed(1)}% (loc ${(100 * vb.loc).toFixed(1)}%, score ${vb.score.toFixed(0)})  [${secs} s, ${out}]`);
 }
 
 (async () => {
