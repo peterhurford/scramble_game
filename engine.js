@@ -368,8 +368,10 @@ function endBlockade(s, text) { s.blockade = null; s.tension -= 8; s.markets += 
 function startWar(s, cause, esc) {
   const c = s.cn;
   s.blockade = null;
-  s.war = { since: s.turn, months: 0, esc, cause, talks: 0 };
+  // lead0 and hadDeal feed the phase plate's running tally (IC view); warT0, warLead0 and warDealLost feed the ending's lessons
+  s.war = { since: s.turn, months: 0, esc, cause, talks: 0, lead0: seenLead(s), hadDeal: !!c.deal };
   s.stats.wars = (s.stats.wars || 0) + 1;
+  if (s.stats.warT0 == null) { s.stats.warT0 = s.t; s.stats.warLead0 = lead(s); s.stats.warDealLost = !!c.deal; }
   c.supply = 0.2; s.markets -= 20; s.tension = Math.max(s.tension, 85); c.trust -= 20; s.salience -= 6;
   infl(s, 'war', 10); infl(s, 'sec', 5); infl(s, 'tsy', -5); shiftCN(s, { sec: 15, sci: -5 });
   if (c.deal) { c.deal = null; log(s, 'The China deal collapses with the war.', 'bad'); }
@@ -1831,7 +1833,7 @@ ev({ id: 'blockade', forced: true, title: 'Quarantine', stamp: 'INDOPACOM, 5:40a
     { label: 'Rally allies and sanction', hint: 'Coalition +10; Senate +2; markets -4; Beijing temperature +6. It ends 15% of months.', fx: onlyIf('blockade', s => { s.blockade.mode = 'sanction'; s.coalition += 10; s.senateLobby += 2; s.markets -= 4; s.tension += 6; return 'The G7 freezes the coast guard\u2019s parent ministry out of dollar clearing.'; }) },
   ] });
 ev({ id: 'war_begins', forced: true, title: 'War', stamp: 'National Military Command Center',
-  body: s => `<p>${{ strike: 'Beijing answers the strikes within hours.', collision: 'The standoff in the Strait has turned into a shooting war.', blockade: 'A coast guard cutter fires on a convoy escort. By nightfall the PLA is striking Taiwan\u2019s airfields.', beijing: 'The PLA moves without a quarantine first: missiles on Taiwan\u2019s airfields at 3:00a.' }[s.queue[0].cause] || 'The Strait is at war.'} TSMC\u2019s fabs go dark. Markets fall 20%.</p><p>The war runs until a ceasefire. Every month escalation can climb; at 100 it goes nuclear and the game ends. US labs slow sharply, China loses most of its imported chips, deals are off and the Pentagon wants every model.</p>`,
+  body: s => `<p>${{ strike: 'Beijing answers the strikes within hours.', collision: 'The standoff in the Strait has turned into a shooting war.', blockade: 'A coast guard cutter fires on a convoy escort. By nightfall the PLA is striking Taiwan\u2019s airfields.', beijing: 'The PLA moves without a quarantine first: missiles on Taiwan\u2019s airfields at 3:00a.' }[s.queue[0].cause] || 'The Strait is at war.'} TSMC\u2019s fabs go dark. Markets fall 20%.</p><p>The war runs until a ceasefire. Every month escalation can climb; at 100 it goes nuclear and the game ends. US labs slow sharply, China loses most of its imported chips and the Pentagon wants every model.</p><p><b>Phase 2 needs an interim deal with Beijing, and the war ends ${s.war && s.war.hadDeal ? 'yours' : 'any chance of one for now'}.</b> No offer or summit until a ceasefire, and Beijing\u2019s hawks gain: winning a deal back after the war is hard.</p>`,
   choices: [
     { label: 'Keep it to the Strait', hint: 'No change to escalation. War -5.', fx: onlyIf('war', s => { rel(s, 'war', -5); return 'The President approves a defensive campaign: ships, submarines and air defense, nothing on the mainland.'; }) },
     { label: 'Hit their AI data centers too', hint: 'China -1.5 months; escalation +15. War +12; Beijing\u2019s security faction surges.', fx: onlyIf('war', s => { s.cn.cap -= 1.5; s.war.esc += 15; rel(s, 'war', 12); shiftCN(s, { sec: 8 }); return 'Cruise missiles hit the Ulanqab campus. Beijing calls it an attack on its \u201cstrategic deterrent.\u201d'; }) },
@@ -2151,6 +2153,7 @@ function tick(s) {
       else if (b.mode === 'talks' ? s.turn >= b.until : rnd(s) < (b.mode === 'convoy' ? 0.3 : 0.15)) endBlockade(s, 'Beijing lifts the quarantine of Taiwan.');
     } else {
       c.supply = mv(c.supply == null ? 1 : c.supply, 1, 0.1);
+      if (s.stats.wars && c.deal) s.stats.dealAfterWar = true;
       if (!s.queue.some(q => q.id === 'war') && rnd(s) < straitRisk(s)) { if (rnd(s) < directP(s)) startWar(s, 'beijing', 30); else startBlockade(s); }
     }
   }
@@ -2218,7 +2221,20 @@ function lessons(s) {
   if (s.pacing.automation === false || (s.stats.scrambleStart != null && !s.pacing.automation)) out.push('Without research-automation limits, paced labs kept advancing at 0.4 months per month using models they already had.');
   if (s.stats.defectCaught + s.stats.defectMissed > 0) out.push('Labs defected ' + (s.stats.defectCaught + s.stats.defectMissed) + ' time' + (s.stats.defectCaught + s.stats.defectMissed > 1 ? 's' : '') + '; ' + s.stats.defectCaught + ' caught.');
   if (s.stats.briefFails) out.push('You asked for an emergency meeting too early ' + s.stats.briefFails + ' time' + (s.stats.briefFails > 1 ? 's' : '') + '.');
-  if (s.stats.wars) out.push('There ' + (s.stats.wars > 1 ? 'were ' + s.stats.wars + ' wars' : 'was a war') + ' over Taiwan, ' + (s.stats.warMonths || 0) + ' months in all. War costs the labs Taiwan\u2019s chips, ends any deal and tilts every room toward the Pentagon; a cool Beijing, a deal, and not racing far ahead near the threshold keep it away.');
+  if (s.stats.wars) {
+    // the route the strategy search shows: Phase 2 needs an interim deal, war ends it, and a war game is lost unless the deal comes back
+    const when = monthLabel(s.stats.warT0), nw = s.stats.wars > 1 ? s.stats.wars + ' wars' : 'a war';
+    const lead_ = s.stats.wars > 1 ? 'The first war, in ' + when + ',' : 'The war in ' + when;
+    const how = lead_ + (s.stats.warDealLost ? ' ended your deal with Beijing' : ' broke out with no deal in place');
+    const again = s.stats.warDealLost ? ' back' : '';
+    const back = s.ending === 'war' ? '. It went nuclear before a ceasefire.'
+      : s.ending === 'phase2' || s.ending === 'betrayed' ? '. You won a deal' + again + ' after the ceasefire, and Phase 2 was signed.'
+      : s.cn.deal ? '. You won a deal' + again + ', but Phase 2 never closed.'
+      : s.stats.dealAfterWar ? '. You won a deal' + again + ' after the ceasefire but lost it again, and Phase 2 needs one.'
+      : '. Phase 2 needs an interim deal, and you never got one' + again + (s.war ? ': the war was still on at the end.' : '.');
+    const gap = s.stats.warLead0 - lead(s) >= 1 ? ' The US lead went from ' + r1(s.stats.warLead0) + ' months when the war began to ' + r1(Math.max(0, lead(s))) + ' at the end.' : '';
+    out.push('There ' + (s.stats.wars > 1 ? 'were ' : 'was ') + nw + ' over Taiwan, ' + (s.stats.warMonths || 0) + ' month' + (s.stats.warMonths === 1 ? '' : 's') + ' in all. ' + how + back + gap + ' A cool Beijing, a deal, and not racing far ahead near the threshold keep war away.');
+  }
   else if (s.stats.blockades) out.push('Beijing quarantined Taiwan ' + (s.stats.blockades > 1 ? s.stats.blockades + ' times' : 'once') + ' without it turning into war.');
   if (s.stats.covert) out.push('Covert operations bought time at the cost of Beijing’s trust. A deal signed under duress is one the other side tries to undermine.');
   if (s.overhang > 6) out.push('The compute overhang reached ' + r1(s.overhang) + ' months: dry tinder for the day the pause ends.');
@@ -2252,7 +2268,7 @@ function quickView(s) {
 const API = {
   newGame, endTurn, act, listActions, availability, actionCost, roomPreview, currentEvent, chooseEvent, view, quickView,
   charterOdds, charterDecide, finishConvening, makeOffer, offerPreview, cnAcceptEstimate,
-  score, lessons, cnSources, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
+  score, lessons, cnSources, standbyCred, standbyParts, termRead, threatCred, threatParts, warnValue, concedeP, warnable, CTRL_THREAT, keystone, ultimatumOk, guardOdds, guarded, CARROT_IDS, dateLabel, monthLabel, seenLead, currentAsk, cnParts, PD, P, L, LD, lead, frontier, covered, coverage, trueIndicators,
   straitParts, straitMult, straitRisk, straitEstimate, escalateP, ceasefireP, startBlockade, startWar,
   EVENTS: EV, knownCap, publicFrontier, recentFavors, apFor, TUNE, usDrag, chips, oddsWord, betrayP, betrayWord, courtP, courtRead, concealment, summitCourtP, SL, nearness, SEQ, senateParts, supportParts, relTier, allyCount, capitalIncome, marketCapital, hostileDrain, roomMax, theftRisk, pauseMood, ACT, PRINCIPALS, LABS, COMPONENTS, PROJECTS, TERMS, MECH, THRESH, TRIG, ENDINGS, DIFFS, START_T, END_T, MONTHS,
 };
