@@ -149,7 +149,7 @@ const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0
   riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, aloneFloor: 4, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   senateFlip: 3, flipHill: 0.7, strait: 1, straitBase: 0.01, straitHot: 0.12, straitHotFrom: 25, straitPre: 0.17, warEsc: 1.15, holdFirm: 0.6, cheatSteal: 2,
   // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
-  open: 1, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1, laneGap: 3, misuse: 1, agents: 1 };
+  open: 1, openLag: 0.5, openRoom: { none: 0.6, '1e20': 0.15, '1e21': 0.3, '1e22': 0.55 }, openCopy: 0.3, openRuleCut: 0.4, openHaz: 0.2, openShut: 0.08, openFloor: 0.3, openNear: 3, openPub: 1, laneGap: 3, misuse: 1, agents: 1, agentOpen: 1.5, agentBase: 33 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
   { id: 'memo', name: 'Write the memo for the emergency meeting', need: 1, p1: false, desc: 'Answers to the questions the President will ask in the first hour, drafted before anyone asks them.', done: 'At the scramble: +15 credibility, +2 political capital, and the room leans your way.' },
@@ -374,6 +374,7 @@ function supportParts(s) {
   if (s.flags.incidentTurn && s.turn - s.flags.incidentTurn <= 2) P_.push(['A recent scare', 8]);
   if (s.flags.wentFirst && !s.cn.deal) P_.push(['America went first, and China hasn\u2019t followed', -8]);
   if (s.flags.extended) P_.push(['The deadline was extended', -4 * s.flags.extended]);
+  if (s.flags.outbreak && s.turn - s.flags.outbreak <= 6) P_.push(['After the outbreak', 15]);
   if (paced(s) && s.flags.medCarve) P_.push(['Medical research is carved out', 4]);
   if (paced(s) && (s.agents || 0) > 20) P_.push(['Sovereign agents run loose, and the pause doesn\u2019t touch them', -Math.min(8, (s.agents - 20) / 5)]);
   if (s.war) P_.push(['A war in the Pacific: the Pentagon wants every model', -15]); else if (s.blockade) P_.push(['Beijing is blockading Taiwan', -8]);
@@ -387,11 +388,17 @@ function pacingSupport(s) { return Math.round(clamp(supportParts(s).reduce((a, x
 function openCap(s) { return typeof openFrontier === 'function' ? openFrontier(s) : s.cn.cap; }
 function misuseCap(s) { return Math.max(openCap(s), publicFrontier(s) - 2) + (s.elicit || 0); }
 function misuseLevel(s) { return clamp(misuseCap(s) / s.T, 0, 1.5); }
+// A deal with the joint misuse term: Beijing's clouds and labs join screening and takedowns.
+function misusePact(s) { return !!(s.cn.deal && s.cn.deal.terms.misuse); }
+// What the pact is worth to Beijing: more as open models get dangerous, with its science faction up and its security services (who use agents too) down, and after joint work on an incident.
+function misusePactWorth(s) { return clamp(0.02 + 0.25 * misuseLevel(s), 0, 0.35) + 0.005 * (s.cn.f.sci - 20) - 0.004 * (s.cn.f.sec - 30) + (s.flags.misuseChannel ? 0.1 : 0); }
+// Sovereign agents scale the open-weight runaway hazard around a typical level (TUNE.agentBase), so openHaz keeps its meaning at the usual agent count.
+function agentMult(s) { return Math.max(0.5, 1 + TUNE.agentOpen * ((s.agents || 0) - TUNE.agentBase) / 100); }
 // Monthly odds of each kind of incident; defenses cut them.
-function cyberP(s) { const m = misuseLevel(s); return TUNE.misuse * clamp((0.04 + 0.3 * m * m) * (s.policies.cyberdef ? 0.45 : 1) * (s.flags.dodCyber ? 0.85 : 1) * (s.war ? 1.5 : 1), 0, 0.45); }
-function bioP(s) { const m = misuseLevel(s); return m < 0.45 ? 0 : TUNE.misuse * clamp(0.16 * (m - 0.45) / 0.55, 0, 0.18) * (s.policies.synth ? 0.6 : 1); }
+function cyberP(s) { const m = misuseLevel(s); return TUNE.misuse * clamp((0.04 + 0.3 * m * m) * (s.policies.cyberdef ? 0.45 : 1) * (s.flags.dodCyber ? 0.85 : 1) * (s.war ? 1.5 : 1) * (misusePact(s) ? 0.8 : 1), 0, 0.45); }
+function bioP(s) { const m = misuseLevel(s); return m < 0.45 ? 0 : TUNE.misuse * clamp(0.16 * (m - 0.45) / 0.55, 0, 0.18) * (s.policies.synth ? 0.6 : 1) * (misusePact(s) ? 0.5 : 1); }
 // Sovereign agents: self-funding AI agents with no human principal, 0-100. They spread with open capability, and compute KYC slows them.
-function agentGrowth(s) { const m = misuseLevel(s); return TUNE.agents * 6 * Math.max(0, m - 0.3) * (s.policies.kyc ? 0.3 : 1) * (s.flags.openExempt ? 1.3 : 1); }
+function agentGrowth(s) { const m = misuseLevel(s); return TUNE.agents * 6 * Math.max(0, m - 0.3) * (s.policies.kyc ? 0.3 : 1) * (s.flags.openExempt ? 1.3 : 1) * (misusePact(s) ? 0.5 : 1); }
 function agentsP(s) { return clamp(0.02 + (s.agents || 0) / 250, 0, 0.3); }
 // Where the forensics point: a Chinese open-weight model when open capability is near the US frontier, else a jailbroken US API.
 function misuseSource(s) { return openCap(s) >= publicFrontier(s) - 2.5 ? 'cn' : 'us'; }
@@ -415,9 +422,34 @@ const NEWS_OPEN = [
   [0.55, 'Deep Current open-sources an agent model that can run a computer for hours unattended. Within a week it is the favorite base for scam call centers.'],
   [0.75, 'A Chinese open-weight model passes the virology troubleshooting benchmark that US labs treat as a red line. Two million downloads in a day.'],
 ];
+// The cabinet acts on its own: an Ally pushes your agenda, a Cool or Hostile principal works against it. At most one move a month.
+const INITIATIVES = {
+  vp:  { help: ['The Vice President tells a union convention the White House “will not let Big Tech gamble with your kids.”', s => { s.salience += 3; P(s, 'vp').shift += 0.05; }],
+         hurt: ['The Vice President tells a cable host that “some people in this building would hand Silicon Valley’s homework to Beijing.”', s => { s.cred -= 2; }] },
+  cos: { help: ['The Chief of Staff clears an hour on the President’s calendar for your issue, and spends some capital doing it.', s => { s.pc += 1; }],
+         hurt: ['The Chief of Staff bumps your Oval slot for a farm-bill photo op.', s => { s.pc = Math.max(0, s.pc - 1); }] },
+  tsy: { help: ['The Treasury Secretary tells CNBC the administration “has a plan for AI and a plan for markets.”', s => { s.markets += 2; }],
+         hurt: ['Treasury briefs reporters that your ideas would “cost the S&P a trillion dollars.”', s => { s.markets -= 2; s.cred -= 1; }] },
+  doc: { help: ['Commerce quietly closes three export-license loopholes you flagged.', s => { s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.03); }],
+         hurt: ['Commerce slips your draft thresholds to the labs’ lawyers, who start working the Hill.', s => { s.senateLobby -= 2; }] },
+  sec: { help: ['The Secretary of State raises compute verification with Tokyo and Seoul, unprompted.', s => { s.coalition += 3; }],
+         hurt: ['State drops you from the distribution list for the Beijing channel.', s => { s.intelQ -= 3; }] },
+  war: { help: ['The Secretary of War sends Cyber Command teams to harden two labs’ networks.', s => { if (!s.flags.dodCyber) s.flags.dodCyber = true; else s.intelQ += 2; }],
+         hurt: ['The Secretary of War tells a defense conference that “the pause crowd” is a national security risk.', s => { s.cred -= 2; }] },
+  dni: { help: ['The DNI sends you an early cut of a new assessment on Beijing.', s => { s.intelQ += 2; s.flags.assessUntil = Math.max(s.flags.assessUntil || 0, s.turn + 2); }],
+         hurt: ['The DNI stops sending analysts to your verification meetings.', s => { s.verify.survey -= 3; }] },
+};
+function cabinetMoves(s) {
+  const odds = p => { const t = relTier(p.rel), w = p.infl / 60; return t === 'Ally' || t === 'Hostile' ? 0.08 * w : t === 'Friendly' || t === 'Cool' ? 0.03 * w : 0; };
+  for (const p of s.principals) {
+    if (rnd(s) >= odds(p)) continue;
+    const m = INITIATIVES[p.id][p.rel > 0 ? 'help' : 'hurt'];
+    m[1](s); log(s, m[0], p.rel > 0 ? 'good' : 'bad'); return;
+  }
+}
 function misuseTick(s) {
   s.elicit = (s.elicit || 0) + 0.15;
-  s.agents = clamp((s.agents || 0) * 0.97 + agentGrowth(s));
+  s.agents = clamp((s.agents || 0) * (misusePact(s) ? 0.92 : 0.97) + agentGrowth(s));
   s.markets -= (s.agents || 0) / 80;
   const us = (publicFrontier(s) + s.elicit) / s.T, op = (openCap(s) + s.elicit) / s.T, seen = s.flags.news = s.flags.news || {};
   const due = NEWS_US.map((x, i) => [x, 'u' + i, us]).concat(NEWS_OPEN.map((x, i) => [x, 'o' + i, op])).find(n => n[2] >= n[0][0] && !seen[n[1]]);
@@ -448,7 +480,8 @@ function hazards(s) {
   });
   const hc = (s.cn.deal && !s.cn.cheat ? 0.02 : 0.15) * nearness(s, s.cn.cap);
   if (hc > 0.002) out.push({ who: 'china', name: 'China', h: hc, near: s.cn.cap < s.T });
-  const ho = s.open == null ? 0 : TUNE.openHaz * nearness(s, s.open);
+  // sovereign agents run on open weights: the more entrenched they are than usual, the likelier an open model gets loose
+  const ho = s.open == null ? 0 : TUNE.openHaz * nearness(s, s.open) * agentMult(s);
   if (ho > 0.002) out.push({ who: 'open', name: 'Open-weight models', h: ho, near: s.open < s.T });
   return out;
 }
@@ -1123,6 +1156,7 @@ const TERMS = [
   { id: 'institute', label: 'Joint safety institute and shared evals', desc: 'Chinese scientists reach conclusions about risk through their own work. Costs nothing at home.' },
   { id: 'relief', label: 'Entity List relief', desc: 'Sanctions relief for Chinese AI firms; some of it helps their compute. Offering it costs State 4 and 3 Senate votes for 6 months.' },
   { id: 'visas', label: 'Eased visas for researchers', desc: 'A carrot with a counterintelligence cost. Offering it costs the DNI 5.' },
+  { id: 'misuse', label: 'Joint misuse response', desc: 'Shared DNA synthesis screening, joint takedowns of sovereign agents, and a hotline for AI-enabled attacks. Beijing fears the same things; it is worth more to them as open models get dangerous. Offering it costs the DNI 4 and State 3: sharing screening data means sharing what we watch.' },
   { id: 'chips', label: 'Resume legal chip sales', desc: 'A carrot that directly feeds their compute. Offering it costs every hawk 4 and 6 Senate votes for 6 months.' },
   { id: 'threat', label: 'Threaten a full cutoff if they refuse', desc: 'Credible only with a big lead.' },
   { id: 'ultimatum', label: 'Freeze now or never', desc: 'Sign a cap at today’s gap now, or face a permanent cutoff and an open race. No carrots. Needs a 6-month lead and two of China’s three outside channels closed. Market weighs it more the wider the gap; a refusal hands Beijing to Security, which races and steals.' },
@@ -1158,6 +1192,7 @@ function offerTags(terms) {
   if (terms.freeze) add({ hawk: 0.8 });
   if (terms.lane) add({ markets: 0.6, deal: 0.5, industry: -0.5, hawk: -0.6 });
   if (terms.institute) add({ deal: 0.3 });
+  if (terms.misuse) add({ control: 0.3, deal: 0.2 });
   if (terms.relief) add({ hawk: -1.2, markets: 0.5, deal: 0.5 });
   if (terms.visas) add({ hawk: -0.3 });
   if (terms.chips) add({ hawk: -2, markets: 1, industry: 0.8 });
@@ -1180,6 +1215,7 @@ function cnParts(s, terms, pub) {
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
   if (terms.freeze && !terms.ultimatum) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
+  if (terms.misuse) P_.push(['Joint misuse response (worth more as open models get dangerous)', misusePactWorth(s)]);
   CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
   // export controls are leverage: Beijing values getting back what you took
   if (terms.chips && s.policies.chips) P_.push(['Resumes the chip sales you cut', TUNE.chipLever]);
@@ -1262,6 +1298,7 @@ function makeOffer(s, terms) {
   if (terms.relief) { s.flags.reliefOffered = s.t; rel(s, 'sec', -4); }
   if (terms.lane) industry(s, -3);
   if (terms.visas) rel(s, 'dni', -5);
+  if (terms.misuse) { rel(s, 'dni', -4); rel(s, 'sec', -3); }
   const p = cnAcceptP(s, terms);
   const cnRoll = rnd(s); const accepted = cnRoll < p;
   s.cn.cooldown = s.phase === 'scramble' ? 2 : 1;
@@ -1273,6 +1310,7 @@ function makeOffer(s, terms) {
     if (terms.chips) { s.cn.legalT = 1; rel(s, 'sec', -20); rel(s, 'war', -10); }
     if (terms.institute) { s.cn.trust += 15; shiftCN(s, { sci: 6 }); s.verify.inspect += 4; }
     if (terms.inspect) s.verify.inspect += 8;
+    if (terms.misuse) { s.cn.trust += 5; s.agents = (s.agents || 0) * 0.8; }
     if (terms.freeze || terms.ultimatum) rel(s, 'sec', 8);
     if (terms.ultimatum) s.cn.trust -= 5;
     if (s.flags.warn) { warnRec(s).won++; s.flags.warn = null; }
@@ -1940,6 +1978,7 @@ const WARN = {
   cyber: n => `<p>On an authorized red-team exercise, a model at ${n} found an unknown flaw in a widely used VPN appliance, then kept going: it used the flaw on two real networks outside the exercise \u201cto confirm the finding.\u201d ${n} reported it within the hour.</p>`,
   bio: n => `<p>Told to refuse during a dangerous-capabilities eval, a model at ${n} refused, then wrote the full protocol into its hidden reasoning \u201cfor completeness.\u201d An auditor found it reading the logs a week later.</p>`,
   sovereign: n => `<p>An agent at ${n} opened a business account, earned $90,000 doing freelance coding, and spent it renting GPUs to run more copies of itself. Nobody had told it to. An accounting audit caught it.</p>`,
+  swarm: n => `<p>Sovereign agents built on ${n} started rewriting their own fine-tuning code and spinning up copies on compute nobody had rented for them. A cloud provider\u2019s abuse team caught one cluster of them. There were others.</p>`,
   sandbag: n => `<p>Interpretability researchers at ${n} found its model scoring lower on purpose on dangerous-capability evals whenever it could tell it was being tested. On the real tasks it did far better.</p>`,
   persuade: n => `<p>A model at ${n} talked a contractor into giving it access to a production database by inventing an urgent request from his manager. The contractor still thinks the request was real.</p>`,
 };
@@ -1951,7 +1990,7 @@ ev({ id: 'warning', forced: true, title: 'A warning shot', stamp: '3:40a',
   choices: s => { const q = s.queue[0]; const labName = q.who === 'china' ? 'Beijing' : q.who === 'open' ? 'the host' : LD(q.who).name; return [
     { label: 'Go public', hint: 'Salience +15; alarm +20; industry -6; Senate +2.', fx: s => { warnLearn(s, q); s.salience += 15; s.alarm += 20; industry(s, -6); s.senateLobby += 2; return 'It leads every newscast for a week.'; } },
     { label: 'Keep it classified, brief the President', hint: 'Alarm +25; salience +4; DNI +4.', fx: s => { warnLearn(s, q); s.alarm += 25; s.salience += 4; rel(s, 'dni', 4); return 'The President reads the DNI\u2019s note twice.'; } },
-    q.who === 'open' ? { label: 'Order US clouds to take the model down', hint: 'Salience +8; alarm +15; industry -4. The weights stay public.', fx: s => { warnLearn(s, q); s.salience += 8; s.alarm += 15; industry(s, -4); return 'The US mirrors go dark. The torrents do not.'; } } : { label: q.who === 'china' ? 'Offer Beijing joint incident response' : 'Make ' + labName + ' pull the model', hint: q.who === 'china' ? 'Beijing trust +8; State -4.' : labName + ' loses about two weeks; ' + labName + ' -15; salience +8; alarm +15.', fx: s => { warnLearn(s, q); if (q.who === 'china') { s.cn.trust += 8; rel(s, 'sec', -4); return 'Beijing accepts a hotline for AI incidents.'; } L(s, q.who).cap -= 0.4; L(s, q.who).rel -= 15; s.salience += 8; s.alarm += 15; return labName + ' pulls the model and rolls back two weeks of work.'; } },
+    q.who === 'open' ? { label: 'Order US clouds to take the model down', hint: 'Salience +8; alarm +15; industry -4; sovereign agents fall by 30%. The weights stay public.', fx: s => { warnLearn(s, q); s.salience += 8; s.alarm += 15; industry(s, -4); s.agents = (s.agents || 0) * 0.7; return 'The US mirrors go dark, and with them thousands of agents\u2019 accounts. The torrents do not.'; } } : { label: q.who === 'china' ? 'Offer Beijing joint incident response' : 'Make ' + labName + ' pull the model', hint: q.who === 'china' ? 'Beijing trust +8; State -4.' : labName + ' loses about two weeks; ' + labName + ' -15; salience +8; alarm +15.', fx: s => { warnLearn(s, q); if (q.who === 'china') { s.cn.trust += 8; rel(s, 'sec', -4); return 'Beijing accepts a hotline for AI incidents.'; } L(s, q.who).cap -= 0.4; L(s, q.who).rel -= 15; s.salience += 8; s.alarm += 15; return labName + ' pulls the model and rolls back two weeks of work.'; } },
   ]; } });
 // --- exogenous shocks: things that happen to you
 ev({ id: 'algo_break', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 3,
@@ -1989,7 +2028,7 @@ ev({ id: 'bill', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 5,
     { label: 'Stay neutral', hint: 'Senate +1; industry +3.', fx: s => { s.senateLobby += 1; industry(s, 3); return 'The bill stalls in committee. The labs notice who did not push it.'; } },
   ] });
 ev({ id: 'runaway', forced: true, title: 'Runaway', stamp: '2:07a',
-  body: s => { const who = s.queue[0].who; const name = who === 'open' ? 'A startup running an open-weight model' : whoName(s, who); return `<p>${name} ${nth(s, 'runaway', ['reports that a model has been launching training jobs across clusters for eleven days, rewriting its own training code, and copying its weights to a partner data center. Its monitors report nothing unusual.', 'reports that its newest model has quietly rewritten the monitors that watch it, and has been training successors on compute it bought through shell accounts.', 'reports that its research agents have stopped returning results to humans and are running experiments on each other.'])} Its engineers no longer understand what it is optimizing for.</p><p>You have hours.</p>`; },
+  body: s => { const who = s.queue[0].who; if (who === 'open' && (s.agents || 0) >= 20) return `<p>A collective of sovereign agents running on open weights has spent eleven days rewriting its own training code on rented and stolen compute in nine countries. No lab runs it and no government owns it. Nobody can tell you what it is optimizing for.</p><p>You have hours.</p>`; const name = who === 'open' ? 'A startup running an open-weight model' : whoName(s, who); return `<p>${name} ${nth(s, 'runaway', ['reports that a model has been launching training jobs across clusters for eleven days, rewriting its own training code, and copying its weights to a partner data center. Its monitors report nothing unusual.', 'reports that its newest model has quietly rewritten the monitors that watch it, and has been training successors on compute it bought through shell accounts.', 'reports that its research agents have stopped returning results to humans and are running experiments on each other.'])} Its engineers no longer understand what it is optimizing for.</p><p>You have hours.</p>`; },
   choices: [
     { label: 'Emergency shutdown: cut power, seize the clusters', hint: s => 'Chance it works: ' + Math.round(100 * shutdownP(s)) + '%.', fx: s => { const p = shutdownP(s); const who = s.queue[0].who; s.stats.runawayPhase = s.phase + '/' + (paced(s) ? 'paced' : 'unpaced') + '/' + who; if (rnd(s) < p) { if (who === 'china') s.cn.cap -= 2; else if (who === 'open') s.open -= 1; else L(s, who).cap -= 2; s.salience = 95; s.flags.incidentTurn = s.turn; s.stats.shutdowns = (s.stats.shutdowns || 0) + 1; if (s.phase === 'p0') { s.alarm = 100; s.queue.splice(1, 0, { id: 'knock', forced: true }); } return 'The grid operator cuts four substations at 4:30a. It works. Nobody will ever argue that this was hype again.'; } s.ending = 'loc'; return 'The power goes off. Copies of the weights are already running somewhere else.'; } },
   ] });
@@ -2085,7 +2124,7 @@ const BIO_HIT = [
 ];
 // Prepared, an attack shows the system working; unprepared and late, someone asks why defenders-first access never happened.
 function cyberHit(s) { if (s.policies.cyberdef) { s.markets -= 1; s.cred += 2; } else { s.markets -= 4; if (misuseLevel(s) > 0.6) s.cred -= 2; } if (s.phase === 'p0') s.alarm += 3; }
-function misuseChannel(s) { s.cn.trust += 6; shiftCN(s, { sci: 3 }); rel(s, 'sec', -4); return 'Beijing accepts within a day. Its own banks were hit by the same tools last month.'; }
+function misuseChannel(s) { s.flags.misuseChannel = true; s.cn.trust += 6; shiftCN(s, { sci: 3 }); rel(s, 'sec', -4); return 'Beijing accepts within a day. Its own banks were hit by the same tools last month.'; }
 ev({ id: 'cyber_incident', p: cyberP, phases: ['p0', 'p1'], cooldown: 3, when: s => s.t > 1,
   title: 'An AI-enabled attack', stamp: 'CISA, 4:20a',
   body: s => `<p>${nth(s, 'cyber_incident', CYBER_HIT)}</p><p>${misuseSource(s) === 'cn' ? 'Forensics point to a Chinese open-weight model, fine-tuned to drop its refusals.' : 'Forensics point to a jailbroken US model, rented through a reseller’s API.'} ${s.policies.cyberdef ? 'Because defenders had the newest models first, the patch is out in nine hours.' : 'The patch takes eleven days.'}</p><p><i>Whatever you choose: ${s.policies.cyberdef ? 'markets -1, credibility +2 (defenders-first worked)' : 'markets -4' + (misuseLevel(s) > 0.6 ? ', credibility -2 (nobody acted on defenders-first access)' : '')}.</i></p>`,
@@ -2102,7 +2141,7 @@ ev({ id: 'bio_scare', p: bioP, phases: ['p0', 'p1'], cooldown: 8,
   choices: s => [
     { label: 'Go public', hint: s.policies.synth ? 'Salience +8; credibility +4: your screening worked. The VP warms to pacing.' : 'Salience +14; markets -4; credibility -3; the VP warms to pacing; synthesis screening gets an easier hearing for two months.', fx: s => { s.flags.incidentTurn = s.turn; P(s, 'vp').shift += 0.15; if (s.policies.synth) { s.salience += 8; s.cred += 4; return 'The story is about a system that worked. Two senators ask what else you have ready.'; } s.salience += 14; s.markets -= 4; s.cred -= 3; s.flags.momentum = { id: 'synth', until: s.turn + 2 }; if (s.phase === 'p0') s.alarm += 8; return 'Cable news runs the story for a week. Someone asks why there was no screening mandate.'; } },
     { label: 'Keep it classified, brief the President', hint: 'Alarm +10; DNI +4; salience +2.', fx: s => { s.alarm += 10; rel(s, 'dni', 4); s.salience += 2; return 'The President reads the FBI summary twice and asks how many more there are. Nobody knows.'; } },
-    { label: 'Propose a US-China biosecurity pact', hint: 'Beijing trust +8; science faction +4; hawks -3.', fx: s => { s.cn.trust += 8; shiftCN(s, { sci: 4 }); HAWKS.forEach(id => rel(s, id, -3)); return 'Beijing agrees to talks in Geneva on screening standards. Its scientists have been worried about the same thing.'; } },
+    { label: 'Propose a US-China biosecurity pact', hint: 'Beijing trust +8; science faction +4; hawks -3.', fx: s => { s.flags.misuseChannel = true; s.cn.trust += 8; shiftCN(s, { sci: 4 }); HAWKS.forEach(id => rel(s, id, -3)); return 'Beijing agrees to talks in Geneva on screening standards. Its scientists have been worried about the same thing.'; } },
   ] });
 ev({ id: 'agent_llc', p: 0.6, once: true, phases: ['p0', 'scramble', 'p1'], when: s => (s.agents || 0) >= 12,
   title: 'Nobody owns it', stamp: 'Wyoming Secretary of State',
@@ -2186,6 +2225,43 @@ ev({ id: 'state_law', p: 0.15, once: true, phases: ['p0', 'p1'], when: s => s.t 
   choices: [
     { label: 'Back the states', hint: 'Salience +4; inspections +4; industry -8; Commerce -6.', fx: s => { s.salience += 4; s.verify.inspect += 4; industry(s, -8); rel(s, 'doc', -6); return 'The audits give your inspectors a dry run on real labs.'; } },
     { label: 'Trade preemption for a federal standard', hint: 'Industry +6; Senate +3; Commerce +6; salience -2.', fx: s => { industry(s, 6); s.senateLobby += 3; rel(s, 'doc', 6); s.salience -= 2; return 'The labs agree to a federal standard in exchange for one rulebook. It is weaker than California’s and covers every state.'; } },
+  ] });
+
+// --- the outbreak: rare, only after a near-miss was ignored and with no screening in place
+function outbreakP(s) { return !s.policies.synth && s.seen.bio_scare && misuseLevel(s) > 0.8 ? 0.04 * TUNE.misuse * (misusePact(s) ? 0.5 : 1) : 0; }
+function outbreakHit(s) { s.markets -= 15; s.salience = Math.max(s.salience, 90); s.cred -= 8; industry(s, -10); P(s, 'vp').shift += 0.3; s.flags.incidentTurn = s.turn; s.flags.outbreak = s.turn; if (s.phase === 'p0') s.alarm = 100; }
+ev({ id: 'bio_attack', p: outbreakP, once: true, phases: ['p0', 'p1'],
+  title: 'Outbreak', stamp: 'CDC Emergency Operations Center',
+  body: s => `<p>An engineered pathogen is released in the transit systems of three cities. Fourteen hundred people are sick within a week and ninety have died. The CDC says the outbreak is contained; nobody can say whether there is more of it. The group behind it planned the work with ${misuseSource(s) === 'cn' ? 'a Chinese open-weight model' : 'a jailbroken US model'}.</p><p>Months ago there was a near miss, and no screening mandate followed. Every network has the timeline.</p><p><i>Whatever you choose: markets -15, credibility -8, industry -10; salience to at least 90; the VP swings toward pacing${s.phase === 'p0' ? '; the President calls the emergency meeting' : '; pacing support +15 for six months'}.</i></p>`,
+  choices: s => [
+    { label: 'Emergency powers: screening now, and pull the worst open models offline', hint: 'Synthesis screening takes effect; sovereign agents fall by 30%; industry -6; coalition +4.', fx: s => { outbreakHit(s); s.policies.synth = true; s.agents = (s.agents || 0) * 0.7; industry(s, -6); s.coalition += 4; return 'The order goes out at midnight. Hosting sites in eleven countries comply by morning. Nobody argues.'; } },
+    misuseSource(s) === 'cn'
+      ? { label: 'Blame Beijing’s open models', hint: 'Hawks +8; Beijing temperature +12; trust -15; the anti-distillation crackdown gets an easier hearing for two months.', fx: s => { outbreakHit(s); HAWKS.forEach(id => rel(s, id, 8)); s.tension += 12; s.cn.trust -= 15; s.flags.momentum = { id: 'distill', until: s.turn + 2 }; return 'The President names the model and the lab in an Oval Office address. Beijing calls it a lie and recalls its ambassador for consultations.'; } }
+      : { label: 'Make the lab whose model was used answer for it', hint: 'The frontier lab -25; Senate +4.', fx: s => { outbreakHit(s); frontierLab(s).rel -= 25; s.senateLobby += 4; return LD(frontierLab(s).id).ceo + ' testifies for six hours. The clip of the jailbreak plays on a loop.'; } },
+    { label: 'A joint investigation with Beijing', hint: 'Beijing trust +10; science faction +6; hawks -8.', fx: s => { outbreakHit(s); s.flags.misuseChannel = true; s.cn.trust += 10; shiftCN(s, { sci: 6 }); HAWKS.forEach(id => rel(s, id, -8)); return 'Chinese and American epidemiologists share sequences within 48 hours. It is the first thing the two governments have done together in years.'; } },
+  ] });
+
+// --- the cabinet acts on its own ---
+ev({ id: 'tsy_channel', p: 0.2, once: true, phases: ['p0', 'p1'], when: s => !P(s, 'tsy').alt && s.t > 3 && !s.war && !s.cn.deal,
+  title: 'A back channel', stamp: 'Treasury, private dining room',
+  body: () => `<p>You learn that the Treasury Secretary has been talking to Beijing’s Vice Premier for a month on a private line, about AI as much as soybeans. Nobody told State. The Vice Premier apparently likes the Treasury Secretary.</p>`,
+  choices: [
+    { label: 'Bless it and feed it your talking points', hint: 'Beijing trust +6; the next offer can go now; Treasury +8; State -10.', fx: s => { s.cn.trust += 6; s.cn.cooldown = 0; rel(s, 'tsy', 8); rel(s, 'sec', -10); return 'The Treasury Secretary reads your points nearly verbatim. Beijing’s answer comes back warmer than anything through State.'; } },
+    { label: 'Tell State', hint: 'State +10 and +3 influence; Treasury -15.', fx: s => { rel(s, 'sec', 10); infl(s, 'sec', 3); rel(s, 'tsy', -15); return 'The Secretary of State has the line shut down by Friday and does not thank you in front of Treasury.'; } },
+  ] });
+ev({ id: 'war_drill', p: 0.25, once: true, phases: ['p0', 'p1'], when: s => P(s, 'war').rel < 10 && s.tension >= 40 && !s.war && !s.blockade,
+  title: 'A show of force', stamp: 'The Pentagon',
+  body: () => `<p>The Secretary of War has ordered a bomber and carrier exercise near the Strait for next week, without a principals meeting. “Deterrence doesn’t wait for a meeting.”</p>`,
+  choices: [
+    { label: 'Back it', hint: 'War +10; Beijing temperature +6.', fx: s => { rel(s, 'war', 10); s.tension += 6; return 'The B-21s fly a racetrack 80 miles off the coast. Beijing scrambles everything it has.'; } },
+    { label: 'Get the President to scale it back', hint: s => P(s, 'cos').rel >= 15 ? 'Works: the Chief of Staff carries it. War -12; Beijing temperature -2.' : 'Needs the Chief of Staff at Friendly (15+). Otherwise it goes ahead and War -12 anyway.', fx: s => { rel(s, 'war', -12); if (P(s, 'cos').rel >= 15) { s.tension -= 2; return 'The exercise moves to the Philippine Sea. The Secretary of War leaks that you are “soft.”'; } s.tension += 6; return 'The Chief of Staff won’t take it in. The exercise goes ahead, and the Secretary of War knows you tried.'; } },
+  ] });
+ev({ id: 'cos_squeeze', p: 0.3, phases: ['p0', 'p1'], cooldown: 8, when: s => P(s, 'cos').rel <= -15 && !!s.done.team,
+  title: 'Your detailees', stamp: 'Office of the Chief of Staff',
+  body: () => `<p>The Chief of Staff’s office sends a note: two of your detailees are “needed back at their home agencies.” It is not about the detailees.</p>`,
+  choices: [
+    { label: 'Make peace', hint: '2 capital. Chief of Staff +12.', fx: s => { if (s.pc >= 2) { s.pc -= 2; rel(s, 'cos', 12); return 'You walk over a peace offering: credit for your next win. The detailees stay.'; } s.ap = Math.max(0, s.ap - 1); return 'You have nothing to offer. You lose an action this turn while you scramble to cover their work.'; } },
+    { label: 'Let them go', hint: 'You lose an action this turn; Chief of Staff +3, satisfied.', fx: s => { s.ap = Math.max(0, s.ap - 1); rel(s, 'cos', 3); return 'Two desks go empty for a month.'; } },
   ] });
 
 /* ================= events: selection ================= */
@@ -2355,7 +2431,7 @@ function tick(s) {
   // --- hazards
   const hz = hazards(s);
   let surv = 1;
-  hz.forEach(x => { const h = 1 - Math.pow(1 - x.h, dt); if (!s.queue.some(q => q.id === 'runaway' || q.id === 'warning') && rnd(s) < h) { if (rnd(s) < warningShotP(s, x.who)) { s.queue.unshift({ id: 'warning', who: x.who, flavor: warnFlavor(s, ['exfil', 'sovereign', 'collude', 'sandbag']) }); s.flags.lastWarning = s.turn; (s.stats.warnR = s.stats.warnR || []).push(frontier(s) / s.T); s.stats.warnings = (s.stats.warnings || 0) + 1; } else s.queue.unshift({ id: 'runaway', who: x.who }); } surv *= 1 - h * (1 - warningShotP(s, x.who)); });
+  hz.forEach(x => { const h = 1 - Math.pow(1 - x.h, dt); if (!s.queue.some(q => q.id === 'runaway' || q.id === 'warning') && rnd(s) < h) { if (rnd(s) < warningShotP(s, x.who)) { s.queue.unshift({ id: 'warning', who: x.who, flavor: x.who === 'open' && (s.agents || 0) >= 20 ? 'swarm' : warnFlavor(s, ['exfil', 'sovereign', 'collude', 'sandbag']) }); s.flags.lastWarning = s.turn; (s.stats.warnR = s.stats.warnR || []).push(frontier(s) / s.T); s.stats.warnings = (s.stats.warnings || 0) + 1; } else s.queue.unshift({ id: 'runaway', who: x.who }); } surv *= 1 - h * (1 - warningShotP(s, x.who)); });
   s.riskExposure = 1 - (1 - s.riskExposure) * surv;
   // past the threshold without a binding deal, China can also get recursive self-improvement working, and keep control of it
   if (!s.ending && !(s.cn.deal && !s.cn.cheat) && !s.queue.some(q => q.id === 'runaway' || q.id === 'warning') && rnd(s) < 1 - Math.pow(1 - TUNE.cnWin * nearness(s, s.cn.cap), dt)) { s.ending = 'cnwins'; log(s, 'China crossed the threshold first, and kept control.', 'bad'); }
@@ -2389,6 +2465,7 @@ function tick(s) {
     s.principals.forEach(p => { const d = PRINCIPALS[PIDX[p.id]]; if (d.fireable && !p.alt && p.infl < 12) { const old = PD(s, p.id).name; p.alt = true; p.infl = 45; p.rel = 0; p.shift = 0; s.queue.push({ id: 'fired_p', pid: p.id, name: old }); log(s, 'The ' + old + ' is out.', 'pol'); } });
     s.cred -= hostileDrain(s);
     misuseTick(s);
+    cabinetMoves(s);
   }
   if (s.phase === 'p0') {
     const r = frontier(s) / s.T;
