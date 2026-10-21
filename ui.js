@@ -204,7 +204,7 @@ function topBar(v) {
       <div class="sgroup">
         ${stat('c-cred', 'Credibility', Math.round(S.cred), 'The President’s trust in you. Wins raise it; losses and false alarms lower it. At 5 you are fired.', S.cred < 30 ? 'hot' : '')}
         ${stat('c-sal', 'Salience', Math.round(S.salience), 'How seriously Washington takes AI risk. Moves the cabinet toward pacing and sustains it.')}
-        ${stat('c-mk', 'Markets', Math.round(S.markets), 'Stock index, 100 at the start. Pacing, chip bans and slowing the labs cost; deals help.', S.markets < 88 ? 'hot' : '')}
+        ${stat('c-mk', 'Markets', Math.round(S.markets), 'Stock index, 100 at the start. Pacing, chip bans and slowing the labs cost; deals help. Below 100 it drains your capital, credibility and votes; above 100 it adds to them.', S.markets < 88 ? 'hot' : '')}
         ${stat('c-tens', 'Beijing', Math.round(S.tension) + '°', 'Beijing temperature. High makes deals unlikely and a Strait crisis likelier; 100 means a military standoff.', S.tension >= 70 ? 'hot' : '')}
         ${S.war ? stat('c-esc', 'Escalation', Math.round(S.war.esc) + '<small>/100</small>', 'How close the war is to nuclear use. At 100 the game ends. A ceasefire ends the war.', 'hot') : ''}
       </div>
