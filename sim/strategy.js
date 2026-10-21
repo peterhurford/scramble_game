@@ -32,6 +32,13 @@ g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70
 g('guard', 'bool'); g('pledgeScr', 'bool'); g('sound', 'int', 0, 3); g('oMin', 'real', 0, 0.8); g('ultLead', 'real', 4, 16);
 g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']); g('warnLead', 'real', 0, 10);
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
+// Genes that only pay when they change together: a policy or project with its reading gate (SL4 is both), and settings that act as one plan.
+// The search resamples a whole group at once, switching a gated item on with a random priority and gate.
+const GROUPS = Object.keys(GATE).filter(p => p !== 'sl4').map(p => ['pol.' + p, 'gate.' + p])
+  .concat(Object.keys(PGATE).filter(p => p !== 'sl4').map(p => ['proj.' + p, 'pgate.' + p]))
+  .concat([['pol.sl4', 'gate.sl4', 'proj.sl4', 'pgate.sl4'], ['mech', 'mechHostile', 'mechCut', 'charterMin', 'mechNoSign', 'licRelMin'],
+    ['o.inspect', 'o.lane', 'o.institute', 'o.relief', 'o.visas', 'o.freeze', 'o.chips', 'oMin', 'scrOffer'], ['warnK', 'warnLead', 'threatLead'],
+    ['briefR', 'briefOdds', 'briefIc', 'briefIcOdds'], ['seq', 'seqIc', 'trig'], ['pol.chips', 'pol.remote', 'pol.distill', 'pol.smuggle', 'gate.chips', 'gate.remote', 'gate.distill', 'gate.smuggle']]);
 
 const PREF = { warn_due: 0, distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast: 1, lantern_oped: 0, kite: 0, oversight: 0, power: 0, titan_feud: 1, leak: 1, johor: 0, bio: 1, capex: 0, ceo_call: 1, near_miss: 0, rare_earths: 1, taiwan: 1, verdant: 0, cn_un: 0, g7: 0, s_leak: 0, s_beijing: 0, s_titan: 0, s_hill: 0, defector: 2, cn_cheat: 0, court: 0, lobby_end: 1, uae: 0, hearing: 0, markets_wobble: 0, commerce_ex: 0, wobble: 0, theft: 1, war: 0, knock: 1, debate: 0, deadline_up: 1, cn_beg: 2, czar_endrun: 0, feud: 0, vp_issue: 0, hawk_push: 1, midterms: 0, blockade: 1, war_begins: 0, war_exempt: 2, war_cyber: 1, war_escalate: 1, war_talks: 1, cable_cut: 0, tsmc_shield: 0 };
 function expertGenome() {
@@ -229,4 +236,4 @@ function loadGenome(file) {
   return G;
 }
 const genes = G => Object.keys(G).filter(k => k[0] !== '_');
-module.exports = { GENES, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE, PGATE, rulesStamp, loadGenome, genes };
+module.exports = { GENES, GROUPS, expertGenome, play, evaluate, setTrace, PROJ, POL0, EVENTS, GATE, PGATE, rulesStamp, loadGenome, genes };

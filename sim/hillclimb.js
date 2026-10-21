@@ -2,6 +2,7 @@
 // same batch of seeds (common random numbers), and keeps the best child if it beats the parent on that batch.
 // The batch rotates every ROTATE generations to limit overfitting. Usage: node sim/hillclimb.js [gens] [games] [difficulty] [run]
 // Racing: every child plays the first third of the batch; only those within RACE_MARGIN of the parent there play the rest.
+// GROUP_P=0.3 (default) of children resample a whole S.GROUPS group, so moves that need several genes at once are reachable.
 // RUNS=0,1,2 runs several searches in one process, so every run uses the code loaded at the start.
 // OUT=sim/v13 writes sim/v13_run<N>.json instead of best_genome[_runN].json. START=genome.json seeds the search (START=a.json,b.json,c.json: one per run).
 // A lock file (sim/.search.lock) makes a second search wait for the first instead of splitting the cores.
@@ -15,7 +16,7 @@ if (!isMainThread) {
 }
 const fs = require('fs'), path = require('path'), os = require('os');
 const GENS = +(process.argv[2] || 300), GAMES = +(process.argv[3] || 600), DIFF = process.argv[4] || 'advisor';
-const LAMBDA = 12, ROTATE = 15, RACE_MARGIN = process.env.RACE_MARGIN != null ? +process.env.RACE_MARGIN : 0.03;
+const LAMBDA = 12, ROTATE = 15, GROUP_P = process.env.GROUP_P != null ? +process.env.GROUP_P : 0.3, RACE_MARGIN = process.env.RACE_MARGIN != null ? +process.env.RACE_MARGIN : 0.03;
 const RUNS = (process.env.RUNS || process.argv[5] || '0').split(',').map(Number);
 // PIN='{"seq":"together"}' holds genes fixed through the search.
 const PIN = process.env.PIN ? JSON.parse(process.env.PIN) : {};
@@ -65,8 +66,21 @@ process.on('exit', unlock); process.on('SIGINT', () => process.exit(130)); proce
 async function search(RUN) {
   let rs = 12345 + 7919 * RUN; const rand = () => { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; };
   const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
+  const GENE = Object.fromEntries(S.GENES.map(g => [g.key, g]));
+  // One child in GROUP_P resamples a whole gene group instead (S.GROUPS); a priority gene in a group comes back switched on.
+  function regroup(C) {
+    for (const key of S.GROUPS[Math.floor(rand() * S.GROUPS.length)]) {
+      const gene = GENE[key], u = rand();
+      if (gene.type === 'real') C[key] = /^(pol|proj)\./.test(key) ? u : gene.a + u * (gene.b - gene.a);
+      else if (gene.type === 'int') C[key] = gene.a + Math.floor(u * (gene.b - gene.a + 1));
+      else if (gene.type === 'bool') C[key] = u < 0.5;
+      else C[key] = gene.a[Math.floor(u * gene.a.length)];
+    }
+    return Object.assign(C, PIN);
+  }
   function mutate(G) {
     const C = Object.assign({}, G);
+    if (rand() < GROUP_P) return regroup(C);
     const k = 1 + Math.floor(rand() * 4);
     for (let i = 0; i < k; i++) {
       const gene = S.GENES[Math.floor(rand() * S.GENES.length)];
