@@ -9,7 +9,7 @@ const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offs
 // Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
 const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield'];
+const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'redline_due'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
@@ -32,16 +32,17 @@ g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70
 g('guard', 'bool'); g('pledgeScr', 'bool'); g('sound', 'int', 0, 3); g('oMin', 'real', 0, 0.8); g('ultLead', 'real', 4, 16);
 g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']); g('warnLead', 'real', 0, 10);
 g('openP1', 'bool'); g('ratchetGap', 'real', 0, 6);
+g('reassure', 'bool'); g('reassureLead', 'real', 0, 10); g('redline', 'bool'); g('redlineLead', 'real', 0, 10);
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 // Genes that only pay when they change together: a policy or project with its reading gate (SL4 is both), and settings that act as one plan.
 // The search resamples a whole group at once, switching a gated item on with a random priority and gate.
 const GROUPS = Object.keys(GATE).filter(p => p !== 'sl4').map(p => ['pol.' + p, 'gate.' + p])
   .concat(Object.keys(PGATE).filter(p => p !== 'sl4').map(p => ['proj.' + p, 'pgate.' + p]))
   .concat([['pol.sl4', 'gate.sl4', 'proj.sl4', 'pgate.sl4'], ['mech', 'mechHostile', 'mechCut', 'charterMin', 'mechNoSign', 'licRelMin'],
-    ['o.inspect', 'o.lane', 'o.institute', 'o.relief', 'o.visas', 'o.freeze', 'o.chips', 'oMin', 'scrOffer'], ['warnK', 'warnLead', 'threatLead'],
+    ['o.inspect', 'o.lane', 'o.institute', 'o.relief', 'o.visas', 'o.freeze', 'o.chips', 'oMin', 'scrOffer'], ['warnK', 'warnLead', 'threatLead'], ['reassure', 'reassureLead'], ['redline', 'redlineLead'],
     ['briefR', 'briefOdds', 'briefIc', 'briefIcOdds'], ['seq', 'seqIc', 'trig'], ['pol.chips', 'pol.remote', 'pol.distill', 'pol.smuggle', 'gate.chips', 'gate.remote', 'gate.distill', 'gate.smuggle']]);
 
-const PREF = { warn_due: 0, distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast: 1, lantern_oped: 0, kite: 0, oversight: 0, power: 0, titan_feud: 1, leak: 1, johor: 0, bio: 1, capex: 0, ceo_call: 1, near_miss: 0, rare_earths: 1, taiwan: 1, verdant: 0, cn_un: 0, g7: 0, s_leak: 0, s_beijing: 0, s_titan: 0, s_hill: 0, defector: 2, cn_cheat: 0, court: 0, lobby_end: 1, uae: 0, hearing: 0, markets_wobble: 0, commerce_ex: 0, wobble: 0, theft: 1, war: 0, knock: 1, debate: 0, deadline_up: 1, cn_beg: 2, czar_endrun: 0, feud: 0, vp_issue: 0, hawk_push: 1, midterms: 0, blockade: 1, war_begins: 0, war_exempt: 2, war_cyber: 1, war_escalate: 1, war_talks: 1, cable_cut: 0, tsmc_shield: 0 };
+const PREF = { warn_due: 0, distill_report: 0, smuggle_bust: 2, trade_summit: 1, czar_podcast: 1, lantern_oped: 0, kite: 0, oversight: 0, power: 0, titan_feud: 1, leak: 1, johor: 0, bio: 1, capex: 0, ceo_call: 1, near_miss: 0, rare_earths: 1, taiwan: 1, verdant: 0, cn_un: 0, g7: 0, s_leak: 0, s_beijing: 0, s_titan: 0, s_hill: 0, defector: 2, cn_cheat: 0, court: 0, lobby_end: 1, uae: 0, hearing: 0, markets_wobble: 0, commerce_ex: 0, wobble: 0, theft: 1, war: 0, knock: 1, debate: 0, deadline_up: 1, cn_beg: 2, czar_endrun: 0, feud: 0, vp_issue: 0, hawk_push: 1, midterms: 0, blockade: 1, war_begins: 0, war_exempt: 2, war_cyber: 1, war_escalate: 1, war_talks: 1, cable_cut: 0, tsmc_shield: 0, redline_due: 0 };
 function expertGenome() {
   const G = {};
   PROJ.forEach((p, i) => G['proj.' + p] = 1 - i * 0.1);
@@ -52,7 +53,7 @@ function expertGenome() {
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
     mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', secretLead: -1, licRelMin: 101, hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
-    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, guard: false, pledgeScr: false, sound: 0, oMin: 0, ultLead: 16, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0 });
+    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, guard: false, pledgeScr: false, sound: 0, oMin: 0, ultLead: 16, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0, reassure: false, reassureLead: 4, redline: false, redlineLead: 4 });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips'].forEach(t => G['o.' + t] = false);
   EVENTS.forEach(e => G['ev.' + e] = PREF[e] || 0);
@@ -123,6 +124,7 @@ function turn(s, G) {
       const next = projs.find(p => !s.done[p] && avail(s, 'proj_' + p) && !pgated(s, G, p));
       if (next && tryAct(s, 'proj_' + next, {}, G, 'next project in priority order' + (G['pgate.' + next] ? ' (its reading clears the gate)' : ''))) { step(); continue; }
       if (G.hillP0 && tryAct(s, 'hill', {}, G, 'spare action: work the Hill early')) { step(); continue; }
+      if (leverNow(s, G)) { step(); continue; }
       if (G.alliesIdle && tryAct(s, 'allies', {}, G, 'spare action: build the coalition')) { step(); continue; }
       break;
     }
@@ -147,6 +149,7 @@ function turn(s, G) {
         if (tryAct(s, id, prm, G, id === 'mech' ? 'courts read ' + E.courtRead(s).word + ', Mindscale ' + Math.round(100 * E.charterOdds(s, 'mindscale', false)) + '% to sign' : 'scramble plan, in order')) { did = true; step(); break; }
       }
       if (did) continue;
+      if (leverNow(s, G)) { step(); continue; }
       if (G.scrIdle === 'remote' && tryAct(s, 'remote', {}, G, 'spare scramble action')) { step(); continue; }
       if ((G.scrIdle === 'meet' || G.scrIdle === 'remote') && tryAct(s, 'meet', { who: 'doc' }, G, 'spare scramble action: work on the Commerce Secretary')) { step(); continue; }
       if ((G.scrIdle === 'allies' || G.scrIdle === 'remote') && tryAct(s, 'allies', {}, G, 'spare scramble action')) { step(); continue; }
@@ -182,6 +185,7 @@ function turn(s, G) {
       const comp = G.surge === 'lowest' ? comps[0] : G.surge === 'novel' ? (s.verify.novel < 65 ? 'novel' : comps[0]) : (s.verify.inspect < 65 ? 'inspect' : comps[0]);
       if (tryAct(s, 'surge', { comp }, G, 'surge rule: ' + G.surge)) { step(); continue; }
       if (v.support < G.meetSup && tryAct(s, 'meet', { who: 'vp' }, G, 'pacing support below ' + Math.round(G.meetSup))) { step(); continue; }
+      if (leverNow(s, G)) { step(); continue; }
       const proj = G.p1proj && ['inspect', 'geoint', 'sl4', 'sl5', 'team'].find(p => !s.done[p] && avail(s, 'proj_' + p) && !pgated(s, G, p));
       if (proj && tryAct(s, 'proj_' + proj, {}, G, 'nothing more urgent: finish projects')) { step(); continue; }
       break;
@@ -190,6 +194,12 @@ function turn(s, G) {
 }
 // Threaten G.warnK before offering once the IC's lead estimate reaches G.warnLead; the warn_due event gene decides impose or back down.
 function warnNow(s, G) { return G.warnK && G.warnK !== 'none' && !s.cn.deal && E.warnable(s, G.warnK) && E.quickView(s).leadEst.mid >= G.warnLead && tryAct(s, 'warn', { variant: G.warnK }, G, 'threaten ' + G.warnK + ' with the IC lead at ' + G.warnLead.toFixed(1) + '+ months'); }
+// Reassure Beijing, or draw the cyber red line, once the IC's lead estimate reaches the gene's level.
+function leverNow(s, G) {
+  const ld = E.quickView(s).leadEst.mid;
+  return (G.reassure && ld >= G.reassureLead && tryAct(s, 'reassure', {}, G, 'IC lead at ' + G.reassureLead.toFixed(1) + '+ months: guarantee Beijing a share')) ||
+    (G.redline && ld >= G.redlineLead && tryAct(s, 'redline', {}, G, 'IC lead at ' + G.redlineLead.toFixed(1) + '+ months: red line on hacking the labs'));
+}
 // Sound out the envoy on the allowed carrot read as most valuable, until G.sound carrots are confirmed.
 function soundOut(s, G) {
   const known = E.CARROT_IDS.filter(k => E.termRead(s, k).known).length;
