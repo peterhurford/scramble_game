@@ -84,7 +84,7 @@ const COMPONENTS = [
 ]
 
 // Weight security ladder. Each level replaces the one below: its theft odds and its cost to US labs.
-const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.50, drag: 0.05 }, 5: { W: 92, theft: 0.04, drag: 0.15, dragStart: 0.30 } };
+const SL = { 3: { W: 25, theft: 0.90, drag: 0 }, 4: { W: 65, theft: 0.25, drag: 0.05 }, 5: { W: 92, theft: 0.04, drag: 0.15, dragStart: 0.30 } };
 // SL5's overhead is front-loaded: the move onto isolated networks costs most, easing from dragStart to drag over 12 months
 function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const age = s.t - (s.flags.sl5Since == null ? s.t : s.flags.sl5Since); return l.drag + (l.dragStart - l.drag) * Math.max(0, 1 - age / 12); }
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
@@ -102,8 +102,8 @@ const PROJECTS = [
   { id: 'track2', name: 'Track 2 dialogue with Chinese scientists', need: 2, desc: 'A shared evidence base on loss of control, reached through their own work. Worth the most when Beijing\u2019s science faction already has a voice.', done: 'Beijing trust +12; their science faction gains ground.', fx(s) { s.cn.trust += 12; shiftCN(s, { sci: 5, sec: -2 }); } },
   { id: 'legal', name: 'Legal authorities study (DPA, IEEPA)', need: 1, desc: 'What the President can actually do on day one, and what survives a court. Worth the most when the courts are hostile.', done: 'Emergency orders are far less likely to be enjoined, the DPA threat becomes credible, and your read on the courts gets far more accurate.' },
   { id: 'control', name: 'AI control protocols with the labs', need: 2, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls 40%; automation limits are easier to sign. Monitoring overhead slows US labs 5%.' },
-  { id: 'sl4', name: 'Implement SL4 at the labs', need: 1, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 50% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
-  { id: 'sl5', name: 'Raise the labs to SL5', need: 3, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 50%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
+  { id: 'sl4', name: 'Implement SL4 at the labs', need: 1, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: a theft attempt succeeds 25% of the time instead of 90%. Overhead slows US labs 5%.', fx(s) { setSL(s, 4); } },
+  { id: 'sl5', name: 'Raise the labs to SL5', need: 3, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt succeeds 4% of the time instead of 25%. Air gaps and vetting slow US labs 30% at first, easing to 15% over a year as the labs adapt (instead of SL4\u2019s 5%). Labs -20, industry -12, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20); industry(s, -12); s.markets -= 6; } },
 ];
 
 const ASKS = {
@@ -510,7 +510,7 @@ function cnStart(s) {
   c.inno = clamp(0.16 * Math.exp(0.6 * z2), 0.04, 0.5);
   c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
   // multipliers on typical: how hostile the courts are (0.5-1.5x), Beijing's cyber push against US labs (log-uniform 0.5-1.8x), how well it hides sites (0.5-1.5x)
-  s.courts = 0.5 + u('courts'); c.cyber = 0.5 * Math.pow(3.6, u('cyber')); c.hide = 0.5 + u('hide');
+  s.courts = 0.5 + u('courts'); c.cyber = 0.4 * Math.pow(2.5 / 0.4, u('cyber')); c.hide = 0.5 + u('hide');
   // visible from day one: who has the floor in Beijing, and how warm each lab starts (±15 around its usual)
   const sci = 12 + 18 * u('sci'), sec = 22 + 18 * u('sec'); c.f = { m: 100 - sci - sec, sec, sci };
   s.labs.forEach(l => { l.rel = LD(l.id).rel0 + Math.round(30 * (u('rel' + l.id) - 0.5)); });
@@ -699,11 +699,11 @@ def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', pha
   effect: s => 'China loses legal chips now (−16% compute); HBM curbs trim its domestic output over a year (up to −2% more; the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets -3, Beijing temperature +12, Treasury unhappy. US labs 3% slower, and Beijing may answer with mineral export curbs that slow them much more.',
   apply(s) { const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12; shiftCN(s, { m: -5, sec: 7 }); rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
 });
-def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
+def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3. Worth the most when Beijing\u2019s hackers push hard (the Beijing tab).',
-  effect: () => 'Orders SL4. It takes effect after 1 more action implementing it: then a theft attempt succeeds 50% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
+  effect: () => 'Orders SL4. It takes effect after 1 more action implementing it: then a theft attempt succeeds 25% of the time instead of 90%, and overhead slows US labs 5%. Labs -8, industry -2.',
   apply(s) { s.labs.forEach(l => l.rel -= 8); industry(s, -2); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
