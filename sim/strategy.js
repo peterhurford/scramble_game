@@ -200,8 +200,10 @@ function offerTerms(s, G) {
   }
   return t;
 }
-function play(G, seed, diff) {
+// salt reseeds the in-game dice after the world is drawn: the same world, different luck (for measuring how much luck decides a game).
+function play(G, seed, diff, salt) {
   const s = E.newGame({ seed, difficulty: diff || 'advisor' });
+  if (salt) s.rs = (s.rs ^ Math.imul(salt, 2654435761)) | 0;
   resolve(s, G);
   let n = 0;
   while (!s.ending && n++ < 200) { turn(s, G); resolve(s, G); if (s.ending) break; E.endTurn(s); resolve(s, G); }

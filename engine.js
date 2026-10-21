@@ -90,7 +90,7 @@ function slDrag(s) { const l = SL[s.sl]; if (!l.dragStart) return l.drag; const 
 function setSL(s, lvl) { if (lvl > s.sl) { s.sl = lvl; s.W = SL[lvl].W; } }
 // Tunables for the UAE megasite left outside the regime (exported so sim/ can test variants).
 const TUNE = { theftBase: 0.05, hawkBase: -0.075, hawkProvoke: 0.08, hawkRace: 0.08, uaeShare: 0.15, uaeRate: 0.3, uaeHazard: true, uaeSupport: false, uaeDeal: 0, uaeCost: 2, uaeState: -12, courtRate: { dpa: 0.3, license: 0.2, charter: 0.1 }, statuteCourt: 0.04, summitCourt: 0.35, betray: 2.5, betrayAt: 0.85, falseAlarm: 0.12, senateBase: 0,
-  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
+  riderBelow: 52, slowMonths: 2, p0Ap: 1, eventsPerTurn: 1, whip: 9, hillCap: 25, billFight: 3, billBack: 8, walkRate: 0.3, leadSlope: 0.2, overtakePen: 2.0, theftShare: 0.5, postureNoise: 2, cnSharp: 3, cheatTrust: 0.8, cheatResent: 0.15, cnWin: 0.10, ctrlBite: { legal: 0.20, remote: 0.12, smuggle: 0.10, dist: 0.08 }, secretRate: 0.5, usCatch: 0.1, cnSeesUS: 0.15, supportBreak: 12, chipLever: 0.55, reliefLever: 0.25, appealSwing: 0.5, licRel: 0.3, charterRel: 0.3, lockout: 4, enjoinedMult: 0.5, labLobby: 0.6, meetDecay: 0.6, favorCred: 2,
   strait: 1, straitBase: 0.02, warEsc: 1.15, holdFirm: 0.6 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -1000,8 +1000,8 @@ function offerTags(terms) {
 function cnParts(s, terms, pub) {
   const f = s.cn.f, ld = pub ? seenLead(s) : lead(s); // the player's preview reads the IC's gap; Beijing decides on the true one
   const P_ = [['Base reluctance', -1.55], ['Who has the floor in Beijing', 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30)]];
-  P_.push([ld >= 4 ? 'The US lead' : 'China is close behind', 0.08 * (clamp(ld, -4, 12) - 4)]);
-  const cm = pub ? crossoverMonths(s) : cnCatchUp(s); if (cm < 6) P_.push(['China could overtake within ' + Math.max(1, Math.round(cm)) + ' months', -0.9 * (1 - cm / 6)]);
+  P_.push([ld >= 4 ? 'The US lead' : 'China is close behind', TUNE.leadSlope * (clamp(ld, -4, 12) - 4)]);
+  const cm = pub ? crossoverMonths(s) : cnCatchUp(s); if (cm < 6) P_.push(['China could overtake within ' + Math.max(1, Math.round(cm)) + ' months', -TUNE.overtakePen * (1 - cm / 6)]);
   if (chanClosed(s) && !terms.lane && !terms.chips && !terms.relief && f.sec > 40) P_.push(['Every channel closed, and nothing in the offer reopens one', -0.4]);
   if (paced(s)) P_.push(['America is pacing', 0.5]);
   else if (s.pacing.armed) P_.push(['America’s labs signed, but nothing stops until Beijing does (' + Math.round(100 * standbyCred(s)) + '% credible)', 0.65 * standbyCred(s)]);
@@ -1024,8 +1024,8 @@ function cnParts(s, terms, pub) {
   return P_;
 }
 function cnUtility(s, terms, pub) { return cnParts(s, terms, pub).reduce((a, x) => a + x[1], 0); }
-function cnAcceptP(s, terms) { return logistic(2.2 * cnUtility(s, terms)); }
-function cnAcceptEstimate(s, terms) { const p = logistic(2.2 * cnUtility(s, terms, true)); const err = 0.25 * (1 - s.intelQ / 100) + 0.04; const b = (hash01(s.seed, s.turn, 'cnest', JSON.stringify(terms)) - 0.5) * 2 * err; return { mid: clamp(p + b, 0.01, 0.99), err }; }
+function cnAcceptP(s, terms) { return logistic(TUNE.cnSharp * cnUtility(s, terms)); }
+function cnAcceptEstimate(s, terms) { const p = logistic(TUNE.cnSharp * cnUtility(s, terms, true)); const err = 0.25 * (1 - s.intelQ / 100) + 0.04; const b = (hash01(s.seed, s.turn, 'cnest', JSON.stringify(terms)) - 0.5) * 2 * err; return { mid: clamp(p + b, 0.01, 0.99), err }; }
 function offerPreview(s, terms) { const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms)); return { room: rp, cn: cnAcceptEstimate(s, terms) }; }
 function roomPreviewTags(s, id, tags, key) { ACT._tmp = { tags, pres: s2 => (seenLead(s2) > 4 ? 0.1 : 0) }; const r = roomPreview(s, '_tmp', { key }); delete ACT._tmp; return r; }
 def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramble', 'p1'], ap: 1, pc: 2, modal: 'offer',
@@ -1150,7 +1150,7 @@ def({ id: 'summit', cat: 'diplo', name: 'Convene the Phase 2 summit', phases: ['
     return 'The summit ends without a signature. Beijing wants more time. You can try again.';
   },
 });
-function summitP(s) { const d = s.cn.deal; if (!d) return 0; const held = s.t - d.since; return logistic(2.2 * (cnUtility(s, Object.assign({}, d.terms, { inspect: true })) + 0.6 + 0.08 * held + 0.2 * (s.flags.summitFailed || 0))); }
+function summitP(s) { const d = s.cn.deal; if (!d) return 0; const held = s.t - d.since; return logistic(TUNE.cnSharp * (cnUtility(s, Object.assign({}, d.terms, { inspect: true })) + 0.6 + 0.08 * held + 0.2 * (s.flags.summitFailed || 0))); }
 // Monthly chance a court enjoins the pause: the mechanism's rate (a DPA order on any lab counts as DPA), far lower once a statute is challenged instead,
 // times the game's hidden court climate (pass the counsel's read to get what the player can know); the legal study cuts it, ignoring a ruling raises it.
 function courtP(s, climate) {
@@ -1750,7 +1750,7 @@ function endPacing(s) {
 
 // --- crisis events ---
 ev({ id: 'theft', forced: true, title: 'The weights are gone', stamp: 'NSA Operations, 3:12a',
-  body: s => `<p>A state-backed actor spent six days inside ${LD(s.queue[0].lab).name}’s network and moved 1.9 TB out through a compromised build server: the weights of its best model. A Chinese lab can run it within weeks. The lead you built collapses to about one month.</p>`,
+  body: s => `<p>A state-backed actor spent six days inside ${LD(s.queue[0].lab).name}’s network and moved 1.9 TB out through a compromised build server: the weights of its best model. A Chinese lab can run it within weeks. China closes about half the gap as it absorbs it.</p>`,
   choices: [
     { label: 'Degrade it with cyber operations', hint: '55%: China loses 2.5 months. Beijing temperature +20.', fx: s => { s.tension += 20; shiftCN(s, { sec: 8 }); s.stats.covert++; if (rnd(s) < 0.55) { s.cn.cap -= 2.5; return 'Two clusters lose a month to corrupted checkpoints.'; } return 'The operation is detected early. Beijing hardens and disperses.'; } },
     { label: 'Go public and rally allies', hint: 'Salience +8; coalition +10; Senate +3; Beijing trust -5.', fx: s => { s.salience += 8; s.coalition += 10; s.senateLobby += 3; s.cn.trust -= 5; s.tension += 6; s.flags.incidentTurn = s.turn; return 'Allies are outraged. Two fence-sitting governments back the regime.'; } },
@@ -1990,7 +1990,7 @@ function tick(s) {
     const closed = c.legalT < 0.3 && c.distT < 0.5 && c.remoteT < 0.5;
     if (lead(s) > 8 && closed && !(c.deal && c.deal.terms.lane)) shiftCN(s, { sec: 2 });
     const sc = { diffuse: f.m, race: f.sec * (1 + (s.tension - 40) / 80), engage: f.sci * 1.2 + (paced(s) ? 10 : 0) + c.trust * 0.2 };
-    for (const k in sc) sc[k] += gauss(s) * 4;
+    for (const k in sc) sc[k] += gauss(s) * TUNE.postureNoise;
     const prev = c.posture;
     c.posture = Object.keys(sc).reduce((a, b) => sc[a] >= sc[b] ? a : b);
     if (c.posture !== prev) log(s, 'Beijing’s posture shifts: ' + { diffuse: 'diffusion, not the frontier', race: 'racing the frontier', engage: 'open to a deal' }[c.posture] + '.', 'cn');
@@ -2040,7 +2040,7 @@ function tick(s) {
     const tr = theftRisk(s);
     if (rnd(s) < tr.attempt * dt) {
       const tgt = frontierLab(s);
-      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); log(s, 'Frontier model weights were stolen.', 'bad'); }
+      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap += (F - 0.6 - c.cap) * TUNE.theftShare; /* a stolen model closes part of the gap: China still has to absorb it */ s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); log(s, 'Frontier model weights were stolen.', 'bad'); }
       else if (rnd(s) < 0.5) s.queue.push({ id: 'theft_foiled', lab: tgt.id });
     }
   }
@@ -2211,7 +2211,7 @@ function lessons(s) {
   const out = [];
   if (s.ending === 'betrayed') out.push('Phase 2 was signed with intelligence quality ' + Math.round(s.intelQ) + '. Weak intelligence and thin verification let Beijing hide a program; the GEOINT baseline, verification funding and IC assessments are what make an agreement enforceable.');
   if (s.stats.scrambleStart != null) out.push(s.flags.statute ? 'Congress made pacing law, so the courts could not take it away.' : 'The pause ran on executive authority alone, one injunction away from unraveling. A statute takes Hill work and two months, but ends the court risk.');
-  out.push(s.sl >= 4 ? 'Labs reached SL' + s.sl + '. Security cost speed, and a stolen frontier model would have collapsed the gap to about a month.' : 'Labs stayed at SL3. A stolen frontier model collapses the gap to about a month' + (s.stats.thefts ? ', and it happened ' + s.stats.thefts + ' time' + (s.stats.thefts > 1 ? 's' : '') + '.' : '.'));
+  out.push(s.sl >= 4 ? 'Labs reached SL' + s.sl + '. Security cost speed, and a stolen frontier model would have closed about half the gap.' : 'Labs stayed at SL3. A stolen frontier model closes about half the gap' + (s.stats.thefts ? ', and it happened ' + s.stats.thefts + ' time' + (s.stats.thefts > 1 ? 's' : '') + '.' : '.'));
   if (s.done.memo) out.push('The memo was ready before the knock on the door. Work done before the scramble matters most.');
   else if (s.stats.scrambleStart != null) out.push('Nobody had written the memo for the emergency meeting. It is one of the cheapest things to have ready.');
   if (s.done.zk) out.push('Proof-of-training is real work, but it did not count during Phase 1: the government does not trust novel tools on day one.');
