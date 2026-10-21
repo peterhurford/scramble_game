@@ -29,7 +29,7 @@ g('dealBelow', 'real', 0, 1); g('dealMinShare', 'real', 0, 0.3); g('waitFull', '
 g('threatLead', 'real', 4, 15); g('fundFirst', 'bool'); g('hwOver', 'real', 2, 10); g('speechSup', 'real', 15, 60); g('alliesCoal', 'real', 30, 80); g('senateT', 'real', 55, 90);
 g('statute', 'bool'); g('hillP0', 'bool'); g('hillMoving', 'bool'); g('cheatDismiss', 'choice', ['never', 'low', 'moderate']); g('summitConf', 'choice', ['low', 'moderate', 'high']); g('intelTarget', 'real', 0, 100);
 g('surge', 'choice', ['lowest', 'novel', 'inspect']); g('meetSup', 'real', 0, 70); g('covertWithin', 'real', 0, 5); g('gofirstIc', 'real', 0, 8); g('p1proj', 'bool'); g('ceasefire', 'bool');
-g('guard', 'bool'); g('pledgeScr', 'bool'); g('sound', 'int', 0, 3); g('oMin', 'real', 0, 0.8); g('ultLead', 'real', 4, 16);
+g('pledgeScr', 'bool'); g('sound', 'int', 0, 3); g('oMin', 'real', 0, 0.8);
 g('warnK', 'choice', ['none', 'chips', 'remote', 'distill', 'smuggle']); g('warnLead', 'real', 0, 10);
 g('openP1', 'bool'); g('ratchetGap', 'real', 0, 6);
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
@@ -52,7 +52,7 @@ function expertGenome() {
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, { meetEvery: 4, meetA: 'vp', meetB: 'cos', favReserve: 8, briefR: 0.68, briefOdds: 0.5, briefIc: 0, briefIcOdds: 0.9, saveIc: 0, saveReserve: 0, speechIc: 0, alliesIdle: true,
     mech: 'charter', mechHostile: 'charter', mechCut: 2, charterMin: 0, mechNoSign: 'dpa', secretLead: -1, licRelMin: 101, hillMoving: false, thr: '1e21', auto: true, trig: '200c', seq: 'first', seqIc: 6, dealBelow: 0.55, dealMinShare: 0.15, waitFull: true, scrIdle: 'remote', scrOffer: false,
-    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, guard: false, pledgeScr: false, sound: 0, oMin: 0, ultLead: 16, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0 });
+    statute: true, hillP0: false, cheatDismiss: 'never', summitConf: 'low', intelTarget: 0, threatLead: 7, fundFirst: true, hwOver: 5, speechSup: 35, alliesCoal: 55, senateT: 70, surge: 'lowest', meetSup: 45, covertWithin: 0, gofirstIc: 0, p1proj: true, ceasefire: true, pledgeScr: false, sound: 0, oMin: 0, warnK: 'none', warnLead: 5, openP1: false, ratchetGap: 0 });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true); ['relief', 'visas', 'freeze', 'chips'].forEach(t => G['o.' + t] = false);
   EVENTS.forEach(e => G['ev.' + e] = PREF[e] || 0);
@@ -169,7 +169,6 @@ function turn(s, G) {
       if (!s.cn.deal && soundOut(s, G)) { step(); continue; }
       if (warnNow(s, G)) { step(); continue; }
       if (!s.cn.deal && avail(s, 'offer')) { const t = offerTerms(s, G); const r = E.makeOffer(s, t); note(s, 'act', 'Offer to Beijing: ' + Object.keys(t).join(', ') + (!r.pass ? ' [VETOED by the President]' : r.accepted ? ' [ACCEPTED]' : ' [REJECTED by Beijing]'), 'no deal yet; offers every time Beijing will take a call'); step(); continue; }
-      if (G.guard && s.pacing.armed && !s.pacing.active) { const l = s.labs.find(x => x.signed && !x.guard && E.guardOdds(s, x) >= 0.35); if (l && tryAct(s, 'guard', { lab: l.id }, G, 'on standby, after the offer: ask a signed lab with 35%+ odds to keep automation limits')) { step(); continue; } }
       if (G.statute && !s.flags.statute && (!s.flags.billDue || G.hillMoving) && (tryAct(s, 'authorize', {}, G, '60 Senate votes: send the pacing bill') || tryAct(s, 'hill', {}, G, s.flags.billDue ? 'holding votes while the bill is moving' : 'building votes for a pacing statute'))) { step(); continue; }
       if (G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
       if (s.overhang > G.hwOver && tryAct(s, 'hardware', {}, G, 'overhang above ' + G.hwOver.toFixed(1) + ' months')) { step(); continue; }
@@ -203,11 +202,6 @@ function offerTerms(s, G) {
   ['inspect', 'freeze'].forEach(k => { if (G['o.' + k]) t[k] = true; });
   E.CARROT_IDS.forEach(k => { if (G['o.' + k] && E.termRead(s, k).worth >= (G.oMin || 0)) t[k] = true; });
   if (E.quickView(s).leadEst.mid > G.threatLead) t.threat = true; // the IC estimate, not the hidden truth
-  // the ultimatum replaces the package when the lead clears G.ultLead and the IC reads it as at least as likely to land
-  if (G.ultLead != null && E.quickView(s).leadEst.mid > G.ultLead && E.ultimatumOk(s) === true) {
-    const u = { ultimatum: true }; if (t.inspect) u.inspect = true; if (t.freeze) u.freeze = true;
-    if (E.cnAcceptEstimate(s, u).mid >= E.cnAcceptEstimate(s, t).mid) return u;
-  }
   return t;
 }
 // salt reseeds the in-game dice after the world is drawn: the same world, different luck (for measuring how much luck decides a game).
