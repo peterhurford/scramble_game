@@ -1343,7 +1343,7 @@ function cnParts(s, terms, pub) {
   const cm = pub ? crossoverMonths(s) : cnCatchUp(s); if (cm < 6) P_.push(['China could overtake within ' + Math.max(1, Math.round(cm)) + ' months', -TUNE.overtakePen * (1 - cm / 6)]);
   if (chanClosed(s) && !terms.lane && !terms.chips && !terms.relief && f.sec > 40) P_.push(['Every channel closed, and nothing in the offer reopens one', -0.4]);
   if (paced(s)) P_.push(['America is pacing', 0.5]);
-  else if (s.pacing.armed) P_.push(['America’s labs signed, but nothing stops until Beijing does (' + Math.round(100 * standbyCred(s)) + '% credible)', 0.65 * standbyCred(s)]);
+  else if (s.pacing.armed) P_.push(['America’s labs signed, but nothing stops until Beijing does (' + credWord(standbyCred(s)) + ')', 0.65 * standbyCred(s)]);
   else P_.push(['America is not pacing', -0.7]);
   if (s.flags.wentFirst) P_.push(['America went first', 0.15]); else if (s.pacing.seq === 'deadline' && paced(s)) P_.push(['America went first, with a deadline', 0.08]);
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
@@ -1616,7 +1616,7 @@ const CHIPS = {
   automation: () => ['+Paced labs much slower', '+Much lower chance of losing control', '-Reckless labs balk'],
   trigger: (s, prm) => ({ '200c': ['+Best detection', '+Catches split runs'], '200': ['~Good detection', '-Split runs slip through'], '425': ['-Misses some of the biggest clusters'] })[prm.variant || '200c'],
   convene: () => ['~Opens the signing table'],
-  sequence: (s, prm) => ({ first: ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious', '-Markets dip', '-Lead erodes'], deadline: ['+Pause starts now', '+Earns some trust in Beijing', '-Hawks uneasy', '~A cliff in six months'], together: ['+Hawks happy', '+Lead holds', '-Labs keep racing until Beijing signs', (standbyCred(s) >= 0.5 ? '+' : '-') + 'Beijing finds it ' + Math.round(100 * standbyCred(s)) + '% credible'] })[prm.variant || 'first'],
+  sequence: (s, prm) => ({ first: ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious', '-Markets dip', '-Lead erodes'], deadline: ['+Pause starts now', '+Earns some trust in Beijing', '-Hawks uneasy', '~A cliff in six months'], together: ['+Hawks happy', '+Lead holds', '-Labs keep racing until Beijing signs', (standbyCred(s) >= 0.5 ? '+' : '-') + 'Beijing finds it ' + credWord(standbyCred(s))] })[prm.variant || 'first'],
   gofirst: () => ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious'],
   matchlaw: () => ['+Makes \u201cOnly together\u201d believable', '~Senate vote in a month'],
   pledge: () => ['+Makes \u201cOnly together\u201d believable', '+Beijing trust', '-Hawks uneasy'],
