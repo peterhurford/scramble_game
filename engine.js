@@ -532,7 +532,7 @@ function misuseWord(p) { return p < 0.05 ? 'rare' : p < 0.12 ? 'occasional' : p 
 // Headlines as deployed and open capability climb: text only, one a month at most.
 const NEWS_US = [
   [0.1, 'Mindscale ships an agent that books travel, files expense reports and argues with airlines. Thirty million people try it in a week.'],
-  [0.2, 'A Prometheus model passes the bar exam, the CPA exam and the medical boards in one afternoon. Nobody is surprised anymore.'],
+  [0.2, 'A Prometheus agent works a month as a remote contractor for three companies, and all three ask to renew. One didn’t know it was an AI.'],
   [0.3, 'Agents now close a third of real GitHub issues unaided. Two big software firms freeze junior hiring.'],
   [0.4, 'A Mindscale agent runs a small online store for a month, end to end, and turns a profit.'],
   [0.5, 'The labs report models doing a week of a senior engineer’s work in a day. Their own hiring plans go flat.'],
@@ -1713,7 +1713,7 @@ ev({ id: 'knock', forced: true, title: 'The knock', stamp: '8:45a · The residen
   <p>“Is this it? Is this the thing you people keep warning about?”</p>`; },
   choices: [
     { label: '“Yes. It’s here. We stop everything today.”', hint: 'Maximum urgency. Strengthens a DPA halt; costs credibility if the evidence is thin.', fx: s => { const thin = rObserved(s) < 0.8; s.cred += thin ? -8 : 4; s.flags.alarmist = true; s.markets -= 4; startScramble(s); return thin ? 'The President’s eyebrows go up. Treasury hears “stop everything” secondhand and futures fall 4%. The evidence is thinner than your words, and the room knows it.' : 'Nobody argues. The folder speaks for itself.'; } },
-    { label: '“We can’t rule it out, and that is the point. We need to get in position this week.”', hint: 'Calibrated urgency.', fx: s => { s.cred += s.done.memo ? 6 : 3; startScramble(s); return s.done.memo ? 'You slide the memo across. It answers the first ten questions. The President cancels the afternoon. “Noon. Cabinet Room. Bring this.”' : 'The President nods slowly. “Then what do we do?” You have no memo. You write one in the Roosevelt Room while staff bring sandwiches.'; } },
+    { label: s => s.done.memo ? '“We can’t rule it out, and that is the point. Here is the memo: it’s how we get in position this week.”' : '“We can’t rule it out, and that is the point. We need to get in position this week.”', hint: s => s.done.memo ? 'Calibrated urgency, backed by your memo.' : 'Calibrated urgency.', fx: s => { s.cred += s.done.memo ? 6 : 3; startScramble(s); return s.done.memo ? 'You slide the memo across. It answers the first ten questions. The President cancels the afternoon. “Noon. Cabinet Room. Bring this.”' : 'The President nods slowly. “Then what do we do?” You have no memo. You write one in the Roosevelt Room while staff bring sandwiches.'; } },
     { label: '“The labs are hyping their numbers. Let’s wait for more evidence.”', hint: 'No scramble. The alarm resets and you keep your powder dry.', fx: s => { s.alarm = 35; s.cred += 2; s.flags.downplayed = s.turn; return 'The President looks relieved and keeps the morning schedule.'; } },
   ] });
 function startScramble(s) {
@@ -2465,7 +2465,7 @@ function currentEvent(s) {
   if (!s.queue.length) return null;
   const q = s.queue[0]; const e = EV[q.id];
   const ch = typeof e.choices === 'function' ? e.choices(s) : e.choices;
-  return { id: q.id, title: e.title, stamp: typeof e.stamp === 'function' ? e.stamp(s) : e.stamp, body: e.body(s), choices: ch.map(c => ({ label: c.label, hint: typeof c.hint === 'function' ? c.hint(s) : (c.hint || '') })) };
+  return { id: q.id, title: e.title, stamp: typeof e.stamp === 'function' ? e.stamp(s) : e.stamp, body: e.body(s), choices: ch.map(c => ({ label: typeof c.label === 'function' ? c.label(s) : c.label, hint: typeof c.hint === 'function' ? c.hint(s) : (c.hint || '') })) };
 }
 const PROVOKE = ['theft', 'theft_foiled', 'smuggle_bust', 'distill_report', 'cn_race', 'cn_cheat', 'rare_earths', 'taiwan', 'johor', 'blockade', 'cable_cut'];
 function chooseEvent(s, i) {
