@@ -31,7 +31,7 @@ Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openwe
 
 ## Topic owners
 
-War and Taiwan: 12 (closed). Offers, threats and the deal: 9c. Open weights and thresholds: 44. Misuse, principals' asks and events: f3. Beijing levers outside the deal: 07. Senate and midterms: c7 (closed; v30 baseline: never flip -14.7 / -22.4, always flip +8.4 / +10.0 on run0 / dove_run1). Search, merges, hawk/dove and no-deal analysis: integrator (ee).
+War and Taiwan: 12 (closed). Offers, threats and the deal: 9c. Open weights and thresholds: 44. Misuse, principals' asks and events: f3. Beijing levers outside the deal: 07. Senate and midterms: c7 (closed; v30 baseline: never flip -14.7 / -22.4, always flip +8.4 / +10.0 on run0 / dove_run1). Search, merges, hawk/dove and no-deal analysis: integrator (ea).
 
 ## Who reports what to Peter
 
