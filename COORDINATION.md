@@ -14,7 +14,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
-| v35 (open) | dpa-cost (1e): walkCompel 3, rebased on main and re-measured on v34_run1. Search size: small (2 main, 1 dove, 2 hawk, 2 together) per N | 1e; integrator | K yes; N |
+| v35 (open; candidate v35-candidate at 49c04df) | dpa-cost (49c04df, 1e): walkCompel 3; walkCompel 0 reproduces main. On v34_run1: 767.5 ± 4.8 vs 802.9 ± 4.4, paired -35.4 ± 2.8 (integrator re-measured); expert fill -19.1 ± 3.1. Over the ~30-point line, so a full 13-run search under N | 1e; integrator | K yes; N; v35 go pending |
 | v34 (landed e494f0e) | luck (aac720c, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 | 1e | G 0.65; AG; O; no hint change |
 | v33 (landed 86b712b) | red line cut (83f7d64, 07): Peter's H, cut the cyber red line; integrator re-measured with --vs-root: run2 +0.0 ± 0.0, dove0 -0.3 ± 1.1, hawk2 +1.9 ± 1.3, together0 +0.4 ± 1.6. W (leverage2 696b443, 07): resolve raises or lowers cheating, theft and the Strait; theft rises with the lead; reassurance from weak resolve emboldens. On minus off: run2 -20.0 ± 3.6, dove0 -11.3 ± 3.4, hawk2 +20.1 ± 3.9, together0 -28.7 ± 3.8; six knobs at 0 reproduce redline-cut | 07; integrator checks the deal-side cheating term (K1) | H; L: W in, on by default; M: v33 go; D no (keep threshold stays: any margin); E: every run at 1200 games x 150 steps; G: close when W handed off |
 | v27 (landed 2cc5967) | senate-midterms, openweights | c7, 44 | ED: open weights measured without loosethr |
@@ -29,7 +29,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| dpa-cost (467bf2f, on luck 6a0b5c6) | 1e | for v35: TUNE.walkCompel 3, walkout compel costs 3 capital (Peter's K); walkCompel 0 reproduces luck; v33dove_run1 -27.3 ± 2.7, expert -19.1 ± 3.1; rebase onto aac720c+ and re-measure on sim/v34_run1.json |
+| dpa-cost (49c04df) | 1e | for v35: TUNE.walkCompel 3, walkout compel costs 3 capital (Peter's K); walkCompel 0 reproduces luck; v33dove_run1 -27.3 ± 2.7, expert -19.1 ± 3.1; rebase onto aac720c+ and re-measure on sim/v34_run1.json |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
