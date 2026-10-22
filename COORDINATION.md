@@ -26,7 +26,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| leverage2 (07, rebased on adc0d2f; red line cut split out to redline-cut, in v33; worktree ../scramble_leverage2) | 07 | leverage: red line cut (H, 8066b08, play identical without it); reassurance knobs and leverEarly gene uncommitted, pending Peter; C2 dropped by Peter. Peter weighing "China exploits a too-dovish US" (overlaps 9c and hawk/dove); 07 sends a coordination note before building. Handed off only parts clearing +5 on v32 genomes |
+| leverage2 (07, 0410fc8 on redline-cut; worktree ../scramble_leverage2) | 07 | leverage: reassurance knobs (held); W (China exploits a too-dovish US: resolve read, cheating, theft and war) behind knobs that default off, play identical to redline-cut; measuring with Peter, no handoff. Overlaps 9c (cheating) and hawk/dove |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
