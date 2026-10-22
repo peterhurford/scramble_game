@@ -236,7 +236,7 @@ const TUNE = {
   pactDni: 8,
   pactSec: 6,
   pactAgent: 0.7,
-  pactWorth: 1,
+  pactWorth: 0.75,
   // cabinet: initiative odds multiplier for a Friendly or Ally principal (cabHurt for a Cool or Hostile one), monthly pull of every relationship toward 0 (relDrift), Commerce's share of industry hits, a meeting's base relationship gain, months before an ignored ask costs goodwill, share of losses an Ally takes
   cabOdds: 3,
   cabHurt: 1,
