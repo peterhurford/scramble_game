@@ -211,8 +211,17 @@ const TUNE = {
   warEsc: 1.15,
   holdFirm: 0.6,
   cheatSteal: 2,
+  resolveMid: 0.5,
+  resolveFirst: 0.1,
+  cheatResolve: 0,
+  cheatHeat: 0,
+  theftResolve: 0,
+  theftLead: 0,
+  warResolve: 0,
+  reassureBold: 0,
   reassureCut: 0.7,
   reassureMonths: 12,
+  reassureBase: 0.3,
   // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
   open: 1,
   openLag: 0.5,
@@ -627,7 +636,7 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * (1 + TUNE.theftLead * clamp((lead(s) - 3) / 6, 0, 1)) * emboldened(s);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -642,15 +651,15 @@ function straitParts(s, pub) {
   const P_ = [['Background risk', TUNE.straitBase]];
   if (s.tension > TUNE.straitHotFrom) P_.push(['Beijing temperature', TUNE.straitHot * Math.pow((s.tension - TUNE.straitHotFrom) / 40, 2)]);
   if (s.cn.posture === 'race') P_.push(['Beijing is racing', 0.012]);
-  const pre = TUNE.straitPre * clamp((ld - 3) / 6, 0, 1) * Math.pow(x, 3) * (paced(s) ? 0.35 : 1) * (reassured(s) ? 1 - TUNE.reassureCut * reassureCred(s) : 1);
+  const pre = TUNE.straitPre * clamp((ld - 3) / 6, 0, 1) * Math.pow(x, 3) * (paced(s) ? 0.35 : 1) * (reassured(s) ? 1 - TUNE.reassureCut * reassureCred(s) * reassureFrom(s) : 1);
   if (pre > 0.0005) P_.push([paced(s) ? 'A big US lead near the threshold, even paced' : 'A big US lead racing toward the threshold', pre]);
   return P_;
 }
 // The Security faction scales it (x1 at its usual 30), and a deal cuts it 70%.
-function straitMult(s) { return (0.6 + s.cn.f.sec / 75) * (s.cn.deal ? 0.3 : 1) * TUNE.strait; }
+function straitMult(s) { return (0.6 + s.cn.f.sec / 75) * (s.cn.deal ? 0.3 : 1) * lean(s, TUNE.warResolve) * emboldened(s) * TUNE.strait; }
 function straitRisk(s, pub) { return clamp(straitParts(s, pub).reduce((a, x) => a + x[1], 0) * straitMult(s), 0, 0.5); }
 // A quarantine turns into war each month with this chance: hotter Beijing, convoys and no talks push it up.
-function escalateP(s) { const b = s.blockade; return clamp((0.18 + 0.12 * clamp((s.tension - 50) / 40, 0, 1)) * (b.mode === 'convoy' ? 1.8 : b.mode === 'talks' ? 0.6 : 1) * TUNE.strait, 0, 0.6); }
+function escalateP(s) { const b = s.blockade; return clamp((0.18 + 0.12 * clamp((s.tension - 50) / 40, 0, 1)) * (b.mode === 'convoy' ? 1.8 : b.mode === 'talks' ? 0.6 : 1) * lean(s, TUNE.warResolve) * TUNE.strait, 0, 0.6); }
 // The share of crises where Beijing skips the quarantine and goes straight to war: more when hot, most when the motive is preventive.
 function directP(s) { const parts = straitParts(s), tot = parts.reduce((a, x) => a + x[1], 0) || 1, pre = (parts.find(x => /US lead/.test(x[0])) || [0, 0])[1] / tot; return clamp(0.3 + 0.4 * clamp((s.tension - 50) / 40, 0, 1) + 0.4 * pre, 0, 0.9); }
 // Beijing's chance of taking a ceasefire offer: war weariness, its market and science factions, earlier talks; escalation hardens it.
@@ -1362,6 +1371,24 @@ def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramb
   avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (s.cn.deal) return 'A deal is already in force'; if (s.roomUsed >= roomMax(s)) return 'The President has no more time for decisions this turn'; if (s.cn.cooldown > 0) return 'Beijing needs time (' + span(s, s.cn.cooldown) + ' more)'; return true; },
   apply() { return ''; },
 });
+// Beijing's read of US resolve (W1), with no lead term: threats carried out, controls in force and the coalition raise it; backing down,
+// lifting controls as gestures and pausing first with no deal lower it. Each TUNE.*Resolve knob scales a risk by 1 + k x (resolveMid - resolve).
+function resolveParts(s) {
+  const w = s.flags.warns || { kept: 0, won: 0, backed: 0 }, n = Object.keys(CTRL_THREAT).filter(k => s.policies[k]).length;
+  const P_ = [['Base', 0.4], ['The allied coalition', clamp(0.006 * (s.coalition - 30), -0.15, 0.2)]];
+  if (n) P_.push(['Controls in force', 0.06 * n]);
+  if (w.kept) P_.push(['Threats you carried out', 0.12 * w.kept]);
+  if (w.won) P_.push(['Threats that won a deal', 0.05 * w.won]);
+  if (w.backed) P_.push(['Threats you backed down from', -0.15 * w.backed]);
+  if (s.stats.lifted) P_.push(['Controls lifted as gestures', -0.1 * s.stats.lifted]);
+  if (s.flags.wentFirst && !s.cn.deal) P_.push(['America paused first, with no deal yet', -TUNE.resolveFirst]);
+  return P_;
+}
+function resolve(s) { return clamp(resolveParts(s).reduce((a, x) => a + x[1], 0), 0.05, 0.95); }
+function lean(s, k) { return k ? clamp(1 + k * (TUNE.resolveMid - resolve(s)), 0.25, 4) : 1; }
+// W4: a guarantee given from weakness emboldens Beijing (theft, cheating, the Strait) instead of calming it, by TUNE.reassureBold.
+function emboldened(s) { return TUNE.reassureBold && reassured(s) && resolve(s) < TUNE.resolveMid ? 1 + TUNE.reassureBold * (TUNE.resolveMid - resolve(s)) : 1; }
+function reassureFrom(s) { return TUNE.reassureBold ? Math.min(1, resolve(s) / TUNE.resolveMid) : 1; }
 // Threatened controls (Drezner's hidden hand): announce a control you will impose unless Beijing deals within 3 months.
 // While it stands it adds credibility x lever (x Beijing's exposure on that channel) to every offer, without the costs of imposing.
 const CTRL_THREAT = {
@@ -1405,10 +1432,10 @@ def({ id: 'sound', cat: 'diplo', name: 'Sound out Beijing’s envoy', phases: ['
   apply(s, prm) { if (!s.cn.known) s.cn.known = {}; s.cn.known[prm.variant] = true; s.cn.trust += 2; return 'Over lunch the envoy is candid about the ' + TERM_SHORT[prm.variant].toLowerCase() + ': ' + termRead(s, prm.variant).word + '.' + (prm.variant === keystone(s) ? ' It is what Beijing wants most.' : ''); },
 });
 // Reassurance (B1): a guarantee that the lead won't be turned on China cuts the preventive motive in the Strait by TUNE.reassureCut x its credibility,
-// for TUNE.reassureMonths. Covert action or a strike breaks it.
-function reassured(s) { return !!s.flags.reassure && s.t < s.flags.reassure.until; }
+// for TUNE.reassureMonths (0: until broken), base credibility TUNE.reassureBase. Covert action or a strike breaks it.
+function reassured(s) { return !!s.flags.reassure && (!TUNE.reassureMonths || s.t < s.flags.reassure.until); }
 function reassureParts(s) {
-  const P_ = [['Base', 0.3], ['Beijing’s trust', clamp((s.cn.trust - 10) * 0.006, -0.15, 0.3)]];
+  const P_ = [['Base', TUNE.reassureBase], ['Beijing’s trust', clamp((s.cn.trust - 10) * 0.006, -0.15, 0.3)]];
   if (paced(s)) P_.push(['America is pacing', 0.2]); else if (s.flags.pledge) P_.push(['The President’s pledge to pause', 0.1]);
   if (s.flags.covertExposed != null && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 months', -0.3]);
   return P_;
@@ -1416,10 +1443,10 @@ function reassureParts(s) {
 function reassureCred(s) { return s.flags.struck ? 0.05 : clamp(reassureParts(s).reduce((a, x) => a + x[1], 0), 0.05, 0.9); }
 function breakReassure(s) { if (!reassured(s)) return; s.flags.reassure = null; s.cn.trust -= 10; cnAggrieve(s); log(s, 'Beijing calls the benefit-sharing guarantee a lie.', 'bad'); }
 def({ id: 'reassure', cat: 'diplo', name: 'Guarantee Beijing a share of what the frontier builds', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2,
-  avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (reassured(s)) return 'The guarantee stands until ' + monthLabel(s.flags.reassure.until); return true; },
+  avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (reassured(s)) return TUNE.reassureMonths ? 'The guarantee stands until ' + monthLabel(s.flags.reassure.until) : 'The guarantee stands'; return true; },
   desc: 'The Atoms for Peace move: the President promises that the lead will not be turned against China, and that safety results and the benefits of frontier AI will be shared. Beijing’s strongest reason to move on Taiwan is fear of what a US lead near the threshold becomes. Worth the most with a big lead close to the threshold.',
-  effect: s => 'For ' + TUNE.reassureMonths + ' months, the Strait risk that comes from a big US lead falls by ' + Math.round(100 * TUNE.reassureCut * reassureCred(s)) + '% (Beijing believes it ' + Math.round(100 * reassureCred(s)) + '%: more with trust and a pause, less after covert action). Beijing trust +5; temperature -4; hawks -5; Senate -2; China +0.15 months from shared results. Covert action or a strike breaks it: trust -10.',
-  apply(s) { s.flags.reassure = { since: s.t, until: s.t + TUNE.reassureMonths }; s.cn.trust += 5; s.tension -= 4; shiftCN(s, { sci: 2, sec: -1 }); HAWKS.forEach(id => rel(s, id, -5)); s.senateLobby -= 2; s.cn.cap += 0.15; return 'The President, at the UN: “Whatever this technology becomes, it will not be used to make China kneel.” The Secretary of State reads the transcript twice.'; },
+  effect: s => (TUNE.reassureMonths ? 'For ' + TUNE.reassureMonths + ' months, the' : 'Until it is broken, the') + ' Strait risk that comes from a big US lead falls by ' + Math.round(100 * TUNE.reassureCut * reassureCred(s)) + '% (Beijing believes it ' + Math.round(100 * reassureCred(s)) + '%: more with trust and a pause, less after covert action). Beijing trust +5; temperature -4; hawks -5; Senate -2; China +0.15 months from shared results. Covert action or a strike breaks it: trust -10.',
+  apply(s) { const k = reassureFrom(s); s.flags.reassure = { since: s.t, until: s.t + TUNE.reassureMonths }; s.cn.trust += 5 * k; s.tension -= 4 * k; shiftCN(s, { sci: 2, sec: -1 }); HAWKS.forEach(id => rel(s, id, -5)); s.senateLobby -= 2; s.cn.cap += 0.15; return 'The President, at the UN: “Whatever this technology becomes, it will not be used to make China kneel.” The Secretary of State reads the transcript twice.'; },
 });
 function makeOffer(s, terms) {
   const a = ACT.offer;
@@ -2550,7 +2577,7 @@ function tick(s) {
   if (monthly && c.deal) {
     // a deal reached in cold conditions is brittle: low trust, and controls still in force, make Beijing likelier to cheat
     const held = ['chips', 'remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
-    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held) * ((s.flags.cnGrievance || 0) >= s.turn ? 1.6 : 1)) c.cheat = true;
+    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held) * ((s.flags.cnGrievance || 0) >= s.turn ? 1.6 : 1) * lean(s, TUNE.cheatResolve) * Math.max(0.25, 1 + TUNE.cheatHeat * (s.tension - 28) / 40) * emboldened(s)) c.cheat = true;
     const quiet = (s.flags.cheatQuiet || 0) >= s.turn || s.queue.some(q => q.id === 'cn_cheat');
     if (!quiet && c.cheat && rnd(s) < cnVisibility(s)) s.queue.push({ id: 'cn_cheat', real: true, conf: cheatConf(s, true) });
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
@@ -2824,6 +2851,8 @@ const API = {
   openFrontier,
   openRate,
   reassured,
+  resolve,
+  resolveParts,
   reassureCred,
   reassureParts,
   standbyCred,

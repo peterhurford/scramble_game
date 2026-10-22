@@ -76,6 +76,7 @@ g('openP1', 'bool');
 g('ctrlLate', 'bool');
 g('reassure', 'bool');
 g('reassureLead', 'real', 0, 10);
+g('leverEarly', 'bool');
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 // Genes that only pay when they change together: a policy or project with its reading gate (SL4 is both), and settings that act as one plan.
 // The search resamples a whole group at once, switching a gated item on with a random priority and gate.
@@ -206,6 +207,7 @@ function expertGenome() {
     ctrlLate: false,
     reassure: false,
     reassureLead: 4,
+    leverEarly: false,
   });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true);
@@ -272,6 +274,7 @@ function turn(s, G) {
     const v0 = E.quickView(s);
     const saving = v0.ic.mid < G.saveIc;
     if (v0.ic.mid < G.speechIc && v0.briefOdds < 0.5 && tryAct(s, 'speech', {}, G, 'IC says RSI within ' + G.speechIc.toFixed(1) + ' months and the meeting is not yet winnable')) step();
+    if (G.leverEarly && leverNow(s, G)) step();
     const pols = POL0.filter(p => G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a]);
     for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (G.ctrlLate && rejOf(s).has(id)) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { if (G.ctrlLate && CTRL.includes(id) && !s.policies[id]) rejOf(s).add(id); step(); if (s.phase !== 'p0' || s.roomUsed >= E.roomMax(s)) break; } }
     if (s.phase !== 'p0') return;
