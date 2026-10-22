@@ -216,7 +216,10 @@ const TUNE = {
   cheatResolve: 0,
   cheatHeat: 0,
   theftResolve: 0,
-  theftLead: 0,
+  theftLeadSlope: 0,
+  theftLeadBase: 0.7,
+  theftLeadMax: 1.6,
+  resolveDeadline: 0.1,
   warResolve: 0,
   reassureBold: 0,
   reassureCut: 0.7,
@@ -636,7 +639,7 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * (1 + TUNE.theftLead * clamp((lead(s) - 3) / 6, 0, 1)) * emboldened(s);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (TUNE.theftLeadSlope ? clamp(TUNE.theftLeadBase + TUNE.theftLeadSlope * lead(s), TUNE.theftLeadBase, TUNE.theftLeadMax) : lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * emboldened(s);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -1372,7 +1375,7 @@ def({ id: 'offer', cat: 'diplo', name: 'Make Beijing an offer', phases: ['scramb
   apply() { return ''; },
 });
 // Beijing's read of US resolve (W1), with no lead term: threats carried out, controls in force and the coalition raise it; backing down,
-// lifting controls as gestures and pausing first with no deal lower it. Each TUNE.*Resolve knob scales a risk by 1 + k x (resolveMid - resolve).
+// lifting controls as gestures and pausing first with no deal (open-ended or on a deadline) lower it. Each TUNE.*Resolve knob scales a risk by 1 + k x (resolveMid - resolve).
 function resolveParts(s) {
   const w = s.flags.warns || { kept: 0, won: 0, backed: 0 }, n = Object.keys(CTRL_THREAT).filter(k => s.policies[k]).length;
   const P_ = [['Base', 0.4], ['The allied coalition', clamp(0.006 * (s.coalition - 30), -0.15, 0.2)]];
@@ -1382,6 +1385,7 @@ function resolveParts(s) {
   if (w.backed) P_.push(['Threats you backed down from', -0.15 * w.backed]);
   if (s.stats.lifted) P_.push(['Controls lifted as gestures', -0.1 * s.stats.lifted]);
   if (s.flags.wentFirst && !s.cn.deal) P_.push(['America paused first, with no deal yet', -TUNE.resolveFirst]);
+  else if (s.pacing.seq === 'deadline' && paced(s) && !s.cn.deal) P_.push(['America paused first on a deadline, with no deal yet', -TUNE.resolveDeadline]);
   return P_;
 }
 function resolve(s) { return clamp(resolveParts(s).reduce((a, x) => a + x[1], 0), 0.05, 0.95); }
