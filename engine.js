@@ -237,8 +237,10 @@ const TUNE = {
   pactSec: 6,
   pactAgent: 0.7,
   pactWorth: 1,
-  // cabinet: initiative odds multiplier, Commerce's share of industry hits, a meeting's base relationship gain, months before an ignored ask costs goodwill, share of losses an Ally takes
+  // cabinet: initiative odds multiplier for a Friendly or Ally principal (cabHurt for a Cool or Hostile one), monthly pull of every relationship toward 0 (relDrift), Commerce's share of industry hits, a meeting's base relationship gain, months before an ignored ask costs goodwill, share of losses an Ally takes
   cabOdds: 3,
+  cabHurt: 1,
+  relDrift: 0.96,
   docIndustry: 0.25,
   meetBase: 16,
   askNeglect: 6,
@@ -554,7 +556,7 @@ const INITIATIVES = {
          hurt: ['The DNI stops sending analysts to your verification meetings.', s => { s.verify.survey -= 3; }] },
 };
 function cabinetMoves(s) {
-  const odds = p => { const t = relTier(p.rel), w = p.infl / 60; return TUNE.cabOdds * (t === 'Ally' || t === 'Hostile' ? 0.08 * w : t === 'Friendly' || t === 'Cool' ? 0.03 * w : 0); };
+  const odds = p => { const t = relTier(p.rel), w = p.infl / 60; return (p.rel > 0 ? TUNE.cabOdds : TUNE.cabHurt) * (t === 'Ally' || t === 'Hostile' ? 0.08 * w : t === 'Friendly' || t === 'Cool' ? 0.03 * w : 0); };
   for (const p of s.principals) {
     if (rnd(s) >= odds(p)) continue;
     const m = INITIATIVES[p.id][p.rel > 0 ? 'help' : 'hurt'];
@@ -2625,6 +2627,7 @@ function tick(s) {
     s.cred += TUNE.mktCred * (s.markets - 100) / 20;
     marketNews(s);
     s.principals.forEach(p => { p.askAge++; if (p.askAge > TUNE.askNeglect) { p.rel -= 3; p.askAge = 0; } });
+    s.principals.forEach(p => { p.rel *= TUNE.relDrift; });
     // firing
     s.principals.forEach(p => { const d = PRINCIPALS[PIDX[p.id]]; if (d.fireable && !p.alt && p.infl < 12) { const old = PD(s, p.id).name; p.alt = true; p.infl = 45; p.rel = 0; p.shift = 0; s.queue.push({ id: 'fired_p', pid: p.id, name: old }); log(s, 'The ' + old + ' is out.', 'pol'); } });
     s.cred -= hostileDrain(s);
