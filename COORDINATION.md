@@ -13,6 +13,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
+| v33 (open, not closed) | redline-cut (498036e, 07): Peter's H, cut the cyber red line; integrator re-measured with --vs-root: run2 +0.0 ± 0.0, dove0 -0.3 ± 1.1, hawk2 +1.9 ± 1.3, together0 +0.4 ± 1.6 | 07 | H; D no (keep threshold stays: any margin) |
 | v27 (landed 2cc5967) | senate-midterms, openweights | c7, 44 | ED: open weights measured without loosethr |
 | v28 (landed 7b98fb5) | cut-guard-ultimatum, loosethr, flavor, institute-cost, leverage, senate-odds, senate-probes | 44, f3, 9c, 07, c7 | EE: one batch; M: institute at TUNE.inst default; EX: hawk and dove with RUNS=0,1,2, one main run started from the dove |
 | v28 (landed 7b98fb5) | "Only together" search (PIN seq=together, gofirstIc=0), sim/v28together_run* | 9c reports | T |
@@ -25,7 +26,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| leverage2 (07, rebased on adc0d2f; worktree ../scramble_leverage2) | 07 | leverage: red line cut (H, 8066b08, play identical without it); reassurance knobs and leverEarly gene uncommitted, pending Peter; C2 dropped by Peter. Peter weighing "China exploits a too-dovish US" (overlaps 9c and hawk/dove); 07 sends a coordination note before building. Handed off only parts clearing +5 on v32 genomes |
+| leverage2 (07, rebased on adc0d2f; red line cut split out to redline-cut, in v33; worktree ../scramble_leverage2) | 07 | leverage: red line cut (H, 8066b08, play identical without it); reassurance knobs and leverEarly gene uncommitted, pending Peter; C2 dropped by Peter. Peter weighing "China exploits a too-dovish US" (overlaps 9c and hawk/dove); 07 sends a coordination note before building. Handed off only parts clearing +5 on v32 genomes |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
