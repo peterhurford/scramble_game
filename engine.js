@@ -1356,7 +1356,7 @@ function cnParts(s, terms, pub) {
   if (terms.chips && s.policies.chips) P_.push(['Resumes the chip sales you cut', TUNE.chipLever]);
   const held = ['remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
   if (terms.relief && held) P_.push(['Relief eases ' + held + ' control' + (held > 1 ? 's' : '') + ' you imposed', TUNE.reliefLever * held]);
-  if (s.flags.warn && !s.policies[s.flags.warn.k]) P_.push(['Your threat to impose ' + CTRL_THREAT[s.flags.warn.k].short + ' (' + Math.round(100 * threatCred(s, pub)) + '% credible)', warnValue(s, pub)]);
+  if (s.flags.warn && !s.policies[s.flags.warn.k]) P_.push(['Your threat to impose ' + CTRL_THREAT[s.flags.warn.k].short + ' (' + credWord(threatCred(s, pub)) + ')', warnValue(s, pub)]);
   if (terms.threat) P_.push([ld > 7 ? 'A cutoff threat, backed by a big lead' : 'A cutoff threat without the lead to back it', ld > 7 ? 0.35 : -0.25]);
   if (s.flags.covertExposed && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 months', -0.8]);
   if (s.flags.dodCarve) P_.push(['A Pentagon carve-out for one lab', -0.15]);
@@ -1414,16 +1414,18 @@ function threatParts(s, pub) {
 }
 function warnRec(s) { return s.flags.warns || (s.flags.warns = { kept: 0, won: 0, backed: 0 }); }
 function threatCred(s, pub) { return clamp(threatParts(s, pub).reduce((a, x) => a + x[1], 0), 0.05, 0.95); }
+// The player reads a threat's credibility in words, not percent.
+function credWord(p) { return p < 0.2 ? 'barely credible' : p < 0.4 ? 'somewhat credible' : p < 0.6 ? 'fairly credible' : p < 0.8 ? 'highly credible' : 'fully credible'; }
 // The hidden hand: Beijing may concede at the threat stage, half as far as the control would go, with no temperature or Security cost.
 function concedeP(s, pub) { const f = s.cn.f; return clamp(threatCred(s, pub) * (0.6 + 0.01 * (f.m - 50) - 0.01 * (f.sec - 30)), 0, 0.8); }
 // Each control can be threatened once, and not once it is in place.
 function warnable(s, k) { return !s.policies[k] && !(s.flags.warnedK && s.flags.warnedK[k]); }
 function warnValue(s, pub) { const w = s.flags.warn; if (!w || s.policies[w.k]) return 0; return threatCred(s, pub) * CTRL_THREAT[w.k].lever * (pub ? 1 : CTRL_THREAT[w.k].exp(s)); }
 def({ id: 'warn', cat: 'diplo', name: 'Threaten an export control', phases: ['scramble', 'p1'], ap: 1, pc: 2,
-  params: { kind: 'variant', options: s => Object.keys(CTRL_THREAT).filter(k => warnable(s, k)).map(k => ({ id: k, label: 'Threaten ' + CTRL_THREAT[k].short, desc: 'Beijing sees it as ' + Math.round(100 * threatCred(s, true)) + '% credible; worth up to ' + CTRL_THREAT[k].lever.toFixed(1) + ' in every offer while it stands.' })) },
+  params: { kind: 'variant', options: s => Object.keys(CTRL_THREAT).filter(k => warnable(s, k)).map(k => ({ id: k, label: 'Threaten ' + CTRL_THREAT[k].short, desc: 'Beijing sees it as ' + credWord(threatCred(s, true)) + '; it sweetens every offer while it stands.' })) },
   avail(s) { if (s.war) return 'Beijing will only talk about a ceasefire'; if (s.cn.deal) return 'A deal is already in force'; if (s.flags.warn) return 'A threat already stands (' + CTRL_THREAT[s.flags.warn.k].short + ', until ' + monthLabel(s.flags.warn.until) + ')'; return Object.keys(CTRL_THREAT).some(k => warnable(s, k)) ? true : 'Every control is in place or already threatened'; },
   desc: 'Announce a specific control you will impose unless Beijing deals within three months. Targets that would concede often do so at the threat stage, without the costs of an imposed control. Beijing believes it as far as your lead, your allies and your record of carrying out threats allow.',
-  effect: s => 'Chance Beijing concedes on the spot, about half as far as the control would go: ' + Math.round(100 * concedeP(s, true)) + '% (more with Market in charge, less with Security). Otherwise, while it stands, every offer gains credibility \u00d7 the control\u2019s weight with Beijing (now ' + Math.round(100 * threatCred(s, true)) + '% credible). Temperature +2; hawks +3. If there is no deal in three months, you impose it (its usual costs, and later threats are believed more) or back down (credibility -8, and later threats are believed less).',
+  effect: s => 'Chance Beijing concedes on the spot, about half as far as the control would go: ' + oddsWord(concedeP(s, true)) + ' (more with Market in charge, less with Security). Otherwise, while it stands, every offer gains in proportion to how credible it is and how much Beijing cares about the control (now ' + credWord(threatCred(s, true)) + '). Temperature +2; hawks +3. If there is no deal in three months, you impose it (its usual costs, and later threats are believed more) or back down (credibility -8, and later threats are believed less).',
   apply(s, prm) { const k = prm.variant, w = CTRL_THREAT[k]; HAWKS.forEach(id => rel(s, id, 3)); (s.flags.warnedK = s.flags.warnedK || {})[k] = true;
     if (rnd(s) < concedeP(s)) { w.concede(s); warnRec(s).won++; log(s, 'Under threat of ' + w.short + ', Beijing ' + w.give + '.', 'good'); return 'The President warns Beijing that ' + w.short + ' is coming. Within the week Beijing ' + w.give + ', and calls it its own decision.'; }
     s.flags.warn = { k, since: s.t, until: s.t + 3 }; s.tension += 2; return 'The President tells Beijing, publicly, that ' + w.short + ' comes in three months unless there is a deal. Beijing calls it blackmail.'; },
@@ -2863,6 +2865,7 @@ const API = {
   standbyParts,
   termRead,
   threatCred,
+  credWord,
   threatParts,
   warnValue,
   concedeP,
