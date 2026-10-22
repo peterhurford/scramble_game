@@ -531,10 +531,10 @@ function misuseSource(s) { return openCap(s) >= publicFrontier(s) - 2.5 ? 'cn' :
 function misuseWord(p) { return p < 0.05 ? 'rare' : p < 0.12 ? 'occasional' : p < 0.25 ? 'frequent' : 'constant'; }
 // Headlines as deployed and open capability climb: text only, one a month at most.
 const NEWS_US = [
-  [0.1, 'Mindscale ships an agent that books travel, files expense reports and argues with airlines. Thirty million people try it in a week.'],
+  [0.1, 'A mid-size insurer tells investors a Mindscale agent now does most of its back-office work. The stock jumps 9%.'],
   [0.2, 'A Prometheus agent works a month as a remote contractor for three companies, and all three ask to renew. One didn’t know it was an AI.'],
-  [0.3, 'Agents now close a third of real GitHub issues unaided. Two big software firms freeze junior hiring.'],
-  [0.4, 'A Mindscale agent runs a small online store for a month, end to end, and turns a profit.'],
+  [0.3, 'At two big software firms, agents now merge more code than the engineers do. Both freeze hiring outright.'],
+  [0.4, 'A Mindscale agent starts, runs and sells a small software business in six weeks. The buyer is another company’s agent.'],
   [0.5, 'The labs report models doing a week of a senior engineer’s work in a day. Their own hiring plans go flat.'],
   [0.6, 'A frontier model finds 40 zero-days in widely used open-source software during a single red-team run.'],
   [0.7, 'Prometheus says most of the code in its next model was written by its current one.'],
