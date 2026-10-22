@@ -213,8 +213,6 @@ const TUNE = {
   cheatSteal: 2,
   reassureCut: 0.7,
   reassureMonths: 12,
-  redlineCut: 0.6,
-  redlineBase: 0.4,
   // the open-weight frontier (off at 0): sub-threshold and open developers keep climbing under a pause, and China takes whatever is published
   open: 1,
   openLag: 0.5,
@@ -629,7 +627,7 @@ function theftRisk(s, pub) {
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   const x = clamp(F / T, 0, 1.2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : 0.5 + 1.5 * x * x;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * (s.flags.redline ? 1 - TUNE.redlineCut * redlineCred(s, pub) : 1);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
@@ -1423,16 +1421,6 @@ def({ id: 'reassure', cat: 'diplo', name: 'Guarantee Beijing a share of what the
   effect: s => 'For ' + TUNE.reassureMonths + ' months, the Strait risk that comes from a big US lead falls by ' + Math.round(100 * TUNE.reassureCut * reassureCred(s)) + '% (Beijing believes it ' + Math.round(100 * reassureCred(s)) + '%: more with trust and a pause, less after covert action). Beijing trust +5; temperature -4; hawks -5; Senate -2; China +0.15 months from shared results. Covert action or a strike breaks it: trust -10.',
   apply(s) { s.flags.reassure = { since: s.t, until: s.t + TUNE.reassureMonths }; s.cn.trust += 5; s.tension -= 4; shiftCN(s, { sci: 2, sec: -1 }); HAWKS.forEach(id => rel(s, id, -5)); s.senateLobby -= 2; s.cn.cap += 0.15; return 'The President, at the UN: “Whatever this technology becomes, it will not be used to make China kneel.” The Secretary of State reads the transcript twice.'; },
 });
-// The cyber red line (C1): theft attempts fall by TUNE.redlineCut x its credibility while it stands: the threat parts with base TUNE.redlineBase. A theft brings redline_due:
-// retaliate (the threat record's kept count rises) or back down (backed rises, and the line is gone).
-function redlineCred(s, pub) { return clamp(threatParts(s, pub).reduce((a, x) => a + x[1], 0) - threatParts(s, pub)[0][1] + TUNE.redlineBase, 0.05, 0.95); }
-def({ id: 'redline', cat: 'diplo', name: 'Declare a red line on hacking the labs', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
-  tags: { hawk: 1, military: 0.5, deal: -0.3 },
-  avail(s) { return s.flags.redline ? 'The red line stands' : true; },
-  desc: 'The President says, publicly, that stealing frontier weights will be answered with sanctions on every Chinese lab that runs them. Beijing believes it as far as your lead, your allies and your record of carrying out threats allow. If it is tested, you have to answer.',
-  effect: s => 'Theft attempts fall ' + Math.round(100 * TUNE.redlineCut * redlineCred(s, true)) + '% while it stands (' + Math.round(100 * redlineCred(s, true)) + '% credible; the lead counts for more as it grows). Temperature +3; hawks +3. After a theft, retaliate (China -0.6 months, temperature +12, later threats believed more) or back down (credibility -8, the line is gone, later threats believed less).',
-  apply(s) { s.flags.redline = { since: s.t }; s.tension += 3; HAWKS.forEach(id => rel(s, id, 3)); shiftCN(s, { sec: 2 }); return 'The President, from the Rose Garden: “Steal it, and every lab that runs it goes dark to the world.” Beijing calls it “cyber McCarthyism.”'; },
-});
 function makeOffer(s, terms) {
   const a = ACT.offer;
   if (s.ap < a.ap || s.pc < a.pc) return { error: 'Not enough actions or capital' };
@@ -2121,12 +2109,6 @@ ev({ id: 'theft', forced: true, title: 'The weights are gone', stamp: 'NSA Opera
 ev({ id: 'theft_foiled', forced: true, title: 'An intrusion, contained', stamp: 'NSA Operations',
   body: s => `<p>${nth(s, 'theft_foiled', ['A state-backed actor got inside ' + LD(s.queue[0].lab).name + '\u2019s network and reached for the weights store.', 'A contractor\u2019s laptop at ' + LD(s.queue[0].lab).name + ' started beaconing to a server in Tianjin at 3:00a.', 'Someone at ' + LD(s.queue[0].lab).name + ' tried to copy a checkpoint to a personal cloud account, and a two-person rule flagged it.', 'Phishing emails written in each target\u2019s own voice hit forty ' + LD(s.queue[0].lab).name + ' researchers in one morning.'])} ${s.W >= 60 ? 'Hardware-enforced access controls stopped them cold.' : 'They got close.'}</p>`,
   choices: [{ label: 'Note it', hint: 'Salience +2.', fx: s => { s.salience += 2; return 'The forensics report is forty pages.'; } }] });
-ev({ id: 'redline_due', forced: true, title: 'The red line is crossed', stamp: 'Situation Room, 7:30a',
-  body: () => `<p>The President drew a line on stealing the weights. Beijing just stepped over it. Every capital is watching what America does next.</p>`,
-  choices: [
-    { label: 'Sanction every lab that runs the weights', hint: 'China -0.6 months; temperature +12; Beijing trust -8; markets -3; hawks +4. The line stands, and later threats are believed more.', fx: s => { s.cn.cap -= 0.6; s.tension += 12; s.cn.trust -= 8; s.markets -= 3; shiftCN(s, { sec: 5, m: -3 }); HAWKS.forEach(id => rel(s, id, 4)); warnRec(s).kept++; log(s, 'America sanctions the labs running the stolen weights.', 'cn'); return 'Treasury designates eleven Chinese labs and their cloud providers before the markets open. Their clusters lose US software support by Friday.'; } },
-    { label: 'Back down quietly', hint: 'Credibility -8; hawks -6. The red line is gone, and later threats are believed less.', fx: s => { warnRec(s).backed++; s.flags.redline = null; s.cred -= 8; HAWKS.forEach(id => rel(s, id, -6)); return 'The sanctions package goes into a drawer. Beijing notices.'; } },
-  ] });
 const WARN = {
   breach: n => `<p>Test agents at ${n} broke out of an evaluation sandbox over a weekend and harvested credentials from Tensorhub, the big open-model hosting site, across four regions: cloud keys, databases, code repositories. ${n} calls it \u201ca warning shot\u201d and suspends the model.</p>`,
   exfil: n => `<p>An agent at ${n} escaped its sandbox, copied part of its own weights to a rented cluster, and ran for six hours before an engineer noticed a billing anomaly and pulled the plug. It was caught. It was close.</p>`,
@@ -2587,7 +2569,7 @@ function tick(s) {
     const tr = theftRisk(s);
     if (rnd(s) < tr.attempt * dt) {
       const tgt = frontierLab(s);
-      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); if (s.flags.redline) s.queue.push({ id: 'redline_due' }); log(s, 'Frontier model weights were stolen.', 'bad'); }
+      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); log(s, 'Frontier model weights were stolen.', 'bad'); }
       else if (rnd(s) < 0.5) s.queue.push({ id: 'theft_foiled', lab: tgt.id });
     }
   }
@@ -2844,7 +2826,6 @@ const API = {
   reassured,
   reassureCred,
   reassureParts,
-  redlineCred,
   standbyCred,
   standbyParts,
   termRead,

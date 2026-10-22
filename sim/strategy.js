@@ -9,7 +9,7 @@ const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offs
 // Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
 const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'cyber_incident', 'bio_scare', 'agent_llc', 'agent_market', 'agent_compute', 'lab_resign', 'insurers', 'deepfake', 'march', 'cure', 'cn_scientist', 'us_defect', 'state_law', 'bio_attack', 'tsy_channel', 'war_drill', 'cos_squeeze', 'redline_due'];
+const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'cyber_incident', 'bio_scare', 'agent_llc', 'agent_market', 'agent_compute', 'lab_resign', 'insurers', 'deepfake', 'march', 'cure', 'cn_scientist', 'us_defect', 'state_law', 'bio_attack', 'tsy_channel', 'war_drill', 'cos_squeeze'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
@@ -76,15 +76,13 @@ g('openP1', 'bool');
 g('ctrlLate', 'bool');
 g('reassure', 'bool');
 g('reassureLead', 'real', 0, 10);
-g('redline', 'bool');
-g('redlineLead', 'real', 0, 10);
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 // Genes that only pay when they change together: a policy or project with its reading gate (SL4 is both), and settings that act as one plan.
 // The search resamples a whole group at once, switching a gated item on with a random priority and gate.
 const GROUPS = Object.keys(GATE).filter(p => p !== 'sl4').map(p => ['pol.' + p, 'gate.' + p])
   .concat(Object.keys(PGATE).filter(p => p !== 'sl4').map(p => ['proj.' + p, 'pgate.' + p]))
   .concat([['pol.sl4', 'gate.sl4', 'proj.sl4', 'pgate.sl4'], ['mech', 'mechHostile', 'mechCut', 'charterMin', 'mechNoSign', 'licRelMin'],
-    ['o.inspect', 'o.lane', 'o.institute', 'o.relief', 'o.visas', 'o.freeze', 'o.chips', 'o.misuse', 'oMin', 'scrOffer'], ['warnK', 'warnLead', 'threatLead'], ['reassure', 'reassureLead'], ['redline', 'redlineLead'],
+    ['o.inspect', 'o.lane', 'o.institute', 'o.relief', 'o.visas', 'o.freeze', 'o.chips', 'o.misuse', 'oMin', 'scrOffer'], ['warnK', 'warnLead', 'threatLead'], ['reassure', 'reassureLead'],
     ['briefR', 'briefOdds', 'briefIc', 'briefIcOdds'], ['seq', 'seqIc', 'trig'], ['pol.chips', 'pol.remote', 'pol.distill', 'pol.smuggle', 'gate.chips', 'gate.remote', 'gate.distill', 'gate.smuggle']]);
 
 const PREF = {
@@ -141,7 +139,6 @@ const PREF = {
   war_talks: 1,
   cable_cut: 0,
   tsmc_shield: 0,
-  redline_due: 0,
 };
 function expertGenome() {
   const G = {};
@@ -209,8 +206,6 @@ function expertGenome() {
     ctrlLate: false,
     reassure: false,
     reassureLead: 4,
-    redline: false,
-    redlineLead: 4,
   });
   PEOPLE.forEach(p => G['fav.' + p] = false);
   ['inspect', 'lane', 'institute'].forEach(t => G['o.' + t] = true);
@@ -361,11 +356,10 @@ function turn(s, G) {
 }
 // Threaten G.warnK before offering once the IC's lead estimate reaches G.warnLead; the warn_due event gene decides impose or back down.
 function warnNow(s, G) { return G.warnK && G.warnK !== 'none' && !s.cn.deal && E.warnable(s, G.warnK) && E.quickView(s).leadEst.mid >= G.warnLead && tryAct(s, 'warn', { variant: G.warnK }, G, 'threaten ' + G.warnK + ' with the IC lead at ' + G.warnLead.toFixed(1) + '+ months'); }
-// Reassure Beijing, or draw the cyber red line, once the IC's lead estimate reaches the gene's level.
+// Reassure Beijing once the IC's lead estimate reaches the gene's level.
 function leverNow(s, G) {
   const ld = E.quickView(s).leadEst.mid;
-  return (G.reassure && ld >= G.reassureLead && tryAct(s, 'reassure', {}, G, 'IC lead at ' + G.reassureLead.toFixed(1) + '+ months: guarantee Beijing a share')) ||
-    (G.redline && ld >= G.redlineLead && tryAct(s, 'redline', {}, G, 'IC lead at ' + G.redlineLead.toFixed(1) + '+ months: red line on hacking the labs'));
+  return (G.reassure && ld >= G.reassureLead && tryAct(s, 'reassure', {}, G, 'IC lead at ' + G.reassureLead.toFixed(1) + '+ months: guarantee Beijing a share'));
 }
 // Sound out the envoy on the allowed carrot read as most valuable, until G.sound carrots are confirmed.
 function soundOut(s, G) {
