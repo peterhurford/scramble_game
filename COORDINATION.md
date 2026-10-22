@@ -27,7 +27,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| (DPA, not yet a branch) | 1e | Peter's K yes: walkout compel costs 3 capital; branch after v34 lands, for v35 |
+| dpa-cost (467bf2f, on luck 6a0b5c6) | 1e | for v35: TUNE.walkCompel 3, walkout compel costs 3 capital (Peter's K); walkCompel 0 reproduces luck; v33dove_run1 -27.3 ± 2.7, expert -19.1 ± 3.1; rebase and re-measure on the v34 best after v34 lands |
 | luck (0f61cea) | 1e | in v34: draw() and fuseHit() replace rnd() for the President, Beijing, labs and courts, and for runaway, cnwin, theft, strait, cheat, court and walkout |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
