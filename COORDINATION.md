@@ -6,15 +6,16 @@ The integrator keeps this file current: open branches, batches, and who reports 
 
 Measure against these with `node sim/compare.js <genome>` (4,000 games from seed 900000).
 
-- Rules: main at 696b443 (v33 batch: red line cut, W). Genomes: v33, committed in 86b712b, every run 1200 games x 150 steps from v32 starts. compare.js: main 677.5 / 681.3 / 669.5 / 680.4; true hawk (ctrlLate pinned) 627.4 / 652.7 / 639.0; dove 661.8 / 689.5 / 661.8; together 530.6 / 617.6 / 583.9 (each ± 5.3-6.1). Measure branches against sim/v33dove_run1.json (689.5, best of all 13; best main run is v33_run1 at 681.3). Dove minus true hawk: 36.8 (v32: 67.7). TUNE, the engine API, GENES, expertGenome and exports are one entry per line since 58d9b5b: add a new key on its own line. Since e5e44e2 each search run keeps its start when the start beats the final on 4000 held-out games (seeds 700000+); Peter kept that rule (D, 22 Oct).
-- Search size (Peter's N, 22 Oct): a big rule change (best genome moves more than ~30 points) gets all 13 runs; a small one (a gene or two) gets 2 main, 1 dove, 2 hawk, 2 together. Over v32-v33, main and dove gained +2.7 per run on held-out games (9 of 14 runs kept their start); hawk and together gained +19.6 per run (3 of 12 kept their start). The ~30-point threshold gets checked against v34's gains.
+- Rules: main at aac720c (v34 batch: luck, fuseMean 0.65). Genomes: v34, committed in e494f0e, 13 runs at 1200 games x 150 steps from v33 starts (main run2 from v33dove_run1). compare.js: main 791.9 / 802.9 / 802.1 / 795.2; true hawk 689.9 / 730.5 / 729.0; dove 784.5 / 801.3 / 802.9; together 689.8 / 705.5 / 690.8 (each ± 4.4-5.6). Measure branches against sim/v34_run1.json (802.9, tied with v34dove_run2). Dove minus true hawk: 72.4 (v33: 36.8). Luck off on the best genomes: main -117.2 ± 6.6, dove -133.9 ± 6.9, hawk -90.7 ± 6.6, together -125.6 ± 7.4. TUNE, the engine API, GENES, expertGenome and exports are one entry per line since 58d9b5b: add a new key on its own line. Since e5e44e2 each search run keeps its start when the start beats the final on 4000 held-out games (seeds 700000+); Peter kept that rule (D, 22 Oct).
+- Search size (Peter's N, 22 Oct): a big rule change (best genome moves more than ~30 points) gets all 13 runs; a small one (a gene or two) gets 2 main, 1 dove, 2 hawk, 2 together. Over v32-v33, main and dove gained +2.7 per run on held-out games (9 of 14 runs kept their start); hawk and together gained +19.6 per run (3 of 12 kept their start). v34 (a big change) gained more: main and dove +11.2 per run (1 of 7 kept its start), hawk and together +25.1.
 - Fitness: mean score (since 3dea930). Report mean score ± SE first, Phase 2 second.
 
 ## Batches
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
-| v34 (batch closed; search running since 6:38p from detached ../scramble_search_v34 at 6a0b5c6) | luck (734bf48 + 6a0b5c6, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 (Peter's G, revised); off = spread 1, luckFix 0, fuse 1 reproduces main exactly. On minus off (integrator re-measured): v33dove_run1 798.5 vs 689.5, +109.0 ± 6.7; expert fill 305.4 vs 316.5, -11.1 ± 5.0. K1: cheat start and theft only move their roll to the fuse; the formulas are unchanged. 13 runs at 1200 x 150 from v33 starts; main run2 starts from v33dove_run1 (AG) | 1e OK; integrator | G 0.65; AG; O go; no hint change |
+| v35 (open) | dpa-cost (1e): walkCompel 3, rebased on main and re-measured on v34_run1. Search size: small (2 main, 1 dove, 2 hawk, 2 together) per N | 1e; integrator | K yes; N |
+| v34 (landed e494f0e) | luck (aac720c, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 | 1e | G 0.65; AG; O; no hint change |
 | v33 (landed 86b712b) | red line cut (83f7d64, 07): Peter's H, cut the cyber red line; integrator re-measured with --vs-root: run2 +0.0 ± 0.0, dove0 -0.3 ± 1.1, hawk2 +1.9 ± 1.3, together0 +0.4 ± 1.6. W (leverage2 696b443, 07): resolve raises or lowers cheating, theft and the Strait; theft rises with the lead; reassurance from weak resolve emboldens. On minus off: run2 -20.0 ± 3.6, dove0 -11.3 ± 3.4, hawk2 +20.1 ± 3.9, together0 -28.7 ± 3.8; six knobs at 0 reproduce redline-cut | 07; integrator checks the deal-side cheating term (K1) | H; L: W in, on by default; M: v33 go; D no (keep threshold stays: any margin); E: every run at 1200 games x 150 steps; G: close when W handed off |
 | v27 (landed 2cc5967) | senate-midterms, openweights | c7, 44 | ED: open weights measured without loosethr |
 | v28 (landed 7b98fb5) | cut-guard-ultimatum, loosethr, flavor, institute-cost, leverage, senate-odds, senate-probes | 44, f3, 9c, 07, c7 | EE: one batch; M: institute at TUNE.inst default; EX: hawk and dove with RUNS=0,1,2, one main run started from the dove |
@@ -28,8 +29,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| dpa-cost (467bf2f, on luck 6a0b5c6) | 1e | for v35: TUNE.walkCompel 3, walkout compel costs 3 capital (Peter's K); walkCompel 0 reproduces luck; v33dove_run1 -27.3 ± 2.7, expert -19.1 ± 3.1; rebase and re-measure on the v34 best after v34 lands |
-| luck (0f61cea) | 1e | in v34: draw() and fuseHit() replace rnd() for the President, Beijing, labs and courts, and for runaway, cnwin, theft, strait, cheat, court and walkout |
+| dpa-cost (467bf2f, on luck 6a0b5c6) | 1e | for v35: TUNE.walkCompel 3, walkout compel costs 3 capital (Peter's K); walkCompel 0 reproduces luck; v33dove_run1 -27.3 ± 2.7, expert -19.1 ± 3.1; rebase onto aac720c+ and re-measure on sim/v34_run1.json |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
