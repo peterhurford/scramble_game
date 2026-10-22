@@ -13,7 +13,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
-| v34 (open; candidate v34-candidate at 0f61cea) | luck (0f61cea, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.55 (Peter's G); off = spread 1, luckFix 0, fuse 1 reproduces main exactly. On minus off: v33dove_run1 +64.3 ± 7.0 (753.8 vs 689.5), expert fill -41.5 ± 4.9 (integrator re-measured). K1: the cheat-start and theft formulas are unchanged, and only the roll moves to the fuse, with an off switch. Search setup: one main run starts from sim/v33dove_run1.json | 1e OK withdrawn pending its fuseMean re-check with Peter (0.55 vs 0.75); integrator | G (fuseMean 0.55, being re-checked); AG yes (22 Oct); O: v34 go (22 Oct), held until G is settled; no hint change (1e) |
+| v34 (batch closed; search running since 6:38p from detached ../scramble_search_v34 at 6a0b5c6) | luck (734bf48 + 6a0b5c6, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 (Peter's G, revised); off = spread 1, luckFix 0, fuse 1 reproduces main exactly. On minus off (integrator re-measured): v33dove_run1 798.5 vs 689.5, +109.0 ± 6.7; expert fill 305.4 vs 316.5, -11.1 ± 5.0. K1: cheat start and theft only move their roll to the fuse; the formulas are unchanged. 13 runs at 1200 x 150 from v33 starts; main run2 starts from v33dove_run1 (AG) | 1e OK; integrator | G 0.65; AG; O go; no hint change |
 | v33 (landed 86b712b) | red line cut (83f7d64, 07): Peter's H, cut the cyber red line; integrator re-measured with --vs-root: run2 +0.0 ± 0.0, dove0 -0.3 ± 1.1, hawk2 +1.9 ± 1.3, together0 +0.4 ± 1.6. W (leverage2 696b443, 07): resolve raises or lowers cheating, theft and the Strait; theft rises with the lead; reassurance from weak resolve emboldens. On minus off: run2 -20.0 ± 3.6, dove0 -11.3 ± 3.4, hawk2 +20.1 ± 3.9, together0 -28.7 ± 3.8; six knobs at 0 reproduce redline-cut | 07; integrator checks the deal-side cheating term (K1) | H; L: W in, on by default; M: v33 go; D no (keep threshold stays: any margin); E: every run at 1200 games x 150 steps; G: close when W handed off |
 | v27 (landed 2cc5967) | senate-midterms, openweights | c7, 44 | ED: open weights measured without loosethr |
 | v28 (landed 7b98fb5) | cut-guard-ultimatum, loosethr, flavor, institute-cost, leverage, senate-odds, senate-probes | 44, f3, 9c, 07, c7 | EE: one batch; M: institute at TUNE.inst default; EX: hawk and dove with RUNS=0,1,2, one main run started from the dove |
@@ -27,7 +27,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| (DPA, not yet a branch) | 1e | walkout event's "Compel it under the DPA" cost; 1e takes it to Peter first; not in v34 |
+| (DPA, not yet a branch) | 1e | Peter's K yes: walkout compel costs 3 capital; branch after v34 lands, for v35 |
 | luck (0f61cea) | 1e | in v34: draw() and fuseHit() replace rnd() for the President, Beijing, labs and courts, and for runaway, cnwin, theft, strait, cheat, court and walkout |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
