@@ -7,6 +7,7 @@ The integrator keeps this file current: open branches, batches, and who reports 
 Measure against these with `node sim/compare.js <genome>` (4,000 games from seed 900000).
 
 - Rules: main at 696b443 (v33 batch: red line cut, W). Genomes: v33, committed in 86b712b, every run 1200 games x 150 steps from v32 starts. compare.js: main 677.5 / 681.3 / 669.5 / 680.4; true hawk (ctrlLate pinned) 627.4 / 652.7 / 639.0; dove 661.8 / 689.5 / 661.8; together 530.6 / 617.6 / 583.9 (each ± 5.3-6.1). Measure branches against sim/v33dove_run1.json (689.5, best of all 13; best main run is v33_run1 at 681.3). Dove minus true hawk: 36.8 (v32: 67.7). TUNE, the engine API, GENES, expertGenome and exports are one entry per line since 58d9b5b: add a new key on its own line. Since e5e44e2 each search run keeps its start when the start beats the final on 4000 held-out games (seeds 700000+); Peter kept that rule (D, 22 Oct).
+- Search size (Peter's N, 22 Oct): a big rule change (best genome moves more than ~30 points) gets all 13 runs; a small one (a gene or two) gets 2 main, 1 dove, 2 hawk, 2 together. Over v32-v33, main and dove gained +2.7 per run on held-out games (9 of 14 runs kept their start); hawk and together gained +19.6 per run (3 of 12 kept their start). The ~30-point threshold gets checked against v34's gains.
 - Fitness: mean score (since 3dea930). Report mean score ± SE first, Phase 2 second.
 
 ## Batches
