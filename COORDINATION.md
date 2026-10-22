@@ -25,7 +25,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| (none open) | | |
+| leverage2 (07, off 924dc9c, in progress) | 07 | leverage: cut the red line (H), reassurance without expiry, base credibility 0.5 (I), a Strait deterrence move (C2); handed off only if each clears +5 on v32 genomes |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
