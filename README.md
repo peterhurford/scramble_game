@@ -18,6 +18,8 @@ Open `index.html` in a browser. The game saves to localStorage after every move.
 - `sim/mechs.js [genome.json]`: win rate with each pacing mechanism forced, split by the game's court climate, and what choosing per game is worth.
 - `sim/ablate.js`, `sim/uae.js`, `sim/hostile.js`: one-off analyses (what each choice is worth, the UAE choice, credibility lost to hostile principals).
 
+Luck is narrowed by four `TUNE` knobs (`spread 1, luckFix 0, fuse 1` plays the old dice): `spread` (0.5) pulls each game's hidden draws halfway to their medians; `luckFix` (0.5) evens out streaks in the President's, Beijing's and the labs' answers while keeping each long-run rate at the odds shown; catastrophes (runaways, China's win, thefts, Strait crises, Beijing starting to cheat, injunctions, walkouts) fire when their summed hazard crosses a hidden gamma fuse of shape `fuse` (4) and mean `fuseMean` (0.55), so low risk reliably pays and piled-up risk reliably doesn't.
+
 Tunables for the UAE event, the President's hawk bias (`hawkBase`, `hawkProvoke`, `hawkRace`) and the Strait (`strait`, `straitBase`, `straitHot`, `straitHotFrom`, `straitPre`, `warEsc`, `holdFirm`), and how much harder Beijing tries to steal weights while cheating on a deal (`cheatSteal`), live in `TUNE` in `engine.js`.
 
 `index.html#autotest` plays random games through the real UI and sets `body[data-test]` to PASS or FAIL. `#demo-p0`, `#demo-scramble`, `#demo-p1`, `#demo-end`, `#demo-strait`, `#demo-blockade` and `#demo-war` fast-forward a seeded game for screenshots.

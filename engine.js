@@ -18,6 +18,22 @@ const r1 = x => Math.round(x * 10) / 10;
 function dateOf(t) { const f = Math.floor(t + 1e-9); const mi = 2026 * 12 + 9 + f; const frac = t - f; return { y: Math.floor(mi / 12), m: mi % 12, d: Math.max(1, Math.min(28, Math.round(frac * 30) + 1)) }; }
 function dateLabel(t) { const d = dateOf(t); return d.d + ' ' + MONTHS[d.m] + ' ' + d.y; }
 function monthLabel(t) { const d = dateOf(t); return MONTHS[d.m] + ' ' + d.y; }
+// A draw for an outcome the player plays for (the President, Beijing, the courts), read as draw < p. Each class keeps a luck balance (hits minus odds so far) and TUNE.luckFix of it comes off the next draw's odds, so streaks even out while the long-run rate stays p; the draw is rescaled so the dice shown still land under p exactly when it hits.
+function draw(s, cls, p) {
+  const x = rnd(s);
+  if (!TUNE.luckFix || p <= 0 || p >= 1) { if (module.exports._drawHook) module.exports._drawHook(cls, p, x < p); return x; }
+  const L = s.luck = s.luck || {}, b = L[cls] || 0, q = Math.max(0, Math.min(1, p - TUNE.luckFix * b)), hit = x < q;
+  L[cls] = b + (hit ? 1 : 0) - p; if (module.exports._drawHook) module.exports._drawHook(cls, p, hit);
+  return hit ? x * p / q : p + (x - q) * (1 - p) / Math.max(1e-9, 1 - q);
+}
+// A catastrophe's hazard adds up, and the event fires when the total crosses a hidden fuse with mean TUNE.fuseMean and s.d. fuseMean/sqrt(TUNE.fuse) (a gamma draw), so low risk reliably pays; fuse 1 is the plain monthly roll.
+function fuseHit(s, cls, h) {
+  if (TUNE.fuse <= 1) return rnd(s) < h;
+  const F = s.fuse = s.fuse || {}, c = F[cls] = F[cls] || { H: 0, n: 0, at: fuseDraw(s, cls, 0) };
+  c.H -= Math.log(1 - Math.min(0.999, h)); if (c.H < c.at) return false;
+  c.n++; c.H = 0; c.at = fuseDraw(s, cls, c.n); return true;
+}
+function fuseDraw(s, cls, n) { let x = 0; for (let i = 0; i < TUNE.fuse; i++) x -= Math.log(Math.max(1e-12, hash01(s.seed, 'fuse', cls, n, i))); return TUNE.fuseMean * x / TUNE.fuse; }
 function pick(s, arr) { return arr[Math.floor(rnd(s) * arr.length)]; }
 
 /* ================= static data ================= */
@@ -261,6 +277,11 @@ const TUNE = {
   mktSupport: 0.6,
   mktPres: 0.005,
   mktCred: 1.3,
+  // luck: spread of each game's hidden draws (1 = full range, 0 = every game at the median); share of a decision class's luck balance taken off its next roll; catastrophe fuse shape (1 = a plain monthly roll) and mean length (under 1 fires sooner). spread 1, luckFix 0, fuse 1 plays as before.
+  spread: 0.5,
+  luckFix: 0.5,
+  fuse: 4,
+  fuseMean: 0.55,
 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -812,10 +833,11 @@ function newGame(opts) {
     hist: [], ind: [], log: [], queue: [], seen: {}, roomUsed: 0, report: null, ending: null,
     stats: { roomWon: 0, roomLost: 0, thefts: 0, defectCaught: 0, defectMissed: 0, peakLead: 5.5, monthsPaced: 0, scrambleStart: null, briefFails: 0, covert: 0 },
   };
-  s.T = clamp(D.Tmed * Math.exp(0.4 * gauss(s)), 6.5, 22);
+  s.T = clamp(D.Tmed * Math.exp(0.4 * TUNE.spread * gauss(s)), 6.5, 22);
   // hidden per-game miscalibration: each indicator's marker sits somewhat off the true threshold, and the IC has a standing bias
-  s.cal = { uplift: clamp(0.15 * gauss(s), -0.3, 0.3), cobench: clamp(0.15 * gauss(s), -0.3, 0.3), horizon: clamp(0.15 * gauss(s), -0.3, 0.3), arr: clamp(0.15 * gauss(s), -0.3, 0.3) };
-  s.icBias = clamp(2.2 * gauss(s), -4.5, 4.5);
+  const sd = 0.15 * TUNE.spread;
+  s.cal = { uplift: clamp(sd * gauss(s), -0.3, 0.3), cobench: clamp(sd * gauss(s), -0.3, 0.3), horizon: clamp(sd * gauss(s), -0.3, 0.3), arr: clamp(sd * gauss(s), -0.3, 0.3) };
+  s.icBias = clamp(2.2 * TUNE.spread * gauss(s), -4.5, 4.5);
   cnStart(s); s.cn.comp0 = cnComp(s);
   s.open = TUNE.open ? s.cn.cap - TUNE.openLag : null;
   if (dk === 'excomm') shiftCN(s, { m: -5, sec: 7, sci: -2 });
@@ -825,15 +847,16 @@ function newGame(opts) {
   return s;
 }
 // Hidden per-game starting point for China's lag, offshore compute, smuggling and distillation (1 = baseline). Smuggling is log-uniform 0.4-2.4x, skewed like IFP's range. Drawn from hash01 so the main random stream is untouched.
+// TUNE.spread pulls every draw toward its median (each uniform toward 0.5, each normal's s.d. scaled); 1 is the full range.
 function cnStart(s) {
-  const c = s.cn, u = k => hash01(s.seed, 'cnstart', k);
+  const c = s.cn, f = TUNE.spread, h = k => hash01(s.seed, 'cnstart', k), u = k => f === 1 ? h(k) : 0.5 + f * (h(k) - 0.5);
   c.base = { remote: 0.5 + u('remote'), smuggle: 0.4 * Math.pow(6, u('smuggle')), dist: 0.6 + 0.4 * u('dist') };
   // starting lag: lognormal, median 6 months (80% range ~4.1-8.8), around metr_graph's 4.4-6.5 months
-  const z = Math.sqrt(-2 * Math.log(Math.max(1e-9, u('lag1')))) * Math.cos(2 * Math.PI * u('lag2'));
-  c.cap = -clamp(6 * Math.exp(0.3 * z), 3.5, 11); s.stats.peakLead = -c.cap;
+  const z = Math.sqrt(-2 * Math.log(Math.max(1e-9, h('lag1')))) * Math.cos(2 * Math.PI * h('lag2'));
+  c.cap = -clamp(6 * Math.exp(0.3 * f * z), 3.5, 11); s.stats.peakLead = -c.cap;
   // own research: lognormal around 0.16, 80% range ~0.07-0.35, inside metr_graph's 0.05-0.48 band for China's pure innovation
-  const z2 = Math.sqrt(-2 * Math.log(Math.max(1e-9, u('inno1')))) * Math.cos(2 * Math.PI * u('inno2'));
-  c.inno = clamp(0.16 * Math.exp(0.6 * z2), 0.04, 0.5);
+  const z2 = Math.sqrt(-2 * Math.log(Math.max(1e-9, h('inno1')))) * Math.cos(2 * Math.PI * h('inno2'));
+  c.inno = clamp(0.16 * Math.exp(0.6 * f * z2), 0.04, 0.5);
   c.remote = c.remoteT = c.base.remote; c.smuggle = c.smuggleT = c.base.smuggle; c.dist = c.distT = c.base.dist;
   // multipliers on typical: how hostile the courts are (0.5-1.5x), Beijing's cyber push against US labs (log-uniform 0.5-1.8x), how well it hides sites (0.5-1.5x)
   s.courts = 0.5 + u('courts'); c.cyber = 0.4 * Math.pow(2.5 / 0.4, u('cyber')); c.hide = 0.5 + u('hide');
@@ -1075,7 +1098,7 @@ def({ id: 'surge', cat: 'verify', name: 'Surge a verification component', phases
 def({ id: 'malaysia', cat: 'diplo', name: 'Bring Malaysia into the regime', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, once: true,
   desc: 'Johor’s megacenters host Chinese tenants on hardware they cannot import. Get Kuala Lumpur to host inspectors instead of cutting them off.',
   effect: s => 'Chance: ' + Math.round(100 * malaysiaOdds(s)) + '%. Success cuts China’s offshore compute by most of what a remote-access rule would, without the tension.',
-  apply(s) { if (rnd(s) < malaysiaOdds(s)) { s.cn.remoteT = Math.min(s.cn.remoteT, 0.3); s.coalition += 5; s.flags.malaysiaIn = true; return 'Kuala Lumpur agrees to host inspectors at both Johor campuses.'; } s.policies.malaysia = false; s.coalition -= 2; return 'Kuala Lumpur stalls and talks about sovereignty. You can try again later.'; },
+  apply(s) { if (draw(s, 'cn', malaysiaOdds(s)) < malaysiaOdds(s)) { s.cn.remoteT = Math.min(s.cn.remoteT, 0.3); s.coalition += 5; s.flags.malaysiaIn = true; return 'Kuala Lumpur agrees to host inspectors at both Johor campuses.'; } s.policies.malaysia = false; s.coalition -= 2; return 'Kuala Lumpur stalls and talks about sovereignty. You can try again later.'; },
 });
 function surgeAmt(s, trusted) { return trusted ? 3 + 3 * s.warp : 1 + 2 * s.warp; }
 function malaysiaOdds(s) { return clamp(0.25 + s.coalition / 200 + (s.flags.johorStory ? 0.1 : 0) - (s.policies.remote ? 0.15 : 0), 0.05, 0.85); }
@@ -1251,7 +1274,7 @@ function charterDecide(s, labId, withDeal) {
   let extra = '';
   if (withDeal) { if (s.pc < d.deal.pc) return { error: 'Not enough political capital' }; s.pc -= d.deal.pc; extra = ' ' + d.deal.fx(s); l.dealt = true; }
   const p = charterOdds(s, labId, withDeal);
-  const roll = rnd(s);
+  const roll = draw(s, 'lab', p);
   if (roll < p) {
     l.signed = true; l.signedVoluntary = true; l.refused = false; l.rel = clamp(l.rel + 5, -100, 100);
     if (s.phase === 'p1' && paced(s)) { l.covered = true; l.comp = complianceBase(s, l); }
@@ -1427,7 +1450,7 @@ def({ id: 'warn', cat: 'diplo', name: 'Threaten an export control', phases: ['sc
   desc: 'Announce a specific control you will impose unless Beijing deals within three months. Targets that would concede often do so at the threat stage, without the costs of an imposed control. Beijing believes it as far as your lead, your allies and your record of carrying out threats allow.',
   effect: s => 'Chance Beijing concedes on the spot, about half as far as the control would go: ' + oddsWord(concedeP(s, true)) + ' (more with Market in charge, less with Security). Otherwise, while it stands, every offer gains in proportion to how credible it is and how much Beijing cares about the control (now ' + credWord(threatCred(s, true)) + '). Temperature +2; hawks +3. If there is no deal in three months, you impose it (its usual costs, and later threats are believed more) or back down (credibility -8, and later threats are believed less).',
   apply(s, prm) { const k = prm.variant, w = CTRL_THREAT[k]; HAWKS.forEach(id => rel(s, id, 3)); (s.flags.warnedK = s.flags.warnedK || {})[k] = true;
-    if (rnd(s) < concedeP(s)) { w.concede(s); warnRec(s).won++; log(s, 'Under threat of ' + w.short + ', Beijing ' + w.give + '.', 'good'); return 'The President warns Beijing that ' + w.short + ' is coming. Within the week Beijing ' + w.give + ', and calls it its own decision.'; }
+    if (draw(s, 'cn', concedeP(s)) < concedeP(s)) { w.concede(s); warnRec(s).won++; log(s, 'Under threat of ' + w.short + ', Beijing ' + w.give + '.', 'good'); return 'The President warns Beijing that ' + w.short + ' is coming. Within the week Beijing ' + w.give + ', and calls it its own decision.'; }
     s.flags.warn = { k, since: s.t, until: s.t + 3 }; s.tension += 2; return 'The President tells Beijing, publicly, that ' + w.short + ' comes in three months unless there is a deal. Beijing calls it blackmail.'; },
 });
 def({ id: 'sound', cat: 'diplo', name: 'Sound out Beijing’s envoy', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
@@ -1460,7 +1483,7 @@ function makeOffer(s, terms) {
   if (s.roomUsed >= roomMax(s)) return { error: 'The President has no more time for decisions this turn' };
   s.ap -= a.ap; s.pc -= a.pc; s.roomUsed++;
   const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms));
-  const roll = rnd(s); const pass = roll < rp.p;
+  const roll = draw(s, 'room', rp.p); const pass = roll < rp.p;
   settleRoom(s, rp, pass);
   if (!pass) { log(s, 'The President rejected your China package.', 'bad'); return { pass: false, roll, room: rp, text: 'The President won’t sign off. “It looks weak,” the President says, and moves on.' }; }
   if (s.flags.laneCommit && !terms.lane) rel(s, 'tsy', -15);
@@ -1472,7 +1495,7 @@ function makeOffer(s, terms) {
   if (terms.institute) { s.flags.instituteOffered = s.t; rel(s, 'war', -TUNE.inst.war); rel(s, 'dni', -TUNE.inst.dni); }
   if (terms.misuse) { rel(s, 'dni', -TUNE.pactDni); rel(s, 'sec', -TUNE.pactSec); }
   const p = cnAcceptP(s, terms);
-  const cnRoll = rnd(s); const accepted = cnRoll < p;
+  const cnRoll = draw(s, 'cn', p); const accepted = cnRoll < p;
   s.cn.cooldown = s.phase === 'scramble' ? 2 : 1;
   if (accepted) {
     s.cn.deal = { terms: Object.assign({}, terms), since: s.t, turn: s.turn };
@@ -1514,8 +1537,8 @@ def({ id: 'summit', cat: 'diplo', name: 'Convene the Phase 2 summit', phases: ['
   apply(s) {
     const p = summitP(s);
     if (s.labs.some(l => l.secret) && rnd(s) < 0.7) { s.labs.forEach(l => { l.secret = false; }); s.cn.trust -= 30; s.tension += 15; cnAggrieve(s); if (s.cn.deal) s.cn.deal = null; s.flags.summitFailed = (s.flags.summitFailed || 0) + 1; log(s, 'Phase 2 inspectors found the secret run. Beijing walks out.', 'bad'); return 'On the second day of the summit, Chinese inspectors walk into a cluster that should have been dark. Beijing walks out, and the interim deal goes with it.'; }
-    if (rnd(s) < p) {
-      if (!s.flags.statute && rnd(s) < summitCourtP(s)) { s.cred -= 10; s.cn.trust -= 10; s.flags.summitFailed = (s.flags.summitFailed || 0) + 1; log(s, 'A court voids the executive orders implementing Phase 2.', 'bad'); return 'Beijing signs. Nine days later a federal court rules the executive orders implementing it exceed your authority. Beijing suspends its side until Congress acts.'; }
+    if (draw(s, 'cn', p) < p) {
+      if (!s.flags.statute && draw(s, 'court', summitCourtP(s)) < summitCourtP(s)) { s.cred -= 10; s.cn.trust -= 10; s.flags.summitFailed = (s.flags.summitFailed || 0) + 1; log(s, 'A court voids the executive orders implementing Phase 2.', 'bad'); return 'Beijing signs. Nine days later a federal court rules the executive orders implementing it exceed your authority. Beijing suspends its side until Congress acts.'; }
       if (rnd(s) < betrayP(s)) { s.ending = 'betrayed'; log(s, 'Phase 2 is signed. Beijing was hiding a program.', 'bad'); return 'Beijing signs. Months later you learn what your intelligence missed.'; }
       s.ending = 'phase2'; log(s, 'The Phase 2 agreement is signed.', 'good'); return 'Beijing signs. Inspectors deploy within the month.';
     }
@@ -1573,7 +1596,7 @@ def({ id: 'ceasefire', cat: 'diplo', name: 'Propose a ceasefire', phases: ['p0',
   desc: 'A back channel through Singapore and the Swiss. The President has to agree to ask; then Beijing decides. Asking again builds on the last round.',
   avail(s) { return s.war ? true : 'Only during a war'; },
   effect: s => 'If the President agrees, Beijing takes it ' + Math.round(100 * ceasefireP(s)) + '% of the time. If not, escalation -4 and the next ask is likelier.',
-  apply(s) { if (rnd(s) < ceasefireP(s)) { endWar(s, 'A ceasefire holds in the Taiwan Strait.'); HAWKS.forEach(id => rel(s, id, -4)); return 'Beijing agrees to stand down along the current lines. The shooting stops at midnight.'; } s.war.talks++; s.war.esc -= 4; s.cn.trust -= 2; return '“Not yet.” But the channel stays open.'; },
+  apply(s) { if (draw(s, 'cn', ceasefireP(s)) < ceasefireP(s)) { endWar(s, 'A ceasefire holds in the Taiwan Strait.'); HAWKS.forEach(id => rel(s, id, -4)); return 'Beijing agrees to stand down along the current lines. The shooting stops at midnight.'; } s.war.talks++; s.war.esc -= 4; s.cn.trust -= 2; return '“Not yet.” But the channel stays open.'; },
 });
 
 function askIdx(s, id) { const p = P(s, id), list = ASKS[id]; for (let k = 0; k < list.length; k++) { const i = (p.ask + k) % list.length; if (!list[i].avail || list[i].avail(s)) return i; } return p.ask % list.length; }
@@ -1678,7 +1701,7 @@ function act(s, id, params) {
   if (a.room) {
     const rp = roomPreview(s, id, params);
     s.roomUsed++;
-    const roll = rnd(s); const pass = roll < rp.p;
+    const roll = draw(s, 'room', rp.p); const pass = roll < rp.p;
     settleRoom(s, rp, pass);
     if (pass) { if (a.once) s.policies[id] = true; res = { pass: true, roll, room: rp, text: a.apply(s, params) }; log(s, 'Approved: ' + a.name + (params.variant ? ' (' + optLabel(a, s, params.variant) + ')' : '') + '.', 'good'); }
     else { res = { pass: false, roll, room: rp, text: a.fail ? a.fail(s, params) : 'The President isn’t persuaded. ' + pick(s, ['“Bring it back when you have the votes.”', '“Not now.”', '“I don’t love it.”']) }; log(s, 'Rejected: ' + a.name + '.', 'bad'); }
@@ -2092,7 +2115,7 @@ ev({ id: 'walkout', forced: true, title: 'A walkout', stamp: 'Lab general counse
   body: s => `<p>${LD(s.queue[0].lab).name}’s general counsel sends a two-line letter: the lab is withdrawing from the Pacing Charter, effective immediately. ${lead(s) < 3 ? 'China is too close, the board says.' : 'The board says the others are not holding up their end.'}</p>`,
   choices: s => { const id = s.queue[0] && s.queue[0].lab, n = id ? LD(id).name : 'The lab'; return [
     { label: 'Compel it under the DPA', hint: n + ' stays covered at low compliance; ' + n + ' -30; industry -10. From now on the courts treat the pause like a DPA halt.', fx: s => { const l = L(s, id); l.covered = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; industry(s, -10); s.flags.compelled = true; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; return 'Federal marshals deliver the order. ' + LD(id).ceo + ' files suit the same afternoon.'; } },
-    { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (rnd(s) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
+    { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (draw(s, 'lab', backOdds(s, id)) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
     { label: 'Let them go', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
   ]; } });
 // Beijing's grievance: for six months after catching America cheating, Beijing is likelier to cheat on a deal itself.
@@ -2255,7 +2278,7 @@ ev({ id: 'war_talks', p: 0.3, cooldown: 2, phases: ['p0', 'scramble', 'p1'], whe
   body: () => `<p>Beijing\u2019s envoy offers a ceasefire along the current lines, if Washington ends its chip export controls and suspends arms sales to Taiwan.</p>`,
   choices: [
     { label: 'Accept', hint: 'The war ends. China\u2019s legal chip sales resume; hawks -15; coalition -8; credibility -4.', fx: onlyIf('war', s => { s.cn.legalT = 1; s.policies.chips = false; HAWKS.forEach(id => rel(s, id, -15)); s.coalition -= 8; s.cred -= 4; endWar(s, 'A ceasefire, on Beijing\u2019s terms.'); return 'The guns stop. The hawks call it Munich.'; }) },
-    { label: 'Counter: ceasefire, no concessions', hint: 'Beijing takes it ' + '35% of the time; otherwise escalation +4.', fx: onlyIf('war', s => { if (rnd(s) < 0.35) { endWar(s, 'A ceasefire holds in the Taiwan Strait.'); return 'Beijing takes the standstill.'; } s.war.esc += 4; s.war.talks++; return 'The envoy flies home.'; }) },
+    { label: 'Counter: ceasefire, no concessions', hint: 'Beijing takes it ' + '35% of the time; otherwise escalation +4.', fx: onlyIf('war', s => { if (draw(s, 'cn', 0.35) < 0.35) { endWar(s, 'A ceasefire holds in the Taiwan Strait.'); return 'Beijing takes the standstill.'; } s.war.esc += 4; s.war.talks++; return 'The envoy flies home.'; }) },
     { label: 'Refuse', hint: 'Escalation +6; War +6.', fx: onlyIf('war', s => { s.war.esc += 6; rel(s, 'war', 6); return 'The Secretary of War is pleased.'; }) },
   ] });
 ev({ id: 'cable_cut', p: 0.25, cooldown: 6, phases: ['p0', 'scramble', 'p1'], when: s => s.tension >= 50 && !s.war && !s.blockade,
@@ -2583,7 +2606,7 @@ function tick(s) {
   if (monthly && c.deal) {
     // a deal reached in cold conditions is brittle: low trust, and controls still in force, make Beijing likelier to cheat
     const held = ['chips', 'remote', 'distill', 'smuggle'].filter(k => s.policies[k]).length;
-    if (!c.cheat && rnd(s) < (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held) * ((s.flags.cnGrievance || 0) >= s.turn ? 1.6 : 1) * lean(s, TUNE.cheatResolve) * Math.max(0.25, 1 + TUNE.cheatHeat * (s.tension - 28) / 40) * emboldened(s)) c.cheat = true;
+    if (!c.cheat && fuseHit(s, 'cheat', (0.03 + 0.25 * (c.f.sec / 100) * (1 - cnVisibility(s))) * concealment(s) * (1.4 - TUNE.cheatTrust * c.trust / 100) * (1 + TUNE.cheatResent * held) * ((s.flags.cnGrievance || 0) >= s.turn ? 1.6 : 1) * lean(s, TUNE.cheatResolve) * Math.max(0.25, 1 + TUNE.cheatHeat * (s.tension - 28) / 40) * emboldened(s))) c.cheat = true;
     const quiet = (s.flags.cheatQuiet || 0) >= s.turn || s.queue.some(q => q.id === 'cn_cheat');
     if (!quiet && c.cheat && rnd(s) < cnVisibility(s)) s.queue.push({ id: 'cn_cheat', real: true, conf: cheatConf(s, true) });
     else if (!quiet && !c.cheat && rnd(s) < TUNE.falseAlarm * (1 - s.intelQ / 100)) s.queue.push({ id: 'cn_cheat', real: false, conf: cheatConf(s, false) });
@@ -2600,20 +2623,25 @@ function tick(s) {
   {
     const F = frontier(s);
     const tr = theftRisk(s);
-    if (rnd(s) < tr.attempt * dt) {
-      const tgt = frontierLab(s);
-      if (rnd(s) < tr.success && c.cap < F - 0.6) { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: tgt.id }); log(s, 'Frontier model weights were stolen.', 'bad'); }
-      else if (rnd(s) < 0.5) s.queue.push({ id: 'theft_foiled', lab: tgt.id });
+    const steal = () => { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: frontierLab(s).id }); log(s, 'Frontier model weights were stolen.', 'bad'); };
+    if (TUNE.fuse > 1) { if (c.cap < F - 0.6 && fuseHit(s, 'theft', tr.attempt * dt * tr.success)) steal(); else if (rnd(s) < 0.5 * tr.attempt * dt * (1 - tr.success)) s.queue.push({ id: 'theft_foiled', lab: frontierLab(s).id }); }
+    else if (rnd(s) < tr.attempt * dt) {
+      if (rnd(s) < tr.success && c.cap < F - 0.6) steal();
+      else if (rnd(s) < 0.5) s.queue.push({ id: 'theft_foiled', lab: frontierLab(s).id });
     }
   }
 
   // --- hazards
   const hz = hazards(s);
   let surv = 1;
-  hz.forEach(x => { const h = 1 - Math.pow(1 - x.h, dt); if (!s.queue.some(q => q.id === 'runaway' || q.id === 'warning') && rnd(s) < h) { if (rnd(s) < warningShotP(s, x.who)) { s.queue.unshift({ id: 'warning', who: x.who, flavor: x.who === 'open' && (s.agents || 0) >= 20 ? 'swarm' : warnFlavor(s, ['exfil', 'sovereign', 'collude', 'sandbag']) }); s.flags.lastWarning = s.turn; (s.stats.warnR = s.stats.warnR || []).push(frontier(s) / s.T); s.stats.warnings = (s.stats.warnings || 0) + 1; } else s.queue.unshift({ id: 'runaway', who: x.who }); } surv *= 1 - h * (1 - warningShotP(s, x.who)); });
+  // a hazard that fires is a warning shot (warningShotP) or a runaway
+  const fire = x => { if (rnd(s) < warningShotP(s, x.who)) { s.queue.unshift({ id: 'warning', who: x.who, flavor: x.who === 'open' && (s.agents || 0) >= 20 ? 'swarm' : warnFlavor(s, ['exfil', 'sovereign', 'collude', 'sandbag']) }); s.flags.lastWarning = s.turn; (s.stats.warnR = s.stats.warnR || []).push(frontier(s) / s.T); s.stats.warnings = (s.stats.warnings || 0) + 1; } else s.queue.unshift({ id: 'runaway', who: x.who }); };
+  const queued = () => s.queue.some(q => q.id === 'runaway' || q.id === 'warning');
+  if (TUNE.fuse > 1) { const hs = hz.map(x => 1 - Math.pow(1 - x.h, dt)), tot = 1 - hs.reduce((a, h) => a * (1 - h), 1); if (!queued() && fuseHit(s, 'runaway', tot)) { let r = rnd(s) * hs.reduce((a, h) => a + h, 0), i = 0; while (i < hs.length - 1 && (r -= hs[i]) > 0) i++; fire(hz[i]); } }
+  hz.forEach(x => { const h = 1 - Math.pow(1 - x.h, dt); if (TUNE.fuse <= 1 && !queued() && rnd(s) < h) fire(x); surv *= 1 - h * (1 - warningShotP(s, x.who)); });
   s.riskExposure = 1 - (1 - s.riskExposure) * surv;
   // past the threshold without a binding deal, China can also get recursive self-improvement working, and keep control of it
-  if (!s.ending && !(s.cn.deal && !s.cn.cheat) && !s.queue.some(q => q.id === 'runaway' || q.id === 'warning') && rnd(s) < 1 - Math.pow(1 - TUNE.cnWin * nearness(s, s.cn.cap), dt)) { s.ending = 'cnwins'; log(s, 'China crossed the threshold first, and kept control.', 'bad'); }
+  if (!s.ending && !(s.cn.deal && !s.cn.cheat) && !s.queue.some(q => q.id === 'runaway' || q.id === 'warning') && fuseHit(s, 'cnwin', 1 - Math.pow(1 - TUNE.cnWin * nearness(s, s.cn.cap), dt))) { s.ending = 'cnwins'; log(s, 'China crossed the threshold first, and kept control.', 'bad'); }
   {
     const fl = frontierLab(s); const r = Math.min(1, Math.max(0, frontier(s) / s.T));
     const pw = (0.05 + 0.15 * r) * (covered(s, fl) ? (s.pacing.automation ? 0.35 : 0.6) : 1);
@@ -2685,8 +2713,8 @@ function tick(s) {
     if (ps < 25) s.pacing.low++; else s.pacing.low = Math.max(0, s.pacing.low - 1);
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
     if (s.pacing.low >= 3 || ps < TUNE.supportBreak) s.queue.push({ id: 'collapse' });
-    if ((s.flags.courtNext || 0) <= s.turn && rnd(s) < courtP(s)) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
-    if (s.flags.appeal === s.turn) { if (rnd(s) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
+    if ((s.flags.courtNext || 0) <= s.turn && fuseHit(s, 'court', courtP(s))) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
+    if (s.flags.appeal === s.turn) { if (draw(s, 'court', s.flags.appealP || 0.5) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
     if (s.overhang >= 5 && !s.seen.tinder) { s.queue.push({ id: 'tinder' }); s.seen.tinder = s.turn; }
     // Beijing is watching too: a secret US run (likelier with inspections in the deal and a hard-pushing cyber service), or a US lab cheating under a deal
@@ -2695,7 +2723,8 @@ function tick(s) {
     // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
     if (s.pacing.mech === 'charter' && !s.flags.statute && !s.queue.some(q => q.id === 'walkout')) s.labs.forEach(l => {
       if (!l.covered || !l.signedVoluntary) return;
-      if (rnd(s) < TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1)) s.queue.push({ id: 'walkout', lab: l.id });
+      const pw = TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1);
+      if (fuseHit(s, 'walk', pw)) s.queue.push({ id: 'walkout', lab: l.id });
     });
     // China passes the paced frontier
     if (s.cn.cap > frontier(s) + 0.5) { s.flags.overtaken = (s.flags.overtaken || 0) + 1; if (s.flags.overtaken >= 2) s.queue.push({ id: 'collapse' }); }
@@ -2721,7 +2750,7 @@ function tick(s) {
     } else {
       c.supply = mv(c.supply == null ? 1 : c.supply, 1, 0.1);
       if (s.stats.wars && c.deal) s.stats.dealAfterWar = true;
-      if (!s.queue.some(q => q.id === 'war') && rnd(s) < straitRisk(s)) { if (rnd(s) < directP(s)) startWar(s, 'beijing', 30); else startBlockade(s); }
+      if (!s.queue.some(q => q.id === 'war') && fuseHit(s, 'strait', straitRisk(s))) { if (rnd(s) < directP(s)) startWar(s, 'beijing', 30); else startBlockade(s); }
     }
   }
 
