@@ -25,7 +25,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| leverage2 (07, off 924dc9c, in progress) | 07 | leverage: cut the red line (H), reassurance without expiry, base credibility 0.5 (I), a Strait deterrence move (C2); handed off only if each clears +5 on v32 genomes |
+| leverage2 (07, rebased on adc0d2f; worktree ../scramble_leverage2) | 07 | leverage: red line cut (H, 8066b08, play identical without it); reassurance knobs and leverEarly gene uncommitted, pending Peter; C2 dropped by Peter. Peter weighing "China exploits a too-dovish US" (overlaps 9c and hawk/dove); 07 sends a coordination note before building. Handed off only parts clearing +5 on v32 genomes |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
