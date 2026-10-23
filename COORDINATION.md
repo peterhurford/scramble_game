@@ -14,7 +14,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
-| vX36x (exploratory, not a batch; done, sim/vX36x_run0-6 uncommitted, handed to 1e) | mech-explore (b75dcd2, 1e): situ 1 + dpaStick 1; 7 unpinned runs, run k from vX35_run<k>, OUT=sim/vX36x; queues behind any real batch | 1e | G (Peter, via 1e) |
+| vX36x (exploratory, closed; 1e analysed it, files moved out of main; a candidate may follow) | mech-explore (b75dcd2, 1e): situ 1 + dpaStick 1; 7 unpinned runs, run k from vX35_run<k>, OUT=sim/vX36x; queues behind any real batch | 1e | G (Peter, via 1e) |
 | vX35 (exploratory, closed; 1e analysed it, files moved out of main) | mech-explore (cb6402a, 1e): situ 1; 7 unpinned runs from the v35 genomes, OUT=sim/vX35; queues behind any real batch | 1e | C1 (Peter, via 1e) |
 | v35 (landed 92f2772) | dpa-cost (360e2a5, 1e): walkCompel 3. Before the search: v34_run1 -35.4 ± 2.8; after it, walkCompel 0 on v35_run1 is +0.5 ± 0.3 | 1e | K yes; X: 7 runs |
 | v34 (landed e494f0e) | luck (aac720c, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 | 1e | G 0.65; AG; O; no hint change |
