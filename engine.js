@@ -277,13 +277,19 @@ const TUNE = {
   mktSupport: 0.6,
   mktPres: 0.005,
   mktCred: 1.3,
-  // luck: spread of each game's hidden draws (1 = full range, 0 = every game at the median); share of a decision class's luck balance taken off its next roll; catastrophe fuse shape (1 = a plain monthly roll) and mean length (under 1 fires sooner). spread 1, luckFix 0, fuse 1 plays as before.
-  spread: 0.5,
+  // luck: spread of the IC's blind miscalibration (1 = full range, 0 = indicators sit on the true threshold), of the RSI threshold (kept wide enough that reading the indicators pays), and of the draws the player can read or shape (courts, China's starting point and channels, cyber push, concealment, factions, lab goodwill); share of a decision class's luck balance taken off its next roll; catastrophe fuse shape (1 = a plain monthly roll) and mean length (under 1 fires sooner). spread 1, luckFix 0, fuse 1 plays as before.
+  spread: 0,
+  spreadT: 0.7,
+  spreadRead: 1,
   luckFix: 0.5,
   fuse: 4,
   fuseMean: 0.65,
   // capital to compel a lab that walks out of the Charter, as the Compel action costs
   walkCompel: 3,
+  // how much each pacing mechanism hangs on its condition (0 = as before): a DPA halt on the courts, the Charter on the labs' goodwill, licensing on Commerce
+  situ: 1,
+  // 1 = an injunction against a DPA pause (no statute) is final: no appeal restores it and no lab can be compelled until Congress acts
+  dpaStick: 1,
 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -413,6 +419,7 @@ function trigMult(s) { return { '425': 0.55, '200': 0.8, '200c': 1.0, '100': 0.9
 function ready1(s) { const v = s.verify; return (v.survey + v.inspect) / 2; }
 function ready2(s) { const v = s.verify; const xs = COMPONENTS.map(c => v[c.id]); return { avg: xs.reduce((a, b) => a + b, 0) / xs.length, min: Math.min.apply(null, xs) }; }
 // While a court has enjoined the Charter's mandatory verification, detection and inspection growth run at TUNE.enjoinedMult.
+function dpaStruck(s, now) { return !!TUNE.dpaStick && !s.flags.statute && (now ? s.pacing.mech === 'dpa' || s.flags.compelled : s.flags.dpaStruck); }
 function enjoined(s) { return !!s.flags.verifyEnjoined && !s.flags.statute; }
 function detection(s) { const v = s.verify; return clamp((0.08 + 0.5 * (v.inspect / 100) * trigMult(s) + (s.pacing.automation ? 0.12 : 0) + (s.flags.surgeTurn === s.turn ? 0.25 : 0) + (s.verify.novel > 50 ? 0.08 : 0)) * (enjoined(s) ? TUNE.enjoinedMult : 1), 0, 0.9); }
 // How well Beijing hides sites, as a multiplier on cheating and hidden-program risk; the GEOINT baseline cuts 60% of the departure from typical.
@@ -835,7 +842,7 @@ function newGame(opts) {
     hist: [], ind: [], log: [], queue: [], seen: {}, roomUsed: 0, report: null, ending: null,
     stats: { roomWon: 0, roomLost: 0, thefts: 0, defectCaught: 0, defectMissed: 0, peakLead: 5.5, monthsPaced: 0, scrambleStart: null, briefFails: 0, covert: 0 },
   };
-  s.T = clamp(D.Tmed * Math.exp(0.4 * TUNE.spread * gauss(s)), 6.5, 22);
+  s.T = clamp(D.Tmed * Math.exp(0.4 * (TUNE.spreadT == null ? TUNE.spread : TUNE.spreadT) * gauss(s)), 6.5, 22);
   // hidden per-game miscalibration: each indicator's marker sits somewhat off the true threshold, and the IC has a standing bias
   const sd = 0.15 * TUNE.spread;
   s.cal = { uplift: clamp(sd * gauss(s), -0.3, 0.3), cobench: clamp(sd * gauss(s), -0.3, 0.3), horizon: clamp(sd * gauss(s), -0.3, 0.3), arr: clamp(sd * gauss(s), -0.3, 0.3) };
@@ -849,9 +856,9 @@ function newGame(opts) {
   return s;
 }
 // Hidden per-game starting point for China's lag, offshore compute, smuggling and distillation (1 = baseline). Smuggling is log-uniform 0.4-2.4x, skewed like IFP's range. Drawn from hash01 so the main random stream is untouched.
-// TUNE.spread pulls every draw toward its median (each uniform toward 0.5, each normal's s.d. scaled); 1 is the full range.
+// TUNE.spreadRead pulls every draw here toward its median (each uniform toward 0.5, each normal's s.d. scaled); 1 is the full range.
 function cnStart(s) {
-  const c = s.cn, f = TUNE.spread, h = k => hash01(s.seed, 'cnstart', k), u = k => f === 1 ? h(k) : 0.5 + f * (h(k) - 0.5);
+  const c = s.cn, f = TUNE.spreadRead, h = k => hash01(s.seed, 'cnstart', k), u = k => f === 1 ? h(k) : 0.5 + f * (h(k) - 0.5);
   c.base = { remote: 0.5 + u('remote'), smuggle: 0.4 * Math.pow(6, u('smuggle')), dist: 0.6 + 0.4 * u('dist') };
   // starting lag: lognormal, median 6 months (80% range ~4.1-8.8), around metr_graph's 4.4-6.5 months
   const z = Math.sqrt(-2 * Math.log(Math.max(1e-9, h('lag1')))) * Math.cos(2 * Math.PI * h('lag2'));
@@ -1108,7 +1115,7 @@ function malaysiaOdds(s) { return clamp(0.25 + s.coalition / 200 + (s.flags.joho
 // ---- scramble decisions ----
 const MECH = {
   charter: { label: 'Pacing Charter', desc: 'Voluntary commitments by every lab above the line, mutual verification, and the DPA held in reserve. Labs must sign, and labs that like you sign and stay. Lowest court risk until Congress acts.', tags: { pause: 1.2, control: 0.8, industry: -0.4, markets: -0.4 } },
-  dpa: { label: 'DPA halt', desc: 'Order every lab above the line to stop. Covers everyone at once. Legally untested: the highest court risk until Congress acts, and hostile courts are likelier to rule against it and to uphold the ruling on appeal.', tags: { pause: 2.2, control: 2, industry: -2, markets: -1.4 } },
+  dpa: { label: 'DPA halt', desc: 'Order every lab above the line to stop. Covers everyone at once. Legally untested: the highest court risk until Congress acts, and hostile courts are likelier to rule against it. Without a statute a ruling against it is final.', tags: { pause: 2.2, control: 2, industry: -2, markets: -1.4 } },
   license: { label: 'Commerce licensing', desc: 'Commerce licenses every run above the line. Covers everyone. Commerce runs it, so it is as tight as Commerce wants: leaky with a hostile Commerce Secretary, solid with an ally, whose lawyers also halve the court risk.', tags: { pause: 1.2, control: 1.2, commerce: 2, industry: -0.8, markets: -0.6 } },
 };
 def({ id: 'mech', cat: 'crisis', name: 'Choose the pacing mechanism', phases: ['scramble'], ap: 1, pc: 2, room: true,
@@ -1250,7 +1257,7 @@ function complianceBase(s, l) {
   const d = LD(l.id);
   let c = 35 + d.safety * 0.5 + l.rel * 0.2;
   if (s.pacing.mech === 'dpa') c += 15;
-  if (s.pacing.mech === 'license') c += -12 + TUNE.licRel * P(s, 'doc').rel; // Commerce runs it: as good as Commerce wants it to be
+  if (s.pacing.mech === 'license') c += -12 - 12 * TUNE.situ + (TUNE.licRel + 0.3 * TUNE.situ) * P(s, 'doc').rel; // Commerce runs it: as good as Commerce wants it to be
   if (s.pacing.mech === 'charter' && l.signedVoluntary) c += TUNE.charterRel * l.rel; // a lab that chose to sign keeps faith as far as it trusts you
   if (s.flags.commerceChairs) c -= 5;
   if (s.flags.medCarve) c -= 5;
@@ -1292,7 +1299,7 @@ function finishConvening(s) { if (s.scramble) { s.scramble.convening = false; s.
 def({ id: 'compel', cat: 'labs', name: 'Compel a lab under the DPA', phases: ['p1'], ap: 1, pc: 3, room: true,
   params: { kind: 'lab', filter: (s, l) => !l.covered },
   tags: { pause: 1.5, control: 1.5, industry: -1.5, markets: -0.4 },
-  avail(s) { if (!paced(s)) return 'No pacing regime to enforce'; return s.labs.some(l => !l.covered) ? true : 'Every lab is covered'; },
+  avail(s) { if (!paced(s)) return 'No pacing regime to enforce'; if (dpaStruck(s)) return 'A court has struck down the DPA orders; only a statute restores them'; return s.labs.some(l => !l.covered) ? true : 'Every lab is covered'; },
   desc: 'Order an unsigned lab under the pacing regime. Covers it at once; a court may disagree.',
   effect: () => 'The lab is covered at low compliance. Court risk applies.',
   apply(s, prm) { const l = L(s, prm.lab); l.covered = true; l.signed = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; s.flags.compelled = true; industry(s, -10); return LD(l.id).name + ' is ordered under the DPA. ' + LD(l.id).ceo + ' calls it “the end of American innovation” and files suit.'; },
@@ -1552,8 +1559,10 @@ function summitP(s) { const d = s.cn.deal; if (!d) return 0; const held = s.t - 
 // Monthly chance a court enjoins the pause: the mechanism's rate (a DPA order on any lab counts as DPA), far lower once a statute is challenged instead,
 // times the game's hidden court climate (pass the counsel's read to get what the player can know); the legal study cuts it, ignoring a ruling raises it.
 function courtP(s, climate) {
-  const base = s.flags.statute ? TUNE.statuteCourt : Math.max((TUNE.courtRate[s.pacing.mech] || 0.03) * (s.pacing.mech === 'license' && P(s, 'doc').rel >= 40 ? 0.5 : 1), s.flags.compelled ? TUNE.courtRate.dpa : 0);
-  return base * (climate == null ? s.courts || 1 : climate) * (s.done.legal ? 0.4 : 1) * (1 + (s.flags.defied || 0));
+  const lic = s.pacing.mech !== 'license' ? 1 : TUNE.situ ? (1 + TUNE.situ) * Math.exp(-TUNE.situ * P(s, 'doc').rel / 30) : P(s, 'doc').rel >= 40 ? 0.5 : 1; // an Ally Commerce's lawyers defend licensing; with situ, a cold one barely does
+  const base = s.flags.statute ? TUNE.statuteCourt : Math.max((TUNE.courtRate[s.pacing.mech] || 0.03) * lic, s.flags.compelled ? TUNE.courtRate.dpa : 0);
+  const c = climate == null ? s.courts || 1 : climate, dpa = !s.flags.statute && (s.pacing.mech === 'dpa' || s.flags.compelled);
+  return base * (dpa && TUNE.situ ? Math.pow(c, 1 + 3 * TUNE.situ) : c) * (s.done.legal ? 0.4 : 1) * (1 + (s.flags.defied || 0));
 }
 function summitCourtP(s) { return s.flags.statute ? 0 : TUNE.summitCourt * (s.done.legal ? 0.5 : 1); }
 function phase2Check(s) {
@@ -2056,13 +2065,13 @@ ev({ id: 'cn_cheat', forced: true, title: 'Two heat signatures', stamp: 'NGA, 11
 const COURT = { dpa: 'frontier AI risk does not meet the Defense Production Act’s “national emergency” standard', license: 'Commerce has no statutory authority to license domestic training runs', charter: 'the Charter’s mandatory verification and its DPA backstop exceed executive authority' };
 // Appeals restore the orders half the time, three times in four when it is a statute under challenge.
 // A Charter injunction strikes its mandatory verification, which stays enjoined until an appeal wins or a statute passes.
-function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && (l.comp < 70 || s.pacing.mech === 'dpa')) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : clamp(0.5 - TUNE.appealSwing * ((s.courts || 1) - 1), 0.15, 0.85); if (s.pacing.mech === 'charter' && !s.flags.statute) s.flags.verifyEnjoined = true; return out; }
+function injunction(s) { const out = []; s.labs.forEach(l => { if (l.covered && !l.signedVoluntary && (l.comp < 70 || s.pacing.mech === 'dpa')) { l.covered = false; out.push(LD(l.id).name); } l.comp -= 10; }); s.flags.appeal = s.turn + 1; s.flags.appealP = s.flags.statute ? 0.75 : clamp(0.5 - TUNE.appealSwing * ((s.courts || 1) - 1), 0.15, 0.85); if (dpaStruck(s, true)) { s.flags.dpaStruck = true; s.flags.appealP = 0; } if (s.pacing.mech === 'charter' && !s.flags.statute) s.flags.verifyEnjoined = true; return out; }
 ev({ id: 'court', forced: true, title: 'Injunction', stamp: 'D.C. Circuit',
   body: s => s.flags.statute ? `<p>Mindscale’s lawyers find a sympathetic district judge, who rules that the Pacing Act delegates too much to the executive and enjoins enforcement pending appeal.</p><p>A statute makes this rare. It does not make it impossible.</p>` : `<p>A federal judge rules that ${COURT[s.flags.compelled ? 'dpa' : s.pacing.mech] || COURT.charter}, and enjoins the government’s orders.</p><p>Without a statute, this can happen again.${s.pacing.mech === 'charter' && !s.flags.compelled ? ' Until an appeal wins or Congress acts, the Charter\u2019s inspections lose their teeth: cheating labs get caught half as often, and inspections build half as fast.' : ''}</p>`,
   choices: [
-    { label: 'Appeal and ask the labs to comply voluntarily', hint: 'Labs that never signed voluntarily fall out of coverage; every lab’s compliance -10. Even odds the appeal restores it.', fx: s => { const out = injunction(s); return out.length ? out.join(', ') + ' resume training while the appeal runs.' : 'Every lab complies voluntarily while the appeal runs.'; } },
+    { label: 'Appeal and ask the labs to comply voluntarily', hint: s => 'Labs that never signed voluntarily fall out of coverage; every lab’s compliance -10. ' + (dpaStruck(s, true) ? 'Against the DPA orders the ruling is final: only a statute restores them.' : 'Even odds the appeal restores it.'), fx: s => { const out = injunction(s); return out.length ? out.join(', ') + ' resume training while the appeal runs.' : 'Every lab complies voluntarily while the appeal runs.'; } },
     { label: 'Appeal, and ask Congress to fix it', hint: s => s.flags.statute ? 'As appealing, and if you have 55 Senate votes, Congress tightens the act and the appeal is all but certain.' : 'As appealing, and if you have 55 Senate votes, a pacing bill goes to the floor for a vote in two months.', fx: s => { const out = injunction(s); if (s.flags.statute) { if (senateVotes(s) >= 55) s.flags.appealP = 0.95; return (senateVotes(s) >= 55 ? 'Leadership moves a technical fix to the act. ' : 'Leadership will not reopen the act without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } const go = !s.flags.billDue && !(s.flags.billBack > s.t) && senateVotes(s) >= 55; if (go) s.flags.billDue = s.t + 2; return (go ? 'Leadership schedules a vote on a pacing act. ' : 'Leadership will not take up a bill without the votes. ') + (out.length ? out.join(', ') + ' resume training meanwhile.' : 'Every lab complies voluntarily meanwhile.'); } },
-    { label: 'Ignore the ruling', hint: 'Coverage holds. Credibility -10; Senate -6; the next challenge is likelier.', fx: s => { s.cred -= 10; s.senateLobby -= 6; s.flags.defied = (s.flags.defied || 0) + 1; return 'Constitutional scholars are on every channel. The orders stand, for now.'; } },
+    { label: 'Ignore the ruling', hint: s => dpaStruck(s, true) ? 'The ruling against the DPA orders is final: defying it costs credibility -10 and Senate -6 and the labs stop complying anyway.' : 'Coverage holds. Credibility -10; Senate -6; the next challenge is likelier.', fx: s => { if (dpaStruck(s, true)) { s.cred -= 10; s.senateLobby -= 6; const out = injunction(s); return 'The labs’ boards follow the court, not the White House. ' + (out.length ? out.join(', ') + ' resume training.' : ''); } s.cred -= 10; s.senateLobby -= 6; s.flags.defied = (s.flags.defied || 0) + 1; return 'Constitutional scholars are on every channel. The orders stand, for now.'; } },
   ] });
 ev({ id: 'lobby_end', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced(s) && seenLead(s) < 4,
   title: '“Dian-Hezi is catching up”', stamp: 'Roosevelt Room',
@@ -2095,7 +2104,7 @@ ev({ id: 'markets_wobble', p: 0.3, phases: ['p1'], cooldown: 3, when: s => paced
     { label: 'Support it', hint: '3 capital. Markets +10; Treasury +8.', fx: s => { if (s.pc >= 3) { s.pc -= 3; s.markets += 10; rel(s, 'tsy', 8); return 'Markets rally 5%.'; } rel(s, 'tsy', -5); return 'You have no capital to spend on it.'; } },
     { label: 'Hold the line', hint: 'Treasury -10; markets -3 as Treasury goes over your head.', fx: s => { rel(s, 'tsy', -10); s.markets -= 3; return 'The Treasury Secretary goes over your head, and says so on CNBC.'; } },
   ] });
-ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && (s.pacing.mech === 'license' || s.flags.commerceChairs) && P(s, 'doc').rel < 15,
+ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && (s.pacing.mech === 'license' || s.flags.commerceChairs) && P(s, 'doc').rel < 15 + 15 * TUNE.situ,
   title: 'An exemption', stamp: 'Commerce Department',
   body: () => `<p>Commerce quietly grants Mindscale a “research exemption” for a training run at Forge 2.</p>`,
   choices: [
@@ -2116,7 +2125,7 @@ function riderHit(s) { if (s.warp >= 2) { s.warp = 1; return 'Warp Speed money s
 ev({ id: 'walkout', forced: true, title: 'A walkout', stamp: 'Lab general counsel',
   body: s => `<p>${LD(s.queue[0].lab).name}’s general counsel sends a two-line letter: the lab is withdrawing from the Pacing Charter, effective immediately. ${lead(s) < 3 ? 'China is too close, the board says.' : 'The board says the others are not holding up their end.'}</p>`,
   choices: s => { const id = s.queue[0] && s.queue[0].lab, n = id ? LD(id).name : 'The lab'; return [
-    { label: 'Compel it under the DPA', hint: TUNE.walkCompel + ' capital. ' + n + ' stays covered at low compliance; ' + n + ' -30; industry -10. From now on the courts treat the pause like a DPA halt. Without the capital, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc < TUNE.walkCompel) { l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return 'Without the capital to fight it, you let the letter stand. ' + LD(id).name + ' restarts its largest runs within the week.'; } s.pc -= TUNE.walkCompel; l.covered = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; industry(s, -10); s.flags.compelled = true; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; return 'Federal marshals deliver the order. ' + LD(id).ceo + ' files suit the same afternoon.'; } },
+    { label: 'Compel it under the DPA', hint: TUNE.walkCompel + ' capital. ' + n + ' stays covered at low compliance; ' + n + ' -30; industry -10. From now on the courts treat the pause like a DPA halt. Without the capital, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc < TUNE.walkCompel || dpaStruck(s)) { l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return 'Without the capital to fight it, you let the letter stand. ' + LD(id).name + ' restarts its largest runs within the week.'; } s.pc -= TUNE.walkCompel; l.covered = true; l.signedVoluntary = false; l.comp = clamp(complianceBase(s, l) - 15); l.rel -= 30; industry(s, -10); s.flags.compelled = true; s.flags.dpaUsed = true; s.flags.dpaSince = s.turn; return 'Federal marshals deliver the order. ' + LD(id).ceo + ' files suit the same afternoon.'; } },
     { label: 'Bring them back to the table', hint: '2 capital. Chance: ' + Math.round(100 * backOdds(s, id)) + '%. If it fails, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (draw(s, 'lab', backOdds(s, id)) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
     { label: 'Let them go', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
   ]; } });
@@ -2716,7 +2725,7 @@ function tick(s) {
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
     if (s.pacing.low >= 3 || ps < TUNE.supportBreak) s.queue.push({ id: 'collapse' });
     if ((s.flags.courtNext || 0) <= s.turn && fuseHit(s, 'court', courtP(s))) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
-    if (s.flags.appeal === s.turn) { if (draw(s, 'court', s.flags.appealP || 0.5) < (s.flags.appealP || 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
+    if (s.flags.appeal === s.turn) { if (draw(s, 'court', s.flags.appealP ?? 0.5) < (s.flags.appealP ?? 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
     if (s.overhang >= 5 && !s.seen.tinder) { s.queue.push({ id: 'tinder' }); s.seen.tinder = s.turn; }
     // Beijing is watching too: a secret US run (likelier with inspections in the deal and a hard-pushing cyber service), or a US lab cheating under a deal
@@ -2725,7 +2734,7 @@ function tick(s) {
     // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
     if (s.pacing.mech === 'charter' && !s.flags.statute && !s.queue.some(q => q.id === 'walkout')) s.labs.forEach(l => {
       if (!l.covered || !l.signedVoluntary) return;
-      const pw = TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1);
+      const pw = TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1) * (TUNE.situ ? Math.exp(-TUNE.situ * (l.rel - 10) / 20) : 1);
       if (fuseHit(s, 'walk', pw)) s.queue.push({ id: 'walkout', lab: l.id });
     });
     // China passes the paced frontier

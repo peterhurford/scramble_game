@@ -18,6 +18,7 @@ POL0.forEach(p => g('pol.' + p, 'real', -1, 1));
 Object.keys(GATE).forEach(p => g('gate.' + p, 'real', 0, GATE[p][1]));
 Object.keys(PGATE).forEach(p => g('pgate.' + p, 'real', 0, PGATE[p][1]));
 g('meetEvery', 'int', 0, 4);
+g('labMeet', 'int', 0, 4);
 g('meetA', 'choice', PEOPLE);
 g('meetB', 'choice', PEOPLE);
 PEOPLE.forEach(p => g('fav.' + p, 'bool'));
@@ -151,6 +152,7 @@ function expertGenome() {
   ['distill', 'fund', 'remote', 'smuggle', 'sl4'].forEach((p, i) => G['pol.' + p] = 1 - i * 0.1);
   Object.assign(G, {
     meetEvery: 4,
+    labMeet: 0,
     meetA: 'vp',
     meetB: 'cos',
     favReserve: 8,
@@ -284,6 +286,7 @@ function turn(s, G) {
     for (const p of PEOPLE) { if (G['fav.' + p] && s.pc - E.currentAsk(s, p).pc >= G.favReserve && tryAct(s, 'favor', { who: p }, G, 'grants this principal\u2019s asks whenever capital stays at ' + G.favReserve + '+')) step(); }
     const projs = PROJ.filter(p => G['proj.' + p] >= 0).sort((a, b) => G['proj.' + b] - G['proj.' + a]);
     while (s.ap > 0 && guard++ < 10 && !s.ending && s.phase === 'p0') {
+      if (G.labMeet && s.turn % G.labMeet === 1 % G.labMeet && s.flags.labMet !== s.turn && (s.flags.labMet = s.turn) && tryAct(s, 'labmeet', { lab: s.labs.slice().sort((a, b) => a.rel - b.rel)[0].id }, G, 'meets the coolest lab CEO every ' + G.labMeet + ' turns')) { step(); continue; }
       if (G.meetEvery && s.turn % G.meetEvery === 2 % G.meetEvery && tryAct(s, 'meet', { who: s.turn % (2 * G.meetEvery) < G.meetEvery ? G.meetA : G.meetB }, G, 'meets every ' + G.meetEvery + ' turns, alternating')) { step(); continue; }
       const next = projs.find(p => !s.done[p] && avail(s, 'proj_' + p) && !pgated(s, G, p));
       if (next && tryAct(s, 'proj_' + next, {}, G, 'next project in priority order' + (G['pgate.' + next] ? ' (its reading clears the gate)' : ''))) { step(); continue; }
