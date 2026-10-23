@@ -6,7 +6,7 @@ The integrator keeps this file current: open branches, batches, and who reports 
 
 Measure against these with `node sim/compare.js <genome>` (4,000 games from seed 900000).
 
-- Rules: main at aac720c (v34 batch: luck, fuseMean 0.65). Genomes: v34, committed in e494f0e, 13 runs at 1200 games x 150 steps from v33 starts (main run2 from v33dove_run1). compare.js: main 791.9 / 802.9 / 802.1 / 795.2; true hawk 689.9 / 730.5 / 729.0; dove 784.5 / 801.3 / 802.9; together 689.8 / 705.5 / 690.8 (each ± 4.4-5.6). Measure branches against sim/v34_run1.json (802.9, tied with v34dove_run2). Dove minus true hawk: 72.4 (v33: 36.8). Luck off on the best genomes: main -117.2 ± 6.6, dove -133.9 ± 6.9, hawk -90.7 ± 6.6, together -125.6 ± 7.4. TUNE, the engine API, GENES, expertGenome and exports are one entry per line since 58d9b5b: add a new key on its own line. Since e5e44e2 each search run keeps its start when the start beats the final on 4000 held-out games (seeds 700000+); Peter kept that rule (D, 22 Oct).
+- Rules: main at 360e2a5 (v35 batch: dpa-cost, walkCompel 3). Genomes: v35, committed in 92f2772, 7 runs at 1200 games x 150 steps from the best v34 runs (X: 7). compare.js: main 788.5 / 798.8; true hawk 731.7 / 673.2; dove 796.6; together 710.2 / 680.8 (each ± 4.4-5.6). Measure branches against sim/v35_run1.json (798.8). Dove minus true hawk: 64.9 (v34: 72.4). walkCompel 0 on the best genomes: main +0.5 ± 0.3, dove, hawk and together +0.0. TUNE, the engine API, GENES, expertGenome and exports are one entry per line since 58d9b5b: add a new key on its own line. Since e5e44e2 each search run keeps its start when the start beats the final on 4000 held-out games (seeds 700000+); Peter kept that rule (D, 22 Oct).
 - Search size (Peter's N, 22 Oct): a big rule change (best genome moves more than ~30 points) gets all 13 runs; a small one (a gene or two) gets 2 main, 1 dove, 2 hawk, 2 together. Over v32-v33, main and dove gained +2.7 per run on held-out games (9 of 14 runs kept their start); hawk and together gained +19.6 per run (3 of 12 kept their start). v34 (a big change) gained more: main and dove +11.2 per run (1 of 7 kept its start), hawk and together +25.1.
 - Fitness: mean score (since 3dea930). Report mean score ± SE first, Phase 2 second.
 
@@ -14,7 +14,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
-| v35 (batch closed; search running from detached ../scramble_search_v35 at 49c04df) | dpa-cost (49c04df, 1e): walkCompel 3; walkCompel 0 reproduces main. On v34_run1: 767.5 ± 4.8 vs 802.9 ± 4.4, paired -35.4 ± 2.8; expert fill -19.1 ± 3.1. 7 runs (X: 7): main from v34_run1/run2, dove from v34dove_run2, hawk from v34hawk_run1/run2, together from v34together_run1/run2 | 1e OK; integrator | K yes; X: go, 7 runs |
+| v35 (landed 92f2772) | dpa-cost (360e2a5, 1e): walkCompel 3. Before the search: v34_run1 -35.4 ± 2.8; after it, walkCompel 0 on v35_run1 is +0.5 ± 0.3 | 1e | K yes; X: 7 runs |
 | v34 (landed e494f0e) | luck (aac720c, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 | 1e | G 0.65; AG; O; no hint change |
 | v33 (landed 86b712b) | red line cut (83f7d64, 07): Peter's H, cut the cyber red line; integrator re-measured with --vs-root: run2 +0.0 ± 0.0, dove0 -0.3 ± 1.1, hawk2 +1.9 ± 1.3, together0 +0.4 ± 1.6. W (leverage2 696b443, 07): resolve raises or lowers cheating, theft and the Strait; theft rises with the lead; reassurance from weak resolve emboldens. On minus off: run2 -20.0 ± 3.6, dove0 -11.3 ± 3.4, hawk2 +20.1 ± 3.9, together0 -28.7 ± 3.8; six knobs at 0 reproduce redline-cut | 07; integrator checks the deal-side cheating term (K1) | H; L: W in, on by default; M: v33 go; D no (keep threshold stays: any margin); E: every run at 1200 games x 150 steps; G: close when W handed off |
 | v27 (landed 2cc5967) | senate-midterms, openweights | c7, 44 | ED: open weights measured without loosethr |
@@ -29,7 +29,6 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| dpa-cost (49c04df) | 1e | for v35: TUNE.walkCompel 3, walkout compel costs 3 capital (Peter's K); walkCompel 0 reproduces luck; v33dove_run1 -27.3 ± 2.7, expert -19.1 ± 3.1; rebase onto aac720c+ and re-measure on sim/v34_run1.json |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
