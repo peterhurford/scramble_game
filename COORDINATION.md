@@ -14,6 +14,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
+| v36hawk2 (search running; no rule change) | hawk-only follow-up (Peter's AM): 3 runs from the v36 hawk genomes, OUT=sim/v36hawk2. Diagnosis: hawk pins cost the main genome -253.5 at v36 vs -230.7 at v35, so the gap of 131 looks like an unfinished hawk search | integrator | AK diagnose; AM yes |
 | v36 (landed 7cfb12f) | luck-f (0734a90 + walkMid, 1e): situ 1, dpaStick 1, spreadT 0.7 / spread 0 / spreadRead 1, gene labMeet, walkMid -40 / walkScale 20 | 1e | H, I, J; AH |
 | vX36x (exploratory, closed; 1e analysed it, files moved out of main; a candidate may follow) | mech-explore (b75dcd2, 1e): situ 1 + dpaStick 1; 7 unpinned runs, run k from vX35_run<k>, OUT=sim/vX36x; queues behind any real batch | 1e | G (Peter, via 1e) |
 | vX35 (exploratory, closed; 1e analysed it, files moved out of main) | mech-explore (cb6402a, 1e): situ 1; 7 unpinned runs from the v35 genomes, OUT=sim/vX35; queues behind any real batch | 1e | C1 (Peter, via 1e) |
