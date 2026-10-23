@@ -290,6 +290,9 @@ const TUNE = {
   situ: 1,
   // 1 = an injunction against a DPA pause (no statute) is final: no appeal restores it and no lab can be compelled until Congress acts
   dpaStick: 1,
+  // with situ, a Charter signatory's walkout rate is multiplied by e^(-(goodwill - walkMid) / walkScale)
+  walkMid: -40,
+  walkScale: 20,
 };
 const PROJECTS = [
   { id: 'team', name: 'Hire a real team', need: 1, pc: 3, avail: s => P(s, 'cos').rel >= 15 ? true : 'The Chief of Staff controls detailee slots: needs the Chief at least Friendly (15+)', desc: 'Detailees from State, Energy and the IC. Right now you are one person with an inbox. The Chief of Staff has to sign off on the slots, and it costs capital.', done: '+1 action every turn for the rest of the game.', fx(s) { s.apMax += 1; } },
@@ -2734,7 +2737,7 @@ function tick(s) {
     // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
     if (s.pacing.mech === 'charter' && !s.flags.statute && !s.queue.some(q => q.id === 'walkout')) s.labs.forEach(l => {
       if (!l.covered || !l.signedVoluntary) return;
-      const pw = TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1) * (TUNE.situ ? Math.exp(-TUNE.situ * (l.rel - 10) / 20) : 1);
+      const pw = TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1) * (TUNE.situ ? Math.exp(-TUNE.situ * (l.rel - TUNE.walkMid) / TUNE.walkScale) : 1);
       if (fuseHit(s, 'walk', pw)) s.queue.push({ id: 'walkout', lab: l.id });
     });
     // China passes the paced frontier
