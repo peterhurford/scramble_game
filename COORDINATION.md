@@ -14,6 +14,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
+| vX35 (exploratory, not a batch; running) | mech-explore (cb6402a, 1e): situ 1; 7 unpinned runs from the v35 genomes, OUT=sim/vX35; queues behind any real batch | 1e | C1 (Peter, via 1e) |
 | v35 (landed 92f2772) | dpa-cost (360e2a5, 1e): walkCompel 3. Before the search: v34_run1 -35.4 ± 2.8; after it, walkCompel 0 on v35_run1 is +0.5 ± 0.3 | 1e | K yes; X: 7 runs |
 | v34 (landed e494f0e) | luck (aac720c, 1e): spread 0.5, luckFix 0.5, fuse 4, fuseMean 0.65 | 1e | G 0.65; AG; O; no hint change |
 | v33 (landed 86b712b) | red line cut (83f7d64, 07): Peter's H, cut the cyber red line; integrator re-measured with --vs-root: run2 +0.0 ± 0.0, dove0 -0.3 ± 1.1, hawk2 +1.9 ± 1.3, together0 +0.4 ± 1.6. W (leverage2 696b443, 07): resolve raises or lowers cheating, theft and the Strait; theft rises with the lead; reassurance from weak resolve emboldens. On minus off: run2 -20.0 ± 3.6, dove0 -11.3 ± 3.4, hawk2 +20.1 ± 3.9, together0 -28.7 ± 3.8; six knobs at 0 reproduce redline-cut | 07; integrator checks the deal-side cheating term (K1) | H; L: W in, on by default; M: v33 go; D no (keep threshold stays: any margin); E: every run at 1200 games x 150 steps; G: close when W handed off |
