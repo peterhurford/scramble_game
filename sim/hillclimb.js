@@ -23,7 +23,18 @@ const RUNS = (process.env.RUNS || process.argv[5] || '0').split(',').map(Number)
 // PIN='{"seq":"together"}' holds genes fixed through the search.
 const PIN = process.env.PIN ? JSON.parse(process.env.PIN) : {};
 // Throughput peaks at about one worker per performance core (an M3 Max's 10, plus 2): more workers on the efficiency cores slow everyone.
-const NW = +(process.env.NW || Math.min(12, Math.max(1, os.cpus().length - 1)));
+let NW = +(process.env.NW || Math.min(12, Math.max(1, os.cpus().length - 1)));
+// Cores come from cpu-slots (~/dev/dotfiles/bin), the pool every repo on this machine shares: a search holds NW slots
+// (--bg, so 2 stay free for single runs) and shrinks NW to the grant. The worker count doesn't change results.
+function takeSlots(bg) {
+  if (process.env.CPU_SLOTS_HELD) { NW = Math.min(NW, +process.env.CPU_SLOTS_HELD); return Promise.resolve(); }
+  const env = { ...process.env }; delete env.CPU_SLOTS_HELD;
+  const h = require('child_process').spawn('cpu-slots', ['--hold', '--slots', String(NW), ...(bg ? ['--bg'] : [])], { stdio: ['pipe', 'pipe', 'inherit'], env });
+  return new Promise(res => {
+    h.on('error', () => { console.log('cpu-slots not on PATH (ln -s ~/dev/dotfiles/bin/cpu-slots ~/.local/bin/); running unpooled'); res(); });
+    h.stdout.once('data', d => { const m = /granted (\d+)/.exec(d.toString()); if (m) NW = Math.min(NW, +m[1]); h.unref(); res(); });
+  });
+}
 // One lock for every worktree of the repo (searches run from detached worktrees), kept in the main checkout's sim/.
 const LOCK = (() => { try { const g = require('child_process').execSync('git rev-parse --path-format=absolute --git-common-dir', { cwd: __dirname, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); return path.join(path.dirname(g), 'sim', '.search.lock'); } catch (e) { return path.join(__dirname, '.search.lock'); } })();
 
@@ -158,6 +169,7 @@ async function search(RUN) {
 
 (async () => {
   if (!process.env.NOLOCK) await lock(); // NOLOCK=1 only for small tests that must run beside a search
+  await takeSlots(!process.env.NOLOCK); // after the search lock, so a queued search holds no cores
   S = require('./strategy.js');
   workers = Array.from({ length: NW }, () => new Worker(__filename));
   for (const RUN of RUNS) await search(RUN);
