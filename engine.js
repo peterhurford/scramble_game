@@ -21,9 +21,9 @@ function monthLabel(t) { const d = dateOf(t); return MONTHS[d.m] + ' ' + d.y; }
 // A draw for an outcome the player plays for (the President, Beijing, the courts), read as draw < p. Each class keeps a luck balance (hits minus odds so far) and TUNE.luckFix of it comes off the next draw's odds, so streaks even out while the long-run rate stays p; the draw is rescaled so the dice shown still land under p exactly when it hits.
 function draw(s, cls, p) {
   const x = rnd(s);
-  if (!TUNE.luckFix || p <= 0 || p >= 1) { if (module.exports._drawHook) module.exports._drawHook(cls, p, x < p); return x; }
+  if (!TUNE.luckFix || p <= 0 || p >= 1) { if (API._drawHook) API._drawHook(cls, p, x < p); return x; }
   const L = s.luck = s.luck || {}, b = L[cls] || 0, q = Math.max(0, Math.min(1, p - TUNE.luckFix * b)), hit = x < q;
-  L[cls] = b + (hit ? 1 : 0) - p; if (module.exports._drawHook) module.exports._drawHook(cls, p, hit);
+  L[cls] = b + (hit ? 1 : 0) - p; if (API._drawHook) API._drawHook(cls, p, hit);
   return hit ? x * p / q : p + (x - q) * (1 - p) / Math.max(1e-9, 1 - q);
 }
 // A catastrophe's hazard adds up, and the event fires when the total crosses a hidden fuse with mean TUNE.fuseMean and s.d. fuseMean/sqrt(TUNE.fuse) (a gamma draw), so low risk reliably pays; fuse 1 is the plain monthly roll.
