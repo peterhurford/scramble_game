@@ -185,6 +185,7 @@ const TUNE = {
   slowMonths: 2,
   p0Ap: 1,
   eventsPerTurn: 1,
+  doomOpen: 0.06, // the IC's p(doom) before it wakes up (doomWake)
   fun: 0.35, // chance a turn of an event from the movement or the wider world (rollFun); 0 turns them off
   whip: 9,
   hillCap: 25,
@@ -678,7 +679,7 @@ function theftRisk(s, pub) {
   return { attempt, success, net: attempt * success };
 }
 function monthlyRisk(s) { return 1 - hazards(s).reduce((a, x) => a * (1 - x.h), 1); }
-// The IC's p(doom): chance of a bad ending from here, a logistic fit (sim/doom.js) on bot games over these features, read off the true state, then blurred
+// The IC's p(doom): it opens low and climbs toward the chance of a bad ending from here as months pass and alarms land (doomWake). That chance is a logistic fit (sim/doom.js) on bot games over these features, read off the true state, then blurred
 // by a slow random walk that weak intelligence widens. It reads only hash01 draws, so the game's random stream is untouched.
 function doomFeatures(s) {
   const left = Math.max(0, END_T - s.t) / 24, r = monthlyRisk(s), cross = crossoverMonths(s), ic = Math.min(24, icEstimate(s).mid) / 12;
@@ -688,13 +689,22 @@ function doomFeatures(s) {
 }
 const DOOM_W = [3.772, 0.037, 2.245, 0.686, -0.302, -0.705, 0.004, -0.29, 0.047, 1.009, 0.77, -3.67, 0.541, -0.633, -0.628, -0.674, 0.035, 0.802, 1.721, 0.586, -0.843]; // node sim/doom.js 8000: AUC 0.82, held-out deciles within 5 points
 function pDoomTrue(s) { if (s.ending) return ENDINGS[s.ending].tone === 'bad' ? 1 : 0; const f = doomFeatures(s); return logistic(DOOM_W.reduce((a, w, i) => a + w * f[i], 0)); }
+// Events that wake the IC up, each worth that much of the way from its complacent opening number to the fitted one.
+const DOOM_WAKE = { warning: 0.25, knock: 0.2, theft: 0.2, theft_foiled: 0.1, cyber_incident: 0.1, bio_scare: 0.15, bio_attack: 0.2, near_miss: 0.2, cn_race: 0.15, cn_cheat: 0.15, cn_breakthrough: 0.15,
+  algo_break: 0.15, control_fail: 0.2, defector: 0.1, blockade: 0.25, war_begins: 0.3, m_letter: 0.08, m_survey: 0.1, m_warn: 0.08, m_march: 0.05, w_scheme: 0.12, w_leak: 0.08, w_coup: 0.05, w_math: 0.05 };
+// How far the IC has woken up (0-1): months elapsed, the threshold drawing near on its own estimate, alarming events seen, and past Phase 0.
+function doomWake(s) {
+  const ev = Object.keys(DOOM_WAKE).reduce((a, k) => a + DOOM_WAKE[k] * Math.min(2, evN(s, k)), 0);
+  return clamp(0.08 + 0.35 * (s.t - START_T) / 18 + 0.4 * Math.max(0, 1 - icEstimate(s).mid / 10) + ev + (s.phase === 'p0' && !s.pacing.collapsed ? 0 : 0.35), 0, 1);
+}
 function pDoom(s) {
-  const p = clamp(pDoomTrue(s), 0.005, 0.995);
-  if (s.ending) return p;
+  if (s.ending) return pDoomTrue(s);
+  // the IC opens complacent (DOOM_OPEN) and moves toward the fitted odds in log-odds as it wakes up
+  const lg = x => Math.log(x / (1 - x)), w = doomWake(s), p = logistic((1 - w) * lg(TUNE.doomOpen) + w * lg(clamp(pDoomTrue(s), 0.005, 0.995)));
   // a slow walk in log-odds: each month's shock fades by 0.8 a month; weak intelligence doubles its size
   let z = 0; for (let k = 0; k < 12; k++) z += Math.pow(0.8, k) * (hash01(s.seed, 'doom', Math.floor(s.t) - k) - 0.5);
   const amp = 1.2 * (1.6 - s.intelQ / 100);
-  return clamp(logistic(Math.log(p / (1 - p)) + amp * z), 0.01, 0.99);
+  return clamp(logistic(lg(p) + amp * w * z), 0.01, 0.99);
 }
 
 // The Strait: Beijing's monthly chance of starting a crisis over Taiwan (a quarantine first), as labeled parts. It rises with temperature,
@@ -3070,6 +3080,7 @@ const API = {
   doomFeatures,
   pDoom,
   pDoomTrue,
+  doomWake,
   misuseLevel,
   cyberP,
   bioP,
