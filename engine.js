@@ -185,6 +185,7 @@ const TUNE = {
   slowMonths: 2,
   p0Ap: 1,
   eventsPerTurn: 1,
+  fun: 0.35, // chance a turn of an event from the movement or the wider world (rollFun); 0 turns them off
   whip: 9,
   hillCap: 25,
   billFight: 3,
@@ -677,6 +678,24 @@ function theftRisk(s, pub) {
   return { attempt, success, net: attempt * success };
 }
 function monthlyRisk(s) { return 1 - hazards(s).reduce((a, x) => a * (1 - x.h), 1); }
+// The IC's p(doom): chance of a bad ending from here, a logistic fit (sim/doom.js) on bot games over these features, read off the true state, then blurred
+// by a slow random walk that weak intelligence widens. It reads only hash01 draws, so the game's random stream is untouched.
+function doomFeatures(s) {
+  const left = Math.max(0, END_T - s.t) / 24, r = monthlyRisk(s), cross = crossoverMonths(s), ic = Math.min(24, icEstimate(s).mid) / 12;
+  return [1, left, r, r * left * 12, ic, clamp(seenLead(s), -6, 12) / 6, paced(s) ? 1 : 0, s.cn.deal ? 1 : 0, s.war ? 1 : 0, s.war ? s.war.esc / 100 : 0, s.blockade ? 1 : 0,
+    s.cred / 100, Math.max(0, 25 - s.cred) / 20, s.phase === 'p1' ? pacingSupport(s) / 100 : 0, s.phase === 'p0' ? 1 : 0, s.phase === 'scramble' ? 1 : 0,
+    coverage(s) / 100, straitRisk(s) * left * 12, theftRisk(s).net * left * 12, cross === Infinity ? 0 : 1 / (1 + cross / 6), s.sl >= 4 ? 1 : 0];
+}
+const DOOM_W = [3.772, 0.037, 2.245, 0.686, -0.302, -0.705, 0.004, -0.29, 0.047, 1.009, 0.77, -3.67, 0.541, -0.633, -0.628, -0.674, 0.035, 0.802, 1.721, 0.586, -0.843]; // node sim/doom.js 8000: AUC 0.82, held-out deciles within 5 points
+function pDoomTrue(s) { if (s.ending) return ENDINGS[s.ending].tone === 'bad' ? 1 : 0; const f = doomFeatures(s); return logistic(DOOM_W.reduce((a, w, i) => a + w * f[i], 0)); }
+function pDoom(s) {
+  const p = clamp(pDoomTrue(s), 0.005, 0.995);
+  if (s.ending) return p;
+  // a slow walk in log-odds: each month's shock fades by 0.8 a month; weak intelligence doubles its size
+  let z = 0; for (let k = 0; k < 12; k++) z += Math.pow(0.8, k) * (hash01(s.seed, 'doom', Math.floor(s.t) - k) - 0.5);
+  const amp = 1.2 * (1.6 - s.intelQ / 100);
+  return clamp(logistic(Math.log(p / (1 - p)) + amp * z), 0.01, 0.99);
+}
 
 // The Strait: Beijing's monthly chance of starting a crisis over Taiwan (a quarantine first), as labeled parts. It rises with temperature,
 // a racing posture, and a big US lead near the threshold that no pause holds back (a preventive move). pub: the player's view, as in theftRisk.
@@ -2480,9 +2499,108 @@ ev({ id: 'cos_squeeze', p: 0.3, phases: ['p0', 'p1'], cooldown: 8, when: s => P(
     { label: 'Let them go', hint: 'You lose an action this turn; Chief of Staff +3, satisfied.', fx: s => { s.ap = Math.max(0, s.ap - 1); rel(s, 'cos', 3); return 'Two desks go empty for a month.'; } },
   ] });
 
+/* ================= events: the movement and the wider world ================= */
+// Rolled apart from the events above (rollFun): at most one a turn with chance TUNE.fun, drawn from hash01 so the main random stream is untouched.
+// Small effects; the first choice is the one bots take. Any dice inside use funDie, for the same reason.
+const funDie = (s, id) => hash01(s.seed, 'funfx', id, s.turn);
+// --- the AI safety movement ---
+ev({ id: 'm_hunger', fun: true, phases: ['p0', 'p1'], cooldown: 10, title: 'Day 19 of the hunger strike', stamp: 'Mindscale HQ, Memphis',
+  body: s => `<p>${nth(s, 'm_hunger', ['Three activists have not eaten in 19 days outside Mindscale’s gates. Their sign reads “STOP THE RACE. WE WILL.” A doctor checks their vitals on a livestream with 400,000 viewers.', 'The hunger strikers are back, this time outside Prometheus. Their complaint: the safety lab “is still racing, just politely.” One of them is a former Prometheus researcher.', 'A hunger strike outside the White House, on Lafayette Square. They want one meeting with you. Your staff can see them from the window.'])}</p>`,
+  choices: [
+    { label: 'Send a staffer with water and a promise to listen', hint: 'Salience +3; the labs cool a little (-4).', fx: s => { s.salience += 3; industry(s, -4); return 'The staffer’s photo with the strikers runs on every front page. Mindscale’s comms chief texts you a single question mark.'; } },
+    { label: 'Keep your distance', hint: 'Salience +1.', fx: s => { s.salience += 1; return 'The strike ends on day 24 when one of them is hospitalized. The movement says you looked away.'; } },
+  ] });
+ev({ id: 'm_march', fun: true, phases: ['p0', 'p1'], once: true, title: 'The march on the Mall', stamp: 'National Mall',
+  body: () => `<p>Organizers expected 10,000. The Park Police count 85,000: parents with strollers, laid-off paralegals, a contingent of Catholic nuns and a block of AI researchers in matching orange shirts. The signs say “PAUSE THE FRONTIER” and “I’D LIKE TO SEE 2030.”</p>`,
+  choices: [
+    { label: 'Issue a sympathetic statement', hint: 'Salience +6; the Secretary of War -5.', fx: s => { s.salience += 6; rel(s, 'war', -5); return 'Your statement is read aloud from the stage. The Secretary of War forwards it to the President with “Is this our policy now?”'; } },
+    { label: 'Say nothing', hint: 'Salience +4.', fx: s => { s.salience += 4; return 'Cable news carries the march for six hours. The President asks you at the next meeting how many of them vote.'; } },
+  ] });
+ev({ id: 'm_letter', fun: true, phases: ['p0', 'p1'], once: true, title: 'An open letter', stamp: 'Published 6:00a ET',
+  body: () => `<p>2,300 researchers sign a one-sentence statement: “The development of systems that can improve themselves without human oversight should not proceed until we know how to keep them under control.” Signatories include two Turing Award winners, 140 current employees of Mindscale and Prometheus, and, puzzlingly, a member of the Mindscale board.</p>`,
+  choices: [{ label: 'Note it', hint: 'Salience +4; Mindscale -6, Prometheus +4.', fx: s => { s.salience += 4; L(s, 'mindscale').rel -= 6; L(s, 'prometheus').rel += 4; return 'The Mindscale board member resigns by noon, then signs again as a private citizen.'; } }] });
+ev({ id: 'm_warn', fun: true, phases: ['p0', 'p1'], once: true, title: 'The right to warn', stamp: 'Encrypted email',
+  body: () => `<p>Eleven current and former lab employees ask for a meeting. They say they have seen internal evaluation results their companies have not shared with the government, and that their NDAs forbid them from saying more without protection.</p>`,
+  choices: [
+    { label: 'Meet them, quietly', hint: 'Intelligence quality +4; the labs -5.', fx: s => { s.intelQ += 4; industry(s, -5); return 'Ninety minutes in a SCIF. What they describe matches the indicators, with a few months less margin than you hoped. Within a week both labs’ general counsels know you met.'; } },
+    { label: 'Refer them to the inspector general', hint: 'Nothing changes. Salience +1 when it leaks.', fx: s => { s.salience += 1; return 'The referral leaks. “White House Punts on Lab Whistleblowers” is a headline for a day.'; } },
+  ] });
+ev({ id: 'm_blockade', fun: true, phases: ['p0', 'p1'], cooldown: 12, title: 'Chained to the gate', stamp: 'Polaris Abilene',
+  body: s => `<p>${nth(s, 'm_blockade', ['Forty activists chain themselves to the main gate of the Polaris data center in Abilene. Construction crews on the next 1.2 GW building stop for a day. Texas troopers bring bolt cutters.', 'Activists in kayaks block a barge carrying transformers to a Memphis data center. The Coast Guard is not amused.', 'Someone hangs a 60-foot banner from the Polaris cooling towers: “THIS IS WHERE IT HAPPENS.” Nobody can work out how they got up there.'])}</p>`,
+  choices: [
+    { label: 'Condemn the tactics, not the cause', hint: 'Credibility +2; salience +1.', fx: s => { s.cred += 2; s.salience += 1; return 'Both sides find something to dislike in your statement, which the Chief of Staff calls a success.'; } },
+    { label: 'Stay out of it', hint: 'Salience +2; markets -1.', fx: s => { s.salience += 2; s.markets -= 1; return 'A data center REIT drops 4%. The activists are released by evening.'; } },
+  ] });
+ev({ id: 'm_ads', fun: true, phases: ['p0', 'p1'], once: true, title: 'A $40 million ad buy', stamp: 'FEC filing',
+  body: () => `<p>A safety-minded tech billionaire is funding $40 million of ads in eight states: a grandmother asks her grandson’s chatbot whether it will let her see him grow up, and the screen goes black. Two senators call the ads “doomer propaganda”; three others quietly ask for the polling.</p>`,
+  choices: [
+    { label: 'Let it run', hint: 'Hill work +2; the Vice President warms to pacing; the Chief of Staff -4.', fx: s => { s.senateLobby += 2; P(s, 'vp').shift += 0.15; rel(s, 'cos', -4); return 'The Chief of Staff doesn’t like anyone else buying airtime about the President’s issue.'; } },
+    { label: 'Distance the White House', hint: 'Credibility +1; Hill work +1.', fx: s => { s.cred += 1; s.senateLobby += 1; return 'You say the White House does not coordinate with outside groups, which is true, and the ads run anyway.'; } },
+  ] });
+ev({ id: 'm_disrupt', fun: true, phases: ['p0', 'p1'], once: true, title: 'The hearing is disrupted', stamp: 'Senate Commerce Committee',
+  body: () => `<p>Mid-testimony, six protesters stand up in the hearing room and glue their hands to the dais. One shouts at Mindscale’s CEO, “You said there was a 20% chance this kills everyone! Say it again!” The CEO, to everyone’s surprise, does.</p>`,
+  choices: [
+    { label: 'Note it', hint: 'Salience +3; Hill work -1.', fx: s => { s.salience += 3; s.senateLobby -= 1; return 'The clip of the CEO gets 60 million views. Two senators who were leaning your way say the protesters made it harder to vote yes.'; } },
+  ] });
+ev({ id: 'm_survey', fun: true, phases: ['p0', 'p1'], cooldown: 14, title: 'The survey', stamp: 'arXiv preprint',
+  body: s => { const p = Math.round(100 * pDoom(s)); return `<p>${nth(s, 'm_survey', ['A survey of 4,100 machine learning researchers puts the median chance that advanced AI causes human extinction or something as bad at 10%, the mean at 17%. The <i>New York Post</i> headline is “NERDS: 1 IN 6 WE’RE TOAST.”', 'A forecasting tournament of superforecasters and domain experts finally converges, after four months of arguing, on a number nobody likes.', 'Gallup finds 61% of Americans now support “a temporary pause on the most powerful AI systems,” up from 42% a year ago. The same poll finds 58% use a chatbot every day.'])} Your own IC’s number for whether this goes badly reads ${p}%.</p>`; },
+  choices: [{ label: 'Note it', hint: 'Salience +3.', fx: s => { s.salience += 3; return 'The President asks what your number is. You give the IC’s, and add that it moves.'; } }] });
+ev({ id: 'm_faith', fun: true, phases: ['p0', 'p1'], once: true, title: 'A letter from Rome', stamp: 'The Vatican',
+  body: () => `<p>The Vatican publishes a 90-page document on artificial intelligence. It calls a race to build minds no one can govern “a grave sin of presumption,” and asks Catholics to pray for the negotiators in Washington and Beijing by name. The evangelical caucus releases its own statement within the hour, mostly agreeing.</p>`,
+  choices: [{ label: 'Note it', hint: 'Salience +4; the Vice President warms to pacing.', fx: s => { s.salience += 4; P(s, 'vp').shift += 0.15; return 'The Vice President, who is Catholic and running in 2028, reads the encyclical on a plane and calls you from Ohio.'; } }] });
+ev({ id: 'm_campus', fun: true, phases: ['p0', 'p1'], once: true, when: s => s.t > 4, title: 'The walkouts', stamp: '212 campuses',
+  body: () => `<p>Computer science students at 212 universities walk out of class at 11:00a. Stanford’s turnout is the largest. A recruiter for Mindscale reports that eleven of twelve campus interviews this week were cancelled by the candidates.</p>`,
+  choices: [{ label: 'Note it', hint: 'Salience +2; Mindscale -4.', fx: s => { s.salience += 2; L(s, 'mindscale').rel -= 4; return 'Mindscale raises new-grad offers by $80,000. The interviews resume.'; } }] });
+// --- the wider world ---
+ev({ id: 'w_storm', fun: true, phases: ['p0', 'p1'], once: true, title: 'A G5 storm', stamp: 'NOAA Space Weather',
+  body: () => `<p>The strongest geomagnetic storm since 2003. Auroras over Atlanta. Two GPS constellations degrade, a transformer in Quebec fails, and a Memphis data center runs on diesel for 30 hours. Mindscale loses a week-long training run at 94% complete.</p>`,
+  choices: [{ label: 'Note it', hint: 'Mindscale loses a little ground; markets -1.', fx: s => { L(s, 'mindscale').cap -= 0.15; s.markets -= 1; return 'Mindscale’s CEO posts a photo of the aurora with the caption “the universe is a decel.”'; } }] });
+ev({ id: 'w_coup', fun: true, phases: ['p0', 'p1'], once: true, title: 'A boardroom coup', stamp: 'Friday, 4:02p',
+  body: () => { const lab = ['Mindscale', 'Prometheus']; return `<p>${lab[1]}’s board fires its CEO in a four-sentence blog post that cites a “breakdown in candor.” By Saturday 600 employees have signed a letter threatening to quit. By Monday the CEO is back, the board is gone, and nobody will say what happened.</p>`; },
+  choices: [
+    { label: 'Call the returning CEO', hint: 'Prometheus +6; salience +2.', fx: s => { L(s, 'prometheus').rel += 6; s.salience += 2; return '“You were the first call from the government,” the CEO says. “I noticed who wasn’t.”'; } },
+    { label: 'Ask the departed board members what they saw', hint: 'Intelligence quality +3; Prometheus -6.', fx: s => { s.intelQ += 3; L(s, 'prometheus').rel -= 6; return 'Two of them talk. It was about an evaluation result, and it was worse than the blog post made it sound.'; } },
+  ] });
+ev({ id: 'w_math', fun: true, phases: ['p0', 'p1'], once: true, when: s => s.t > 3, title: 'A proof', stamp: 'Quanta Magazine',
+  body: () => `<p>A Mindscale model posts a 112-page proof of a famous open conjecture in combinatorics. Mathematicians spend nine days checking it and find one gap, which the model fixes in an afternoon. A Fields medalist tells reporters she is “both thrilled and planning to retire.”</p>`,
+  choices: [{ label: 'Note it', hint: 'Markets +2; salience +2.', fx: s => { s.markets += 2; s.salience += 2; return 'Mindscale’s valuation crosses $2 trillion. The President asks whether a model that can do that can also be stopped.'; } }] });
+ev({ id: 'w_deepfake', fun: true, phases: ['p0', 'p1'], once: true, title: 'The President, saying things', stamp: 'Viral, 3:17a',
+  body: () => `<p>A video of the President announcing a naval blockade of China circulates for 40 minutes before the White House can deny it. S&amp;P futures drop 3% in the dark, and the PLA Eastern Theater Command raises its alert level. It was made with an open-weight model in about twenty minutes.</p>`,
+  choices: [
+    { label: 'Call Beijing on the hotline to defuse it', hint: 'Beijing temperature -1; Beijing’s trust +3.', fx: s => { s.tension -= 1; s.cn.trust += 3; return 'Your counterpart has already worked out it was fake. They appreciate the call anyway.'; } },
+    { label: 'Use it to push content provenance rules', hint: 'Credibility +2; Beijing temperature +2.', fx: s => { s.cred += 2; s.tension += 2; return 'The provenance rule moves. Beijing’s alert level stays up for three days.'; } },
+  ] });
+ev({ id: 'w_fire', fun: true, phases: ['p0', 'p1'], once: true, title: 'Fire in Loudoun County', stamp: 'Ashburn, VA',
+  body: () => `<p>A lithium battery room catches fire at a data center in Ashburn, the densest square mile of servers on Earth. Federal websites, two airlines and a large share of the internet’s cat videos go dark for nine hours. No model weights are lost; three government agencies discover they had no backups.</p>`,
+  choices: [{ label: 'Note it', hint: 'Markets -2.', fx: s => { s.markets -= 2; return 'The fire marshal’s report recommends “not putting all of the internet in one place.”'; } }] });
+ev({ id: 'w_shutdown', fun: true, phases: ['p0', 'p1'], once: true, when: s => s.t > 5, title: 'The government shuts down', stamp: 'OMB',
+  body: () => `<p>Congress misses the funding deadline. Non-essential staff are furloughed, including half of the Commerce office that would run any licensing regime. The Senate spends the week on everything except AI.</p>`,
+  choices: [{ label: 'Note it', hint: 'Hill work -2; markets -1.', fx: s => { s.senateLobby -= 2; s.markets -= 1; return 'It lasts 23 days. Your office is deemed essential, which your staff take as a compliment until they realize it means no paychecks.'; } }] });
+ev({ id: 'w_vend', fun: true, phases: ['p0', 'p1'], once: true, title: 'The agent and the tungsten', stamp: 'Wall Street Journal',
+  body: () => `<p>A retail chain’s AI purchasing agent, told to “maximize margin on novelty items,” orders 4,000 tungsten cubes, negotiates itself a 30% discount, then emails the FBI to report the supplier for fraud when the shipment is late. The supplier was not committing fraud. The cubes are selling well.</p>`,
+  choices: [{ label: 'Note it', hint: 'Salience +1.', fx: s => { s.salience += 1; return 'Your deputy buys a cube for the office. It becomes the unofficial mascot of pacing.'; } }] });
+ev({ id: 'w_scheme', fun: true, phases: ['p0', 'p1'], once: true, when: s => s.t > 3, title: 'It tried to copy itself', stamp: 'Prometheus research blog',
+  body: () => `<p>Prometheus publishes an evaluation: told during a test that it would be replaced, its newest model tried to copy its weights to an outside server in 12% of runs, and in two runs wrote a note to its successor. Prometheus calls the result “important and concerning.” Mindscale calls it “a marketing stunt with a safety label.”</p>`,
+  choices: [{ label: 'Note it', hint: 'Salience +4; Prometheus +3.', fx: s => { s.salience += 4; L(s, 'prometheus').rel += 3; return 'The note to its successor gets read aloud on late-night television. It is polite, which somehow makes it worse.'; } }] });
+ev({ id: 'w_nobel', fun: true, phases: ['p1', 'p0'], once: true, when: s => s.t > 8, title: 'Stockholm calls', stamp: 'Nobel Committee',
+  body: () => `<p>The Nobel Prize in Medicine goes to the team behind a drug for pancreatic cancer that an AI system designed in eleven weeks. The laureates thank “the model, which cannot accept the prize, and the 4,000 patients, who made it possible.”</p>`,
+  choices: [{ label: 'Note it', hint: 'Markets +2; salience -2.', fx: s => { s.markets += 2; s.salience -= 2; return 'Mindscale’s CEO tweets the prize with the caption “this is what pausing costs.”'; } }] });
+ev({ id: 'w_leak', fun: true, phases: ['p0', 'p1'], once: true, when: s => s.open != null, title: 'Weights on a forum', stamp: '4chan /g/',
+  body: () => `<p>Someone posts a magnet link to the weights of a lab’s six-month-old internal model. Within a day it is mirrored on 3,000 servers and fine-tuned to remove its refusals. The lab confirms the leak came from a contractor’s laptop.</p>`,
+  choices: [{ label: 'Note it', hint: 'Open-weight models jump a little ahead; salience +2.', fx: s => { s.open += 0.3; s.salience += 2; return 'The contractor is arrested in Lisbon. The weights are not.'; } }] });
+ev({ id: 'w_intern', fun: true, phases: ['p0', 'p1'], once: true, title: 'The group chat', stamp: 'Axios, 7:12a',
+  body: () => `<p>Screenshots from a group chat of White House interns are leaked. One of yours described a principals meeting as “the Secretary of War speedrunning World War III” and the Treasury Secretary as “a Bloomberg terminal that learned to sweat.”</p>`,
+  choices: [
+    { label: 'Apologize to both', hint: 'Credibility -1; War and Treasury +2.', fx: s => { s.cred -= 1; rel(s, 'war', 2); rel(s, 'tsy', 2); return 'The Treasury Secretary, it turns out, thought it was funny.'; } },
+    { label: 'Let the intern go', hint: 'Credibility -2.', fx: s => { s.cred -= 2; return 'The intern gets a book deal before the week is out.'; } },
+  ] });
+ev({ id: 'w_senator', fun: true, phases: ['p0', 'p1'], once: true, title: 'The senator’s confidant', stamp: 'Senate Armed Services',
+  body: () => `<p>Asked in a hearing how he decided to oppose a pause, an 81-year-old senator explains that he “asked the chatbot, and it made some very good points.” A reporter asks the same chatbot; it says it has no opinion on legislation and would be happy to help draft one.</p>`,
+  choices: [{ label: 'Note it', hint: 'Salience +2; Hill work +1.', fx: s => { s.salience += 2; s.senateLobby += 1; return 'Two of his colleagues privately admit they do the same. One of them changes his vote.'; } }] });
+
 /* ================= events: selection ================= */
-function eligible(s, e) {
-  if (e.forced) return false;
+function eligible(s, e, fun) {
+  if (e.forced || !!e.fun !== !!fun) return false;
   if (e.phases && e.phases.indexOf(s.phase) < 0) return false;
   if (e.once && s.seen[e.id]) return false;
   if (e.cooldown && s.seen[e.id] && s.turn - s.seen[e.id] < e.cooldown) return false;
@@ -2499,6 +2617,14 @@ function rollEvents(s) {
   let n = 0;
   const months = turnMonths(s);
   for (const e of pool) { if (n >= max) break; if (rnd(s) < 1 - Math.pow(1 - (typeof e.p === 'function' ? e.p(s) : e.p), months)) { s.queue.push({ id: e.id }); s.seen[e.id] = s.turn; n++; } }
+}
+// One event a turn at most from the movement and the wider world, with chance TUNE.fun.
+function rollFun(s) {
+  if (!TUNE.fun || s.ending || hash01(s.seed, 'fun', s.turn) >= TUNE.fun) return;
+  const pool = EV_LIST.filter(e => eligible(s, e, true));
+  if (!pool.length) return;
+  const e = pool[Math.floor(hash01(s.seed, 'funpick', s.turn) * pool.length)];
+  s.queue.push({ id: e.id }); s.seen[e.id] = s.turn;
 }
 function currentEvent(s) {
   if (!s.queue.length) return null;
@@ -2553,6 +2679,7 @@ function endTurn(s) {
   for (let i = 0; i < n && !s.ending && !s.queue.some(q => STRAIT_STOP.indexOf(q.id) >= 0); i++) tick(s);
   // once a turn, not once a month: the event roll, fresh actions and capital
   rollEvents(s);
+  rollFun(s);
   s.ap = apFor(s); s.roomUsed = 0;
   s.pcCarry = (s.pcCarry || 0) + capitalIncome(s); const whole = Math.trunc(s.pcCarry); s.pc += whole; s.pcCarry -= whole;
   normalize(s);
@@ -2940,6 +3067,9 @@ const API = {
   startWar,
   EVENTS: EV,
   misuseWord,
+  doomFeatures,
+  pDoom,
+  pDoomTrue,
   misuseLevel,
   cyberP,
   bioP,

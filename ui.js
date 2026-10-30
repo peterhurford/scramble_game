@@ -53,8 +53,8 @@ const EVTYPE = {
   labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
 };
-const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'] };
-function evType(id) { for (const k in EVTYPE) if (EVTYPE[k].indexOf(id) >= 0) return k; return 'politics'; }
+const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'], movement: ['The movement', 'flag', '#7A4FA0'], world: ['Meanwhile', 'eye', '#3B7A9E'] };
+function evType(id) { if (/^m_/.test(id)) return 'movement'; if (/^w_/.test(id)) return 'world'; for (const k in EVTYPE) if (EVTYPE[k].indexOf(id) >= 0) return k; return 'politics'; }
 const IND = [
   { k: 'uplift', name: 'AI R&D speedup', mark: 10, fmt: v => f1(v) + '×', markLabel: '10×' },
   { k: 'cobench', name: 'Internal R&D eval', mark: 85, fmt: v => Math.round(v) + '%', markLabel: '85%' },
@@ -281,7 +281,18 @@ function raceStrip(v) {
 function sidePanel(v) {
   const side = ui.side || (S.phase === 'p0' ? 'labs' : 'room'); // RSI signals drive Phase 0; the cabinet matters after
   const body = { room: roomPanel, cn: chinaPanel, labs: labPanel, log: logPanel }[side](v);
-  return `<aside class="panel side"><div class="stabs">${SIDE.map(([k, n]) => `<button class="stab ${side === k ? 'on' : ''}" data-side="${k}">${n}</button>`).join('')}</div>${body}</aside>`;
+  return `<aside class="panel side"><div class="stabs">${SIDE.map(([k, n]) => `<button class="stab ${side === k ? 'on' : ''}" data-side="${k}">${n}</button>`).join('')}</div>${doomBox()}${body}</aside>`;
+}
+// The IC's p(doom): the odds this ends badly, with a sparkline of past turns' readings (kept on the save, keyed by turn).
+const DOOM_QUIP = [[0.15, 'The analysts are suspicious of how good this looks.'], [0.3, 'Cautiously, unfashionably optimistic.'], [0.45, 'A coin flip with extra steps.'], [0.6, 'The IC is updating its résumés.'], [0.75, 'Someone in the DNI’s office has started a betting pool.'], [0.9, 'The analysts have stopped rounding down.'], [1.01, 'The IC recommends you call your family.']];
+function doomBox() {
+  const p = E.pDoom(S), h = S.doomH = S.doomH || {}; h[S.turn] = p;
+  const xs = Object.keys(h).map(Number).sort((a, b) => a - b).slice(-24), W = 120, H = 26;
+  const pts = xs.map((t, i) => `${xs.length < 2 ? W : (W * i / (xs.length - 1)).toFixed(1)},${(H - 2 - (H - 4) * h[t]).toFixed(1)}`).join(' ');
+  const cls = p >= 0.6 ? 'bad' : p >= 0.35 ? 'warn' : 'good';
+  return `<div class="sb doom" title="The IC's estimate of the odds this ends badly: a race, China first, loss of control, war, betrayal or your firing. Analysts disagree and the number wanders; weak intelligence makes it wander more. Fit on simulated games, and it tracks your real odds better than it has any right to."><div class="row"><div class="lbl">p(doom)</div><span class="sp"></span><span class="sub">IC estimate</span></div>
+    <div class="dm"><b class="${cls}">${Math.round(100 * p)}%</b><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/><polyline points="${pts}"/></svg></div>
+    <div class="sub">${DOOM_QUIP.find(q => p < q[0])[1]}</div></div>`;
 }
 function historyChart(v) {
   const W = 320, H = 150, padL = 24, padR = 14, padT = 8, padB = 18;
