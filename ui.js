@@ -49,12 +49,12 @@ const FACTION_COLOR = { Populist: '#8A5A2B', Politics: '#5B5F97', Dealmaker: '#2
 const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WAR', dni: 'DNI' };
 const EVTYPE = {
   crisis: ['bio_attack', 'cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
-  beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un'],
-  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder'],
-  markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs'],
+  beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un', 'smuggle_bust', 'cn_scientist', 'tsy_channel', 'war_drill'],
+  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'czar_podcast', 'lab_resign', 'cure'],
+  markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs', 'insurers'],
 };
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'], movement: ['The movement', 'flag', '#7A4FA0'], world: ['Meanwhile', 'eye', '#3B7A9E'] };
-function evType(id) { if (/^m_/.test(id)) return 'movement'; if (/^w_/.test(id)) return 'world'; for (const k in EVTYPE) if (EVTYPE[k].indexOf(id) >= 0) return k; return 'politics'; }
+function evType(id) { if (/^m_/.test(id) || id === 'march') return 'movement'; if (/^w_/.test(id) || /^(pope|g7|deepfake)$/.test(id)) return 'world'; for (const k in EVTYPE) if (EVTYPE[k].indexOf(id) >= 0) return k; return 'politics'; }
 const IND = [
   { k: 'uplift', name: 'AI R&D speedup', mark: 10, fmt: v => f1(v) + '×', markLabel: '10×' },
   { k: 'cobench', name: 'Internal R&D eval', mark: 85, fmt: v => Math.round(v) + '%', markLabel: '85%' },
@@ -214,7 +214,7 @@ function topBar(v) {
         ${stat('c-sal', 'Salience', Math.round(S.salience), 'How seriously Washington takes AI risk. Moves the cabinet toward pacing and sustains it.')}
         ${stat('c-mk', 'Markets', Math.round(S.markets), 'Stock index, 100 at the start. Pacing, chip bans and slowing the labs cost; deals help. Below 100 it drains your capital, credibility and votes; above 100 it adds to them.', S.markets < 88 ? 'hot' : '')}
         ${stat('c-tens', 'Beijing', Math.round(S.tension) + '°', 'Beijing temperature. High makes deals unlikely and a Strait crisis likelier; 100 means a military standoff.', S.tension >= 70 ? 'hot' : '')}
-        ${S.war ? stat('c-esc', 'Escalation', Math.round(S.war.esc) + '<small>/100</small>', 'How close the war is to nuclear use. At 100 the game ends. A ceasefire ends the war.', 'hot') : ''}
+        ${doomStat()}
       </div>
     </div>
     <div class="row"><button class="ghost sm" id="help">Help</button><button class="ghost sm" id="menu">Menu</button><button class="btn" id="endturn" title="End turn (E)">End turn <span class="kbd">E</span></button></div>
@@ -230,14 +230,37 @@ function phasePlate() {
   const clock = S.phase === 'scramble' ? `<span>Day <b>${1 + 2 * (sc.turn - 1)}</b> of 14</span><span class="ticks14">${Array.from({ length: sc.max }, (_, i) => `<i class="${i < sc.turn ? 'on' : ''}"></i>`).join('')}</span>`
     : S.phase === 'p1' ? (S.pacing.armed && !S.pacing.active ? '<span>Standing by for Beijing</span>' : `<span class="pulse" aria-hidden="true"></span><span>Pause in force · <b>${S.flags.monthsInP1 || 0}</b> month${S.flags.monthsInP1 === 1 ? '' : 's'}</span>`)
     : `<span>${S.pacing.collapsed ? 'Aftermath: pacing collapsed' : 'Getting in position'}</span>`;
-  const crisis = S.war ? `<span class="crisis war" title="At 100 the war goes nuclear and the game ends.">At war ${meter(S.war.esc, 'bad', [100])} ${Math.round(S.war.esc)}</span>`
-    : S.blockade ? `<span class="crisis quar">Taiwan quarantined</span>` : '';
-  // what the war is costing, in the IC's numbers: Phase 2 waits on a ceasefire and a new deal, and the lead since the war began
-  const warCost = S.war ? `<span class="crisis war" title="Phase 2 needs an interim deal with Beijing. The war ended any deal; offers and the summit wait for a ceasefire.">Month ${S.war.months + 1} · no deal, Phase 2 on hold · US lead ${f1(S.war.lead0)} \u2192 ${f1(E.seenLead(S))} mo</span>`
-    : S.stats.wars && !S.cn.deal && S.phase === 'p1' ? `<span class="crisis quar" title="Phase 2 needs an interim deal with Beijing. The war ended the last one.">No deal since the war · Phase 2 needs one</span>` : '';
-  // a failing pause says so: three months under 25 support breaks it, and under 12 it breaks at once
-  const left = 3 - (S.pacing.low || 0), breaking = S.phase === 'p1' && S.pacing.active && S.pacing.low > 0 ? `<span class="crisis war" title="Three months with pacing support under 25 breaks the pause; support under 12 breaks it at once.">Pause breaks in ${left} month${left === 1 ? '' : 's'} unless support recovers</span>` : '';
-  return `<div class="plate"><span class="pname">${PHASES[S.phase] ? PHASES[S.phase][0] : ''}</span><span class="pclock">${clock}</span>${crisis}${warCost}${breaking}</div>`;
+  const chips = alerts().map(x => `<span class="crisis ${x.cls}" title="${esc(x.tip)}">${x.chip}</span>`).join('');
+  return `<div class="plate"><span class="pname">${PHASES[S.phase] ? PHASES[S.phase][0] : ''}</span><span class="pclock">${clock}</span>${chips}</div>`;
+}
+// Warnings the top bar carries as chips. Each with a head opens a popup the first time it appears
+// (and again when its key changes); S._alerts keeps what was shown across a reload.
+function alerts() {
+  const out = [];
+  if (S.war) {
+    out.push({ k: 'war', cls: 'war', chip: `At war ${meter(S.war.esc, 'bad', [100])} ${Math.round(S.war.esc)}`, tip: 'Escalation. At 100 the war goes nuclear and the game ends.' });
+    out.push({ k: 'warcost', cls: 'war', chip: 'Phase 2 on hold', tip: 'Phase 2 needs an interim deal with Beijing. The war ended any deal; offers and the summit wait for a ceasefire.',
+      head: 'The war froze Phase 2', body: `Phase 2 needs an interim deal with Beijing, and the war ended any deal. Offers and the summit wait for a ceasefire. Since the war began the US lead has gone from ${f1(S.war.lead0)} to ${f1(E.seenLead(S))} months. Propose a ceasefire to end it.` });
+  } else if (S.blockade) out.push({ k: 'quar', cls: 'quar', chip: 'Taiwan quarantined', tip: 'A quarantine stalls TSMC: US labs slow, markets slide and pacing loses support.' });
+  else if (S.stats.wars && !S.cn.deal && S.phase === 'p1') out.push({ k: 'nodeal', cls: 'quar', chip: 'No deal since the war', tip: 'Phase 2 needs an interim deal with Beijing. The war ended the last one.',
+    head: 'The ceasefire holds, but there is no deal', body: 'The war ended the interim deal with Beijing, and Phase 2 needs one. Make Beijing a new offer before you call the summit.' });
+  if (S.phase === 'p1' && S.pacing.active && S.pacing.low > 0) {
+    const left = 3 - S.pacing.low;
+    out.push({ k: 'breaking' + (left === 1 ? '1' : ''), cls: 'war', chip: `Pause breaks in ${left} mo`, tip: 'Three months with pacing support under 25 breaks the pause; support under 12 breaks it at once.',
+      head: left === 1 ? 'The pause breaks next month' : 'The pause is failing', body: `Pacing support is under 25. ${left === 1 ? 'One more month' : left + ' more months'} like this and the pause breaks; under 12 it breaks at once. Raise support: speeches, wins with the cabinet, a deal with Beijing.` });
+  }
+  return out;
+}
+function alertCard() {
+  if (!S || S.ending || S.queue.length) return false;
+  const seen = S._alerts = S._alerts || {}, now = alerts();
+  for (const k in seen) if (!now.some(x => x.k === k)) delete seen[k]; // gone, so it pops again if it returns
+  const a = now.find(x => x.head && !seen[x.k]); if (!a) return false;
+  seen[a.k] = true; save();
+  openModal(`<div class="mh"><span>${icon('alert')} Warning</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb"><h2>${esc(a.head)}</h2><p class="desc">${esc(a.body)}</p>
+    <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Understood <span class="kbd">Enter</span></button></div></div>`);
+  $('#mclose').onclick = () => { closeModal(); renderGame(); afterChange(); };
+  return true;
 }
 // A title card when the phase changes, once the inbox is clear.
 function phaseCard() {
@@ -245,7 +268,7 @@ function phaseCard() {
   ui.phaseSeen = S.phase;
   const d = PHASES[S.phase]; if (!d) return false;
   openModal(`<div class="phasecard"><div class="k">${d[1]} · ${esc(E.dateLabel(S.t))}</div><h2>${d[0]}</h2><p>${d[2]}</p><button class="btn" id="mclose">Begin</button></div>`);
-  $('#mclose').onclick = () => { closeModal(); renderGame(); };
+  $('#mclose').onclick = () => { closeModal(); renderGame(); afterChange(); };
   return true;
 }
 
@@ -279,28 +302,39 @@ function raceStrip(v) {
   const cross = S.pacing.active ? (isFinite(v.crossover) && v.crossover < 36 ? `China catches the paced frontier ≈ <b>${esc(E.monthLabel(S.t + v.crossover))}</b>` : 'China is not closing the gap') : Math.abs(ahead - le.mid) < 0.3 ? `Lead <b>steady</b> at this pace` : ahead <= 0 ? `At this pace China <b>catches up within 6 months</b>` : `In 6 months at this pace: ${ahead < 0 ? `China <b>~${f1(-ahead)} mo</b> ahead` : `<b>~${f1(ahead)} mo</b> lead`}`;
   const rsi = v.ic.lo > 24 ? 'RSI: 24+ months away' : `RSI possible in <b>${Math.round(v.ic.lo)}–${v.ic.hi > 24 ? '24+' : Math.round(v.ic.hi)} mo</b>`;
   return `<section class="panel race"><div class="ph"><h2>The race</h2><div class="readouts">
-      <span>${rsi}</span><span>${cross}</span>${v.open != null ? `<span title="The best model anyone can download. China uses whatever is public; open models near the threshold can run away where no shutdown reaches.">Open weights <b>${f1(F - v.open)} mo</b> behind</span>` : ''}
+      <span>${rsi}</span>
       ${v.inZone.length ? `<span class="hot" title="Past the near edge of the IC’s RSI window. Nobody knows the true threshold; danger rises the deeper anyone goes.">In the RSI window: <b>${esc(v.inZone.join(', '))}</b></span>` : ''}
     </div></div>
-    <div class="sx"><svg class="strip" viewBox="0 0 ${W} ${H}" role="img" aria-label="Race track: US, China and the RSI threshold">${g}</svg></div></section>`;
+    <div class="sx" title="${esc(cross.replace(/<\/?b>/g, '') + (v.open != null ? '. Open weights ' + f1(F - v.open) + ' mo behind the frontier: anyone can download them, China included' : '') + '.')}"><svg class="strip" viewBox="0 0 ${W} ${H}" role="img" aria-label="Race track: US, China and the RSI threshold">${g}</svg></div></section>`;
 }
 
 /* ---- sidebar ---- */
 function sidePanel(v) {
   const side = ui.side || (S.phase === 'p0' ? 'labs' : 'room'); // RSI signals drive Phase 0; the cabinet matters after
   const body = { room: roomPanel, cn: chinaPanel, labs: labPanel, log: logPanel }[side](v);
-  return `<aside class="panel side"><div class="stabs">${SIDE.map(([k, n]) => `<button class="stab ${side === k ? 'on' : ''}" data-side="${k}">${n}</button>`).join('')}</div>${doomBox()}${body}</aside>`;
+  return `<aside class="panel side"><div class="stabs">${SIDE.map(([k, n]) => `<button class="stab ${side === k ? 'on' : ''}" data-side="${k}">${n}</button>`).join('')}</div>${body}</aside>`;
 }
 // The IC's p(doom): the odds this ends badly, with a sparkline of past turns' readings (kept on the save, keyed by turn).
 const DOOM_QUIP = [[0.15, 'The analysts are suspicious of how good this looks.'], [0.3, 'Cautiously, unfashionably optimistic.'], [0.45, 'A coin flip with extra steps.'], [0.6, 'The IC is updating its résumés.'], [0.75, 'Someone in the DNI’s office has started a betting pool.'], [0.9, 'The analysts have stopped rounding down.'], [1.01, 'The IC recommends you call your family.']];
-function doomBox() {
-  const p = E.pDoom(S), h = S.doomH = S.doomH || {}; h[S.turn] = p;
-  const xs = Object.keys(h).map(Number).sort((a, b) => a - b).slice(-24), W = 120, H = 26;
+function doomSpark(W, H) {
+  const h = S.doomH = S.doomH || {}, xs = Object.keys(h).map(Number).sort((a, b) => a - b).slice(-24);
   const pts = xs.map((t, i) => `${xs.length < 2 ? W : (W * i / (xs.length - 1)).toFixed(1)},${(H - 2 - (H - 4) * h[t]).toFixed(1)}`).join(' ');
-  const cls = p >= 0.6 ? 'bad' : p >= 0.35 ? 'warn' : 'good';
-  return `<div class="sb doom" title="The IC's estimate of the odds this ends badly: a race, China first, loss of control, war, betrayal or your firing. The IC starts out complacent and wakes up as months pass, the threshold nears and alarms land. Analysts disagree and the number wanders; weak intelligence makes it wander more. Fit on simulated games, and it tracks your real odds better than it has any right to."><div class="row"><div class="lbl">p(doom)</div><span class="sp"></span><span class="sub">IC estimate</span></div>
-    <div class="dm"><b class="${cls}">${Math.round(100 * p)}%</b><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/><polyline points="${pts}"/></svg></div>
-    <div class="sub">${DOOM_QUIP.find(q => p < q[0])[1]}</div></div>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" class="mid"/><polyline points="${pts}"/></svg>`;
+}
+const DOOM_TIP = 'The IC\'s estimate of the odds this ends badly: a race, China first, loss of control, war, betrayal or your firing. The IC starts out complacent and wakes up as months pass, the threshold nears and alarms land. Analysts disagree and the number wanders; weak intelligence makes it wander more. Fit on simulated games, and it tracks your real odds better than it has any right to.';
+const doomCls = p => p >= 0.6 ? 'bad' : p >= 0.35 ? 'warn' : 'good';
+// Records this turn's reading on the save, keyed by turn, for the sparkline.
+function doomStat() {
+  const p = E.pDoom(S); (S.doomH = S.doomH || {})[S.turn] = p;
+  return `<button class="stat doomst ${doomCls(p)}" id="c-doom" title="IC p(doom). Click for the trend."><span>p(doom)</span><b>${Math.round(100 * p)}%</b></button>`;
+}
+function showDoom() {
+  const p = E.pDoom(S);
+  openModal(`<div class="mh"><span>${icon('eye')} The IC</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb doom">
+    <h2>p(doom)</h2><div class="dm"><b class="${doomCls(p)}">${Math.round(100 * p)}%</b>${doomSpark(240, 48)}</div>
+    <p class="sub">${DOOM_QUIP.find(q => p < q[0])[1]}</p><p class="desc">${esc(DOOM_TIP)}</p>
+    <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Back</button></div></div>`);
+  $('#mclose').onclick = closeModal;
 }
 function historyChart(v) {
   const W = 320, H = 150, padL = 24, padR = 14, padT = 8, padB = 18;
@@ -363,6 +397,7 @@ function chinaPanel(v) {
       <div class="sub" style="margin-top:8px">${rd.note}${rd.tier < 2 ? ' Sharpen with the GEOINT baseline, verification funding or an IC assessment.' : ''}</div></div>
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
+const fold = k => ui.fold && ui.fold[k] ? 'open' : '';
 function labPanel(v) {
   const i = S.ind[S.ind.length - 1];
   const sharp = S.flags.assessUntil >= S.turn;
@@ -379,13 +414,13 @@ function labPanel(v) {
       }).join('')}
       <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0]).join(', ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${dragWord(v.drag.total)}</span>
         <span title="Beijing tries to steal weights now and then; SL4 and SL5 make an attempt much likelier to fail.">Security SL${S.sl} · theft risk</span><span class="v">${theftWord(v.theft.net)}</span></div></div>
-    <div class="sb"><div class="row"><div class="lbl">Misuse</div><span class="sp"></span><span class="sub">what open and jailbroken models can do</span></div>
+    <details class="sb fold" data-fold="misuse" ${fold('misuse')}><summary><span class="lbl">Misuse</span><span class="sp"></span><span class="sub">cyber ${E.misuseWord(v.misuse.cyber)} · bio ${v.misuse.bio < 0.005 ? 'none yet' : E.misuseWord(v.misuse.bio)} · agents ${Math.round(v.misuse.agents)}</span></summary>
       <div class="kv"><span title="AI-enabled cyberattacks on hospitals, utilities, ports and banks. Defenders-first access cuts them.">Cyberattacks${S.policies.cyberdef ? ' · defenders first' : ''}</span><span class="v">${E.misuseWord(v.misuse.cyber)}</span>
         <span title="Attempts to use AI to make a pathogen. They start once open models get strong enough; DNA synthesis screening catches them.">Bio near-misses${S.policies.synth ? ' · screened' : ''}</span><span class="v">${v.misuse.bio < 0.005 ? 'none yet' : E.misuseWord(v.misuse.bio)}</span></div>
-      <div class="vrow" title="Self-funding AI agents with no human owner. They spread as open models improve, drag on markets, and wear down support for a pause that does not touch them. Compute KYC slows them.${S.policies.kyc ? ' KYC is in force.' : ''}"><span>Agents</span>${meter(v.misuse.agents, v.misuse.agents >= 40 ? 'bad' : v.misuse.agents >= 15 ? 'warn' : '')}<span class="v">${Math.round(v.misuse.agents)}</span></div></div>
-    <div class="sb"><div class="row"><div class="lbl">Verification</div><span class="sp"></span><span class="sub">funding ${S.warp}/2</span></div>
+      <div class="vrow" title="Self-funding AI agents with no human owner. They spread as open models improve, drag on markets, and wear down support for a pause that does not touch them. Compute KYC slows them.${S.policies.kyc ? ' KYC is in force.' : ''}"><span>Agents</span>${meter(v.misuse.agents, v.misuse.agents >= 40 ? 'bad' : v.misuse.agents >= 15 ? 'warn' : '')}<span class="v">${Math.round(v.misuse.agents)}</span></div></details>
+    <details class="sb fold" data-fold="verify" ${fold('verify')}><summary><span class="lbl">Verification</span><span class="sp"></span><span class="sub">${E.COMPONENTS.map(c => esc(c.short) + ' ' + Math.round(S.verify[c.id])).join(' · ')} of 65</span></summary><div class="sub" style="margin-bottom:6px">Funding ${S.warp}/2</div>
       ${E.COMPONENTS.map(c => `<div class="vrow" title="${esc(c.desc)}"><span>${esc(c.short)}${c.trusted ? '' : '*'}</span>${meter(S.verify[c.id], S.verify[c.id] >= 65 ? 'good' : S.verify[c.id] < 35 ? 'warn' : '', [65])}<span class="v">${Math.round(S.verify[c.id])}</span></div>`).join('')}
-      <div class="sub" style="margin-top:6px">Phase 2 needs all three at 65. Cheating labs get caught <b>${catchWord(v.detection)}</b>. *Not trusted until Phase 2.</div></div>`;
+      <div class="sub" style="margin-top:6px">Phase 2 needs all three at 65. Cheating labs get caught <b>${catchWord(v.detection)}</b>. *Not trusted until Phase 2.</div></details>`;
 }
 function logPanel() {
   return `<div class="cables">${S.log.slice(-60).reverse().map(l => `<div class="cab ${l.tone}"><span class="d">${esc(E.dateLabel(l.t))}</span><span class="x">${esc(l.text)}</span></div>`).join('')}</div>`;
@@ -484,12 +519,13 @@ function deskPanel(v) {
   if (added.length) { const a = pinned.find(x => x.avail === true) || pinned[0]; if (a) { ui.sel = a.id; ui.params = defaultParams(a.id); } }
   if (ui.sel && !acts.some(a => a.id === ui.sel)) ui.sel = null;
   if (!ui.sel && acts.length) { const first = open.find(a => a.avail === true) || open[0] || acts[0]; ui.sel = first.id; ui.params = defaultParams(first.id); }
+  const block = S.ending ? 'Game over' : S.queue.length ? 'Resolve the open event first' : null;
   const row = a => {
     const lock = gate(a.id), ok = a.avail === true;
     const pr = a.project ? E.PROJECTS.find(p => p.id === a.project) : null;
     const prog = pr ? `<span class="pips">${Array.from({ length: pr.need }, (_, i) => `<i class="${i < (S.projects[a.project] || 0) ? 'on' : ''}"></i>`).join('')}</span>` : '';
     const lack = ok || lock !== true ? null : { ap: S.ap < a.cost.ap, pc: S.pc < a.cost.pc, room: a.room && v.roomLeft <= 0 };
-    const why = lock !== true ? `${icon('lock')}${esc(lock)}` : ok ? '' : esc(a.avail);
+    const why = lock !== true ? `${icon('lock')}${esc(lock)}` : ok || a.avail === block ? '' : esc(a.avail);
     return `<button class="act ${ok ? '' : 'off'} ${lock !== true ? 'lock' : ok ? '' : 'short'} ${ui.sel === a.id ? 'on' : ''}" data-act="${a.id}"><span class="at"><span class="t">${esc(a.name)} ${prog}</span>${why ? `<span class="why">${why}</span>` : ''}</span>${costHtml(a.cost, a.room, lack)}</button>`;
   };
   const cats = order.filter(c => open.some(a => a.cat === c));
@@ -501,7 +537,7 @@ function deskPanel(v) {
   const ahead = soon.length ? `<div class="agrp">Coming up</div>${soon.slice(0, 3).map(row).join('')}` : '';
   const more = rest.length ? `<details class="later" ${rest.some(a => a.id === ui.sel) ? 'open' : ''}><summary>${rest.length} more locked or done</summary>${rest.map(row).join('')}</details>` : '';
   return `<section class="panel">${objective(v)}
-    <div class="deskgrid"><div class="alist">${bar}${list || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${ahead}${more}<button class="more" hidden></button></div><div class="detail">${detailPane()}</div></div></section>`;
+    <div class="deskgrid"><div class="alist">${block ? `<div class="blockbar">${S.ending ? 'The game is over.' : `An event is waiting. <button class="btn sm" id="openev">Open it</button>`}</div>` : ''}${bar}${list || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${ahead}${more}<button class="more" hidden></button></div><div class="detail">${detailPane()}</div></div></section>`;
 }
 // "N more below" pill for open rows past the bottom of the screen or of the list's own scroll box.
 function updateMore() {
@@ -555,8 +591,11 @@ function whip(pos, compact) {
 /* ---------------- bindings ---------------- */
 function bindGame() {
   $('#endturn').onclick = endTurnClick;
+  if ($('#openev')) $('#openev').onclick = showEvent;
   $('#help').onclick = showHelp;
   $('#menu').onclick = showMenu;
+  $('#c-doom').onclick = showDoom;
+  app.querySelectorAll('details[data-fold]').forEach(d => d.ontoggle = () => { ui.fold = ui.fold || {}; ui.fold[d.dataset.fold] = d.open; });
   app.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { ui.side = b.dataset.side; renderGame(); });
   app.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { ui.cat = b.dataset.cat; renderGame(); });
   const al = app.querySelector('.alist'); if (al) al.onscroll = updateMore;
@@ -585,6 +624,7 @@ function doAction() {
   if (res.modal === 'charter') { ui.before = before; save(); openCharter(); return; }
   if (a.room) { save(); showVote(a, res, diffList(before, snap())); return; }
   if (a.params && a.params.kind !== 'variant') ui.params = {};
+  if (gate(id) !== true) ui.sel = null; // done or locked now: move on to the first open action
   save(); renderGame(); afterChange(outcome(a.name + '.', esc(res.text) + changedBox(diffList(before, snap()))));
 }
 
@@ -627,7 +667,7 @@ function afterChange(carry) {
   if (S.ending) return showEnding();
   if (S.queue.length) return showEvent(pre);
   if (pre) return showOutcome(pre);
-  phaseCard();
+  phaseCard() || alertCard();
 }
 function showOutcome(html) {
   openModal(`<div class="mh"><span>${icon('doc')} The desk</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb">${html}
@@ -660,7 +700,7 @@ function endTurnClick() {
   const before = E.view(S); const b = { cred: S.cred, mk: S.markets, tens: S.tension, pc: S.pc, alarm: S.alarm, sal: S.salience }; ui.turnBefore = snap();
   const rep = E.endTurn(S);
   if (!rep || rep.error) { if (rep && rep.error) toast(rep.error); return; }
-  ui.notes = autoNotes(); save();
+  $('#toast').hidden = true; ui.notes = autoNotes(); save();
   renderGame();
   if (S.ending && !S.queue.length) return showEnding();
   showReport(before, b, rep);
@@ -823,14 +863,14 @@ renderTitle();
 /* Demo: index.html#demo-p0 / -scramble / -p1 / -end / -vote / -event / -strait / -blockade / -war fast-forwards a seeded game for screenshots. */
 if (/^#demo/.test(location.hash)) {
   const want = location.hash.slice(6) || 'p0';
-  S = E.newGame({ seed: 4242 });
+  S = E.newGame({ seed: 4245 }); // a seed where this script reaches Phase 1 month 3; re-pick if #demo-p1 shows Phase 0
   const clearQ = () => { let g = 0; while (S.queue.length && g++ < 30) E.chooseEvent(S, S.queue[0].id === 'knock' ? 1 : 0); };
   clearQ();
   const stopAt = want === 'vote' || want === 'event' || want === 'did' || want === 'beg' ? 'p0' : want === 'debate' ? 'p0' : want === 'gloss' || want === 'strait' || want === 'blockade' || want === 'war' ? 'p1' : want;
   for (let i = 0; i < 60 && !S.ending; i++) {
     if (stopAt === S.phase && (stopAt !== 'p0' || S.turn >= 6) && (stopAt !== 'p1' || S.flags.monthsInP1 >= 3 || want === 'strait' || want === 'blockade' || want === 'war') && (stopAt !== 'scramble' || S.scramble.turn >= 2)) break;
     if (S.phase === 'p0') { for (const id of ['proj_team', 'proj_memo', 'sl4', 'distill', 'proj_charter', 'proj_geoint', 'fund', 'proj_inspect', 'proj_sl4', 'proj_sl5']) { if (E.availability(S, id) === true) { E.act(S, id, {}); clearQ(); } } if (S.turn > 8 && E.availability(S, 'brief') === true) { E.act(S, 'brief', {}); clearQ(); } }
-    if (S.phase === 'scramble') { [['mech', { variant: 'charter' }], ['threshold', { variant: '1e21' }], ['sequence', { variant: 'first' }], ['automation', {}], ['trigger', { variant: '200c' }]].forEach(([id, p]) => { if (E.availability(S, id, p) === true) { E.act(S, id, p); clearQ(); } }); if (E.availability(S, 'convene') === true && want !== 'scramble') { E.act(S, 'convene', {}); E.LABS.forEach(l => E.charterDecide(S, l.id, false)); E.finishConvening(S); } if (E.availability(S, 'launch') === true && want !== 'scramble') { E.act(S, 'launch', {}); } }
+    if (S.phase === 'scramble') { [['mech', { variant: 'charter' }], ['threshold', { variant: '1e21' }], ['automation', {}], ['trigger', { variant: '200c' }], ['sequence', { variant: 'first' }], ['sequence', { variant: 'deadline' }]].forEach(([id, p]) => { if (!(id === 'sequence' && S.pacing.seq) && E.availability(S, id, p) === true) { E.act(S, id, p); clearQ(); } }); if (E.availability(S, 'convene') === true && want !== 'scramble') { E.act(S, 'convene', {}); E.LABS.forEach(l => E.charterDecide(S, l.id, S.pc >= l.deal.pc)); E.finishConvening(S); } if (E.availability(S, 'launch') === true && want !== 'scramble') { E.act(S, 'launch', {}); } }
     if (S.phase === 'p1') { for (const id of ['fund', 'automation']) if (E.availability(S, id) === true) { E.act(S, id, {}); clearQ(); } if (E.availability(S, 'offer') === true) E.makeOffer(S, { inspect: true, lane: true, institute: true }); if (E.availability(S, 'surge', { comp: 'novel' }) === true) E.act(S, 'surge', { comp: 'novel' }); }
     clearQ(); E.endTurn(S); clearQ();
   }
