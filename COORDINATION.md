@@ -17,7 +17,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Batch | Branches | Owner sessions | Peter's decision |
 |---|---|---|---|
-| v37 (batch closed; search running from 5:20p 3 Nov at d771189, detached worktree v37-search, OUT=sim/v37*; starts: each group's v36 genomes, hawk from v36hawk2_run2) | fun events and p(doom) (0410be7, on main since 29 Oct) and theft-rsi (98: theftRsi 1.5, stealDeal 0.6, slCost 1). ui-popups (b8, ec5adaa) landed on main without a search: UI only | 98; integrator checks fun (owner 86 ended) | H (theft-rsi), E (theftRsi 1.5 smooth); E: v37 go, 13 runs |
+| v37 (batch closed; search running from 5:20p 3 Nov at d771189, detached worktree v37-search, OUT=sim/v37*; starts: each group's v36 genomes, hawk from v36hawk2_run2) | fun events and p(doom) (0410be7, on main since 29 Oct) and theft-rsi (98: theftRsi 1.5, stealDeal 0.6, slCost 1). ui-popups (b8, ec5adaa) and ui-patience (b8, e2f9031) landed on main without a search: UI only | 98; integrator checks fun (owner 86 ended) | H (theft-rsi), E (theftRsi 1.5 smooth); E: v37 go, 13 runs |
 | v36hawk2 (done; v36hawk2_run2 committed) | hawk-only follow-up (AM), 3 runs from the v36 hawk genomes: run2 662.9 -> 688.8 held-out (compare.js 686.9 ± 5.3); runs 0 and 1 kept their starts (dropped). Hawk pins cost the main genome -253.5 at v36 vs -230.7 at v35 | integrator | AK diagnose, then accept (gap 104.5; recheck at next search); AM yes |
 | v36 (landed 7cfb12f) | luck-f (0734a90 + walkMid, 1e): situ 1, dpaStick 1, spreadT 0.7 / spread 0 / spreadRead 1, gene labMeet, walkMid -40 / walkScale 20 | 1e | H, I, J; AH |
 | vX36x (exploratory, closed; 1e analysed it, files moved out of main; a candidate may follow) | mech-explore (b75dcd2, 1e): situ 1 + dpaStick 1; 7 unpinned runs, run k from vX35_run<k>, OUT=sim/vX36x; queues behind any real batch | 1e | G (Peter, via 1e) |
@@ -37,6 +37,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
+| launch-backing (in progress, for v38) | b8 | engine.js: President refuses Phase 1 launch under 12 projected pacing support; one deadline month per pause under 12 (Peter's E1) |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
