@@ -209,6 +209,8 @@ const TUNE = {
   usCatch: 0.1,
   cnSeesUS: 0.15,
   supportBreak: 12,
+  launchBacking: 1,
+  supportGrace: 1,
   aloneFloor: 4,
   chipLever: 0.55,
   reliefLever: 0.25,
@@ -524,7 +526,8 @@ function pauseMood(s) { // influence-weighted cabinet stance on pacing, -1..1
   s.principals.forEach(p => { const def = PD(s, p.id); const x = def.prefs.pause + p.shift + def.sal * (s.salience - 35) / 40 + p.rel / 120; n += p.infl * Math.tanh(x / 1.6); d += p.infl; });
   return n / d;
 }
-// Pacing support in Phase 1, as labeled parts. Below 25 the pause wobbles; three months below 25, or any month below TUNE.supportBreak, and it breaks.
+// Pacing support in Phase 1, as labeled parts. Below 25 the pause wobbles; three months below 25, or a month below TUNE.supportBreak, and it breaks
+// (the first such month in a pause only starts the President's one-month deadline; launchBacking keeps Phase 1 from starting there).
 function supportParts(s) {
   const unsigned = s.labs.reduce((a, l) => a + (covered(s, l) ? (l.id === 'mindscale' && s.flags.uaeOut && TUNE.uaeSupport ? LD(l.id).share * TUNE.uaeShare : 0) : LD(l.id).share), 0);
   const ld = seenLead(s);
@@ -1241,15 +1244,43 @@ function seqEffects(s, seq) {
 }
 def({ id: 'gofirst', cat: 'crisis', name: 'Go first after all', phases: ['p1'], ap: 1, pc: 2, room: true,
   tags: SEQ.first.tags,
-  avail(s) { return s.pacing.armed && !s.pacing.active ? true : 'Only while the pause is on standby'; },
-  desc: 'The labs are signed but still racing while you wait for Beijing. Start the pause now, without China.',
+  avail(s) { if (!(s.pacing.armed && !s.pacing.active)) return 'Only while the pause is on standby'; const r = backingRefusal(s, 'gofirst'); return r ? r.short : true; },
+  desc: s => { const r = s.pacing.armed && !s.pacing.active ? backingRefusal(s, 'gofirst') : null; return 'The labs are signed but still racing while you wait for Beijing. Start the pause now, without China.' + (r ? ' ' + r.quote : ''); },
   effect: () => 'The pause starts today. Hawks -12, Beijing trust +10, science faction +6, markets -4.',
   apply(s) { s.pacing.seq = 'first'; activatePacing(s); seqEffects(s, 'first'); return 'The President announces that America will pause first. Beijing\u2019s foreign ministry calls it \u201ca serious step.\u201d The hawks call it something else.'; },
 });
+// Backing for a pause: pacing support as it would stand the moment Phase 1 starts, on a copy (the RNG lives on s, so the real game is untouched).
+// Under TUNE.supportBreak the President won't sign (TUNE.launchBacking), and says why in the two biggest drags.
+function launchBacking(s, how) {
+  const c = JSON.parse(JSON.stringify(s));
+  if (how === 'gofirst') { c.pacing.seq = 'first'; activatePacing(c); seqEffects(c, 'first'); } else launchPhase1(c);
+  const parts = supportParts(c);
+  return { support: Math.round(clamp(parts.reduce((a, x) => a + x[1], 0))), parts };
+}
+const DRAG_WORDS = [
+  [/^A war/, () => 'during a war'], [/^Beijing is blockading/, () => 'with Taiwan blockaded'],
+  [/^Markets/, s => 'with the market down ' + Math.max(1, Math.round(100 - s.markets)) + '%'],
+  [/^Labs racing/, () => 'while the labs that didn’t sign keep racing'], [/^China is close/, () => 'with China right behind us'],
+  [/^America went first/, () => 'alone, with Beijing still racing'], [/^Open-weight/, () => 'with open models right behind us'],
+  [/^The Vice President is campaigning/, () => 'with the Vice President campaigning against it'], [/^Salience/, () => 'when nobody thinks AI is dangerous'],
+  [/^The cabinet/, () => 'with my own cabinet against it'], [/^Sovereign agents/, () => 'with rogue AI agents running loose'],
+];
+function backingDrags(s, parts) {
+  return parts.filter(x => x[1] < -0.5).sort((a, b) => a[1] - b[1]).map(x => { const w = DRAG_WORDS.find(d => d[0].test(x[0])); return w ? w[1](s) : null; }).filter(Boolean).slice(0, 2);
+}
+const backingWord = n => n < TUNE.supportBreak ? 'nobody will stand behind it' : n < 25 ? 'thin' : n < 45 ? 'holding' : 'solid';
+// The President's refusal, in words; null when the launch can go ahead.
+function backingRefusal(s, how) {
+  if (!TUNE.launchBacking) return null;
+  const b = launchBacking(s, how); if (b.support >= TUNE.supportBreak) return null;
+  const d = backingDrags(s, b.parts);
+  return { short: 'The President won’t sign this yet' + (d.length ? ': ' + d.join(', ') : ''),
+    quote: 'The President pushes the order back across the desk. “I sign this, and in a month I’m the one who paused America' + (d.length ? ' ' + d.join(', ') : '') + '. Nobody’s standing behind this.”' };
+}
 def({ id: 'launch', cat: 'crisis', name: 'Launch Phase 1', phases: ['scramble'], ap: 1, pc: 0,
-  desc: 'End the scramble. Pacing starts now with whatever you have decided. Undecided pieces stay undecided.',
+  desc: s => { const r = s.phase === 'scramble' && s.pacing.mech && s.pacing.threshold && s.pacing.seq ? backingRefusal(s) : null; return 'End the scramble. Pacing starts now with whatever you have decided. Undecided pieces stay undecided.' + (r ? ' ' + r.quote : ''); },
   effect: s => launchSummary(s),
-  avail(s) { if (!s.pacing.mech) return 'Choose a mechanism first'; if (!s.pacing.threshold) return 'Set the threshold first'; if (s.pacing.mech === 'charter' && !s.scramble.convened) return 'Convene the CEOs first'; if (!s.pacing.seq) return 'Decide whether America goes first'; if (s.pacing.mechTurn === s.turn || s.scramble.convenedTurn === s.turn) return 'Signatures and orders take until tomorrow'; return true; },
+  avail(s) { if (!s.pacing.mech) return 'Choose a mechanism first'; if (!s.pacing.threshold) return 'Set the threshold first'; if (s.pacing.mech === 'charter' && !s.scramble.convened) return 'Convene the CEOs first'; if (!s.pacing.seq) return 'Decide whether America goes first'; if (s.pacing.mechTurn === s.turn || s.scramble.convenedTurn === s.turn) return 'Signatures and orders take until tomorrow'; const r = backingRefusal(s); if (r) return r.short; return true; },
   apply(s) { return launchPhase1(s); },
 });
 function launchSummary(s) {
@@ -1284,7 +1315,7 @@ function launchPhase1(s) {
   return 'The President signs at 9:40p. Phase 1 begins at midnight. Coverage: ' + coverage(s) + '% of US frontier compute.';
 }
 function activatePacing(s) {
-  s.pacing.active = true; s.pacing.armed = false; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, lead(s)); s.pacing.low = 0;
+  s.pacing.active = true; s.pacing.armed = false; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, lead(s)); s.pacing.low = 0; s.pacing.graced = false; s.pacing.grace = null;
   s.labs.forEach(l => { if (l.covered) l.comp = complianceBase(s, l); });
   s.markets -= s.flags.marketPlan ? 4 : 8;
   s.salience += 4;
@@ -1655,6 +1686,8 @@ function currentAsk(s, id) { return ASKS[id][askIdx(s, id)]; }
 /* ================= effect chips ================= */
 // Short, scannable consequences for each action. '+' good for you, '-' a cost, '~' neutral or conditional.
 // Previews say what an advisor would expect, in words; exact effects show only in "What changed" afterwards.
+// The Chief of Staff's read on backing for the pause, as a chip: words, never the number.
+const backingChip = n => (n < 25 ? '-' : n >= 45 ? '+' : '~') + 'Backing for the pause (Chief of Staff\u2019s read): ' + backingWord(n);
 const CHIPS = {
   proj_team: () => ['+1 more action every turn', '-Costs 3 capital', '~Needs the Chief of Staff Friendly'],
   proj_memo: () => ['+A stronger start to the scramble'],
@@ -1690,12 +1723,12 @@ const CHIPS = {
   trigger: (s, prm) => ({ '200c': ['+Best detection', '+Catches split runs'], '200': ['~Good detection', '-Split runs slip through'], '425': ['-Misses some of the biggest clusters'] })[prm.variant || '200c'],
   convene: () => ['~Opens the signing table'],
   sequence: (s, prm) => ({ first: ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious', '-Markets dip', '-Lead erodes'], deadline: ['+Pause starts now', '+Earns some trust in Beijing', '-Hawks uneasy', '~A cliff in six months'], together: ['+Hawks happy', '+Lead holds', '-Labs keep racing until Beijing signs', (standbyCred(s) >= 0.5 ? '+' : '-') + 'Beijing finds it ' + credWord(standbyCred(s))] })[prm.variant || 'first'],
-  gofirst: () => ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious'],
+  gofirst: s => ['+Pause starts now', '+Earns Beijing’s trust', '-Hawks furious'].concat(s.pacing.armed && !s.pacing.active ? [backingChip(launchBacking(s, 'gofirst').support)] : []),
   matchlaw: () => ['+Makes \u201cOnly together\u201d believable', '~Senate vote in a month'],
   pledge: () => ['+Makes \u201cOnly together\u201d believable', '+Beijing trust', '-Hawks uneasy'],
   sound: () => ['+Learn what Beijing wants', '+A little trust'],
   warn: () => ['+Leverage in every offer', '+No cost unless carried out', '-Must impose or back down in 3 months'],
-  launch: () => ['+Pacing begins', '-Markets fall (less with a Treasury plan)'],
+  launch: s => ['+Pacing begins', '-Markets fall (less with a Treasury plan)'].concat(s.phase === 'scramble' && s.pacing.mech && s.pacing.threshold && s.pacing.seq ? [backingChip(launchBacking(s).support)] : []),
   offer: () => ['~Opens the offer table'],
   summit: s => ['+Win, if Beijing signs (' + oddsWord(summitP(s)) + ')'],
   compel: () => ['+Lab covered now', '-Court fight', '-Industry angry'],
@@ -2191,6 +2224,9 @@ ev({ id: 'wobble', forced: true, title: 'The pause wobbles', stamp: 'Oval Office
     { label: '“Until Phase 2. Here is the plan.”', hint: 'Credibility check: success buys a month.', fx: s => { if (rnd(s) < s.cred / 100) { s.pacing.low = 0; return 'The President nods. “One more month.”'; } s.cred -= 5; return '“That’s what you said last month.”'; } },
     { label: 'Ask for a Presidential address', hint: 'Free speech: salience +12 if it lands.', fx: s => { s.salience += 12; s.pacing.low = Math.max(0, s.pacing.low - 1); return 'The President tells the country why the pause matters.'; } },
   ] });
+ev({ id: 'one_month', forced: true, title: 'One month', stamp: 'Oval Office',
+  body: s => `<p>The President calls you in. \u201cI\u2019m getting killed on this. One month. If it isn\u2019t turned around by ${monthLabel(s.pacing.grace ? s.pacing.grace.t : s.t + 1)}, I\u2019m lifting the orders.\u201d</p>`,
+  choices: [{ label: 'Get to work', hint: 'The pause holds one more month. If it is still this weak then, it breaks.', fx: () => 'You clear your calendar.' }] });
 ev({ id: 'collapse', forced: true, title: 'The pause breaks', stamp: 'Oval Office',
   body: s => `<p>The President lifts the pacing orders. ${nth(s, 'collapse', ['\u201cWe gave it a shot. China isn\u2019t stopping, the markets hate it, and nobody can tell me when it ends.\u201d', '\u201cI\u2019m not doing this a second time and losing a second time.\u201d', '\u201cYou were right about the risk. You were wrong about the politics.\u201d'])} The labs restart their largest runs within hours.</p>`,
   choices: [{ label: 'Start over', hint: 'Back to Phase 0. You can try for another scramble.', fx: s => { endPacing(s); return 'You start rebuilding the case.'; } }] });
@@ -2351,7 +2387,7 @@ ev({ id: 'fired_p', forced: true, title: 'A post', stamp: 'Social media, 11:58p'
   choices: [{ label: 'Note it', hint: '', fx: () => 'The cabinet just changed.' }] });
 ev({ id: 'window', forced: true, title: 'The window closes', stamp: 'Day 14',
   body: s => `<p>Two weeks in, the President is tired of meetings. “I need a decision, not another option.”</p>`,
-  choices: [{ label: 'Go with what you have', hint: 'If a mechanism and threshold are set, Phase 1 launches with whatever is decided. Otherwise the scramble fails.', fx: s => { if (s.pacing.mech && s.pacing.threshold) { if (s.pacing.mech === 'charter' && !s.scramble.convened) { s.labs.forEach(l => { if (charterOdds(s, l.id, false) > 0.5) l.signed = true; }); } return launchPhase1(s); } s.phase = 'p0'; s.scramble.done = true; s.alarm = 40; s.cred -= 15; s.stats.scrambleFailed = (s.stats.scrambleFailed || 0) + 1; s.apMax -= 1; return 'The President thanks everyone and goes back to the trade war. The moment passes.'; } }] });
+  choices: [{ label: 'Go with what you have', hint: 'If a mechanism and threshold are set, Phase 1 launches with whatever is decided. Otherwise the scramble fails.', fx: s => { if (s.pacing.mech && s.pacing.threshold) { if (s.pacing.mech === 'charter' && !s.scramble.convened) { s.labs.forEach(l => { if (charterOdds(s, l.id, false) > 0.5) l.signed = true; }); } const r = backingRefusal(s); if (!r) return launchPhase1(s); s.stats.windowRefused = (s.stats.windowRefused || 0) + 1; s.phase = 'p0'; s.scramble.done = true; s.alarm = 40; s.cred -= 15; s.stats.scrambleFailed = (s.stats.scrambleFailed || 0) + 1; s.apMax -= 1; return r.quote + ' The moment passes.'; } s.phase = 'p0'; s.scramble.done = true; s.alarm = 40; s.cred -= 15; s.stats.scrambleFailed = (s.stats.scrambleFailed || 0) + 1; s.apMax -= 1; return 'The President thanks everyone and goes back to the trade war. The moment passes.'; } }] });
 
 // --- misuse: cyber, bio and sovereign agents ---
 const CYBER_HIT = [
@@ -2870,7 +2906,9 @@ function tick(s) {
     const ps = pacingSupport(s);
     if (ps < 25) s.pacing.low++; else s.pacing.low = Math.max(0, s.pacing.low - 1);
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
-    if (s.pacing.low >= 3 || ps < TUNE.supportBreak) s.queue.push({ id: 'collapse' });
+    // Under TUNE.supportBreak the pause breaks, except once per pause (TUNE.supportGrace): the President gives it one more month.
+    if (s.pacing.low >= 3) s.queue.push({ id: 'collapse' });
+    else if (ps < TUNE.supportBreak) { if (TUNE.supportGrace && !s.pacing.graced) { s.pacing.graced = true; s.pacing.grace = { turn: s.turn + 1, t: s.t + 1 }; s.stats.graced = (s.stats.graced || 0) + 1; s.queue.push({ id: 'one_month' }); } else s.queue.push({ id: 'collapse' }); }
     if ((s.flags.courtNext || 0) <= s.turn && fuseHit(s, 'court', courtP(s))) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
     if (s.flags.appeal === s.turn) { if (draw(s, 'court', s.flags.appealP ?? 0.5) < (s.flags.appealP ?? 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
@@ -3110,6 +3148,9 @@ const API = {
   SEQ,
   senateParts,
   supportParts,
+  launchBacking,
+  backingWord,
+  backingRefusal,
   relTier,
   TIER_FX,
   allyCount,

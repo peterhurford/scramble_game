@@ -48,7 +48,7 @@ const DONE_RE = /^(Done|Decided|Already|Fully funded|Pacing is already law|A dea
 const FACTION_COLOR = { Populist: '#8A5A2B', Politics: '#5B5F97', Dealmaker: '#2E7D5B', Ambition: '#A35A1F', Hawk: '#9B2C2C', Agencies: '#3D5368', Builder: '#7D6A12', Industry: '#A35A1F' };
 const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WAR', dni: 'DNI' };
 const EVTYPE = {
-  crisis: ['bio_attack', 'cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
+  crisis: ['one_month', 'bio_attack', 'cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
   beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un', 'smuggle_bust', 'cn_scientist', 'tsy_channel', 'war_drill'],
   labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'czar_podcast', 'lab_resign', 'cure'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs', 'insurers'],
@@ -244,6 +244,7 @@ function alerts() {
   } else if (S.blockade) out.push({ k: 'quar', cls: 'quar', chip: 'Taiwan quarantined', tip: 'A quarantine stalls TSMC: US labs slow, markets slide and pacing loses support.' });
   else if (S.stats.wars && !S.cn.deal && S.phase === 'p1') out.push({ k: 'nodeal', cls: 'quar', chip: 'No deal since the war', tip: 'Phase 2 needs an interim deal with Beijing. The war ended the last one.',
     head: 'The ceasefire holds, but there is no deal', body: 'The war ended the interim deal with Beijing, and Phase 2 needs one. Make Beijing a new offer before you call the summit.' });
+  if (S.phase === 'p1' && S.pacing.active && S.pacing.grace && S.pacing.grace.turn >= S.turn) out.push({ k: 'grace', cls: 'war', chip: 'The President\u2019s deadline: ' + esc(E.monthLabel(S.pacing.grace.t)), tip: 'The President gave the pause one more month to turn around.' });
   if (S.phase === 'p1' && S.pacing.active && S.pacing.low > 0) {
     const left = 3 - S.pacing.low;
     out.push({ k: 'breaking' + (left === 1 ? '1' : ''), cls: 'war', chip: left === 1 ? 'The President\u2019s last month' : 'The President is losing patience', tip: 'The pause is losing the country, and the Oval knows it.',
@@ -430,7 +431,7 @@ function logPanel() {
 
 /* ---- desk ---- */
 function presidentLine(v) {
-  if (S.phase === 'scramble') return 'I need a decision, not another option.';
+  if (S.phase === 'scramble') return S.pacing.mech && S.pacing.threshold && S.pacing.seq && E.launchBacking(S).support < 25 ? 'Everyone I talk to hates this. Everyone.' : 'I need a decision, not another option.';
   if (S.war) return 'I want this war over, and I want to win it. In that order. Or the other order.';
   if (S.blockade) return 'They can’t just blockade Taiwan. Can they? Somebody tell me they can’t.';
   if (S.cred < 30) return 'I’m hearing things about you. Not great things.';
