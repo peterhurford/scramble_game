@@ -238,7 +238,7 @@ const TUNE = {
   theftLeadSlope: 0.1,
   theftLeadBase: 0.5,
   theftLeadMax: 1.6,
-  theftRsi: 1.5, // with no deal, theft attempts rise a further x(1 + theftRsi) from 70% of the way to the RSI threshold to the threshold
+  theftRsi: 1.5, // with no deal, theft attempts rise smoothly by a further x(1 + theftRsi * x^4), x the share of the way to the RSI threshold: +2% at 30%, +36% at 70%, x2.5 at it
   stealDeal: 0.6, // Beijing's reluctance to deal while it could steal a US lead: x the theft success odds at this SL, x its cyber strength (cap 2), x the lead up to 3 months
   slCost: 1, // SL4 and SL5 costs over their old values (drag, capital, labs, industry, actions); 0 is the old ladder
   resolveDeadline: 0.1,
@@ -677,7 +677,7 @@ function theftRisk(s, pub) {
   const T = pub ? Math.max(0.5, F + icEstimate(s).mid * Math.max(0.05, frontierRate(s, true))) : s.T;
   // attempts ramp as the US frontier nears the RSI threshold: x0.5 at the start, x1 a bit past halfway, x2 at the threshold; a deal holds them at the base rate
   // with no deal, TUNE.theftRsi: the last chance to take the model before RSI runs away
-  const x = clamp(F / T, 0, 1.2), rsi = 1 + TUNE.theftRsi * Math.pow(clamp((x - 0.7) / 0.3, 0, 1), 2), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : (0.5 + 1.5 * x * x) * rsi;
+  const x = clamp(F / T, 0, 1.2), rsi = 1 + TUNE.theftRsi * Math.pow(Math.min(x, 1), 4), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : (0.5 + 1.5 * x * x) * rsi;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
   const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (TUNE.theftLeadSlope ? clamp(TUNE.theftLeadBase + TUNE.theftLeadSlope * lead(s), TUNE.theftLeadBase, TUNE.theftLeadMax) : lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * emboldened(s);
   const success = SL[s.sl].theft;
