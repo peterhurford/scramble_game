@@ -4,7 +4,7 @@
 const E = window.ScrambleEngine;
 const KEY = 'scramble.save.v2';
 let S = null;
-const ui = { side: null, sel: null, params: {}, cat: 'all', result: null, charter: null, offer: null, prev: null };
+const ui = { side: null, sel: null, params: {}, cat: 'all', charter: null, offer: null, prev: null, pend: null };
 const $ = s => document.querySelector(s);
 const app = $('#app');
 const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -158,7 +158,7 @@ function renderTitle() {
     </div></div></div>`;
   let diff = 'advisor';
   app.querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diff = b.dataset.diff; app.querySelectorAll('[data-diff]').forEach(x => x.classList.toggle('on', x === b)); });
-  $('#newgame').onclick = () => { S = E.newGame({ difficulty: diff }); ui.sel = null; ui.result = null; ui.prev = null; save(); renderGame(); afterChange(); };
+  $('#newgame').onclick = () => { S = E.newGame({ difficulty: diff }); ui.sel = null; ui.prev = null; ui.pend = null; save(); renderGame(); afterChange(); };
   if ($('#cont')) $('#cont').onclick = () => { S = saved; renderGame(); afterChange(); };
   $('#howto').onclick = showHelp;
 }
@@ -177,12 +177,20 @@ function renderGame() {
   bindGame();
   showDeltas();
 }
+// Stat deltas add up while a popup covers the top bar and paint once it closes.
 function showDeltas() {
   const now = stats(); const prev = ui.prev; ui.prev = now;
   if (!prev) return;
+  ui.pend = ui.pend || {};
+  for (const k in now) ui.pend[k] = (ui.pend[k] || 0) + now[k] - prev[k];
+  setTimeout(paintDeltas, 0);
+}
+function paintDeltas() {
+  if (!S || !ui.pend || modalOpen()) return;
+  const pend = ui.pend; ui.pend = null;
   const map = { cred: ['#c-cred', 1], pc: ['#c-pc', 1], sal: ['#c-sal', 1], mk: ['#c-mk', 1], tens: ['#c-tens', -1] };
   for (const k in map) {
-    const d = Math.round(now[k] - prev[k]); if (!d) continue;
+    const d = Math.round(pend[k] || 0); if (!d) continue;
     const el = $(map[k][0]); if (!el) continue;
     const good = d * map[k][1] > 0;
     el.insertAdjacentHTML('beforeend', `<em class="dl ${good ? 'up' : 'dn'}">${d > 0 ? '+' : ''}${d}</em>`);
@@ -492,7 +500,7 @@ function deskPanel(v) {
   const lk = locked.filter(shown), soon = lk.filter(a => !DONE_RE.test(gate(a.id))), rest = soon.slice(3).concat(lk.filter(a => DONE_RE.test(gate(a.id))));
   const ahead = soon.length ? `<div class="agrp">Coming up</div>${soon.slice(0, 3).map(row).join('')}` : '';
   const more = rest.length ? `<details class="later" ${rest.some(a => a.id === ui.sel) ? 'open' : ''}><summary>${rest.length} more locked or done</summary>${rest.map(row).join('')}</details>` : '';
-  return `<section class="panel">${objective(v)}${ui.result ? resultCard() : ''}
+  return `<section class="panel">${objective(v)}
     <div class="deskgrid"><div class="alist">${bar}${list || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${ahead}${more}<button class="more" hidden></button></div><div class="detail">${detailPane()}</div></div></section>`;
 }
 // "N more below" pill for open rows past the bottom of the screen or of the list's own scroll box.
@@ -506,7 +514,7 @@ function updateMore() {
 }
 window.addEventListener('scroll', updateMore, { passive: true });
 window.addEventListener('resize', updateMore);
-function resultCard() { const r = ui.result; return `<div class="result ${r.tone}"><button class="x" data-dismiss title="Dismiss">×</button><b>${esc(r.head)}</b> ${r.text}</div>`; }
+const outcome = (head, html, tone) => `<div class="result ${tone || 'good'}"><b>${esc(head)}</b> ${html}</div>`;
 function defaultParams(id) {
   const a = E.ACT[id]; if (!a.params) return {};
   if (a.params.kind === 'variant') { const o = a.params.options(S); const pref = o.find(x => x.id === '1e21' || x.id === '200c' || x.id === 'charter'); return { variant: (pref || o[0]).id }; }
@@ -553,7 +561,6 @@ function bindGame() {
   app.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { ui.cat = b.dataset.cat; renderGame(); });
   const al = app.querySelector('.alist'); if (al) al.onscroll = updateMore;
   updateMore();
-  app.querySelectorAll('[data-dismiss]').forEach(b => b.onclick = () => { ui.result = null; renderGame(); });
   app.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { ui.sel = b.dataset.act; ui.params = defaultParams(ui.sel); renderDetail(); app.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
   app.querySelectorAll('[data-favor]').forEach(b => b.onclick = () => { ui.sel = 'favor'; ui.params = { who: b.dataset.favor }; doAction(); });
   app.querySelectorAll('[data-who]').forEach(g => g.onclick = () => { ui.sel = 'meet'; ui.params = { who: g.dataset.who }; renderGame(); });
@@ -576,10 +583,9 @@ function doAction() {
   if (S._seen) delete S._seen.fresh[id];
   if (res.modal === 'offer') { openOffer(); return; }
   if (res.modal === 'charter') { ui.before = before; save(); openCharter(); return; }
-  if (a.room) { ui.result = null; save(); showVote(a, res, diffList(before, snap())); return; }
-  ui.result = { tone: 'good', head: a.name + '.', text: esc(res.text) + changedBox(diffList(before, snap())) };
+  if (a.room) { save(); showVote(a, res, diffList(before, snap())); return; }
   if (a.params && a.params.kind !== 'variant') ui.params = {};
-  save(); renderGame(); afterChange();
+  save(); renderGame(); afterChange(outcome(a.name + '.', esc(res.text) + changedBox(diffList(before, snap()))));
 }
 
 // Labeled parts as words: what helps or hurts, and how much.
@@ -587,7 +593,7 @@ function parts(list) { const w = x => { const a = Math.abs(x); return a < 1 ? 'b
 
 /* ---------------- modals ---------------- */
 function openModal(html, wide) { $('#modal').className = 'modal' + (wide ? ' wide' : ''); $('#modal').innerHTML = html; $('#ov').hidden = false; const f = $('#modal').querySelector('.choice,.btn'); if (f) f.focus({ preventScroll: true }); }
-function closeModal() { $('#ov').hidden = true; $('#modal').innerHTML = ''; }
+function closeModal() { $('#ov').hidden = true; $('#modal').innerHTML = ''; setTimeout(paintDeltas, 0); }
 function modalOpen() { return !$('#ov').hidden; }
 function rollDice() { setTimeout(() => { $('#modal').querySelectorAll('.marker[data-roll]').forEach(m => { m.style.left = (100 * +m.dataset.roll) + '%'; }); }, 60); }
 
@@ -612,18 +618,27 @@ function autoNotes() {
   return out;
 }
 const noteHtml = n => `<li class="info"><b>${esc(n.title)}.</b> ${esc(n.text)}${n.hint ? ` <span class="sub">${esc(n.hint)}</span>` : ''}</li>`;
-function afterChange() {
+// What just happened (an action's result, an event's outcome, notes) shows in a popup: on top of the next event if there is one, else on its own.
+function afterChange(carry) {
   if (!S) return;
   const notes = autoNotes();
-  if (notes.length) { ui.result = { tone: 'info', head: 'Also today.', text: `<ul class="heads">${notes.map(noteHtml).join('')}</ul>` }; renderGame(); }
-  if (S.ending) return showEnding(); if (S.queue.length) return showEvent();
+  let pre = carry || '';
+  if (notes.length) pre += outcome('Also today.', `<ul class="heads">${notes.map(noteHtml).join('')}</ul>`, 'info');
+  if (S.ending) return showEnding();
+  if (S.queue.length) return showEvent(pre);
+  if (pre) return showOutcome(pre);
   phaseCard();
 }
+function showOutcome(html) {
+  openModal(`<div class="mh"><span>${icon('doc')} The desk</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb">${html}
+    <div class="row" style="margin-top:12px"><button class="btn" id="mclose">Continue <span class="kbd">Enter</span></button></div></div>`);
+  $('#mclose').onclick = () => { closeModal(); afterChange(); };
+}
 function eventHeader(id) { const m = EVMETA[evType(id)]; return `<div class="evband" style="--c:${m[2]}">${icon(m[1])}<span>${m[0]}</span></div>`; }
-function showEvent() {
+function showEvent(pre) {
   const ev = E.currentEvent(S); if (!ev) return;
   openModal(`${eventHeader(ev.id)}<div class="mh"><span>${esc(ev.stamp || '')}</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb">
-    ${ui.lastOutcome ? `<div class="result ${ui.lastOutcome.tone}" style="margin:0 0 12px"><b>${esc(ui.lastOutcome.head)}</b> ${ui.lastOutcome.text}</div>` : ''}
+    ${pre ? `<div class="carry">${pre}</div>` : ''}
     <h2>${esc(ev.title)}</h2><div class="prose">${ev.body}</div>
     <div class="choices">${ev.choices.map((c, i) => `<button class="choice" data-ch="${i}"><span class="k">${i + 1}</span><span class="l">${esc(c.label)}</span>${hintChips(c.hint)}</button>`).join('')}</div></div>`);
   $('#modal').querySelectorAll('[data-ch]').forEach(b => b.onclick = () => pickEvent(+b.dataset.ch));
@@ -634,10 +649,8 @@ function pickEvent(i) {
   const r = E.chooseEvent(S, i); save();
   const diffs = diffList(before, snap());
   // the outcome rides along: on top of the next event if there is one, else on the desk
-  const out = (r.text || diffs.length) ? { tone: 'good', head: ev.title + ': ' + ev.choices[i].label + '.', text: esc(r.text || '') + changedBox(diffs) } : null;
-  ui.lastOutcome = out; ui.result = out || ui.result;
-  closeModal(); renderGame(); afterChange();
-  ui.lastOutcome = null;
+  const out = (r.text || diffs.length) ? outcome(ev.title + ': ' + ev.choices[i].label + '.', esc(r.text || '') + changedBox(diffs)) : '';
+  closeModal(); renderGame(); afterChange(out);
 }
 function endTurnClick() {
   if (!S || S.ending) return;
@@ -647,7 +660,7 @@ function endTurnClick() {
   const before = E.view(S); const b = { cred: S.cred, mk: S.markets, tens: S.tension, pc: S.pc, alarm: S.alarm, sal: S.salience }; ui.turnBefore = snap();
   const rep = E.endTurn(S);
   if (!rep || rep.error) { if (rep && rep.error) toast(rep.error); return; }
-  ui.result = null; ui.notes = autoNotes(); save();
+  ui.notes = autoNotes(); save();
   renderGame();
   if (S.ending && !S.queue.length) return showEnding();
   showReport(before, b, rep);
@@ -687,7 +700,7 @@ function openCharter() {
     <div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn" id="cdone">Done</button></div></div>`, true);
   $('#modal').querySelectorAll('[data-ask]').forEach(b => b.onclick = () => { const r = E.charterDecide(S, b.dataset.ask, false); if (r.error) return toast(r.error); ui.charter[b.dataset.ask] = r; save(); openCharter(); });
   $('#modal').querySelectorAll('[data-deal]').forEach(b => b.onclick = () => { const r = E.charterDecide(S, b.dataset.deal, true); if (r.error) return toast(r.error); ui.charter[b.dataset.deal] = r; save(); openCharter(); });
-  $('#cdone').onclick = () => { E.finishConvening(S); ui.charter = null; ui.result = { tone: 'good', head: 'The signing table.', text: changedBox(diffList(ui.before || {}, snap())) }; save(); closeModal(); renderGame(); afterChange(); };
+  $('#cdone').onclick = () => { E.finishConvening(S); ui.charter = null; save(); closeModal(); renderGame(); afterChange(outcome('The signing table.', changedBox(diffList(ui.before || {}, snap())))); };
 }
 
 /* ---- offer table ---- */
@@ -798,7 +811,7 @@ document.addEventListener('keydown', e => {
   if (modalOpen()) {
     if (e.key === 'Enter') { const b = $('#mclose'); if (b) { b.click(); e.preventDefault(); return; } }
     const n = +e.key; if (n >= 1 && n <= 4) { const b = $('#modal').querySelector(`[data-ch="${n - 1}"]`); if (b) { b.click(); e.preventDefault(); } }
-    if (e.key === 'Escape') { const ev = S && S.queue.length && $('#modal').querySelector('[data-ch]'); const end = S && S.ending; if (!ev && !end) { closeModal(); if (S) renderGame(); } }
+    if (e.key === 'Escape') { const ev = S && S.queue.length && $('#modal').querySelector('[data-ch]'); const end = S && S.ending; if (!ev && !end) { const b = $('#mclose'); if (b) b.click(); else { closeModal(); if (S) renderGame(); } } }
     return;
   }
   if ((e.key === 'e' || e.key === 'E') && S && !S.ending) { e.preventDefault(); endTurnClick(); }

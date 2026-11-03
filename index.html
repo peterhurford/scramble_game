@@ -102,7 +102,7 @@ body[data-phase="p1"] .top{box-shadow:inset 6px 0 0 var(--accent)}
 .stat b{display:block;font-family:var(--f-mono);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
 .stat b small{font-size:11px;color:var(--faint);font-weight:500}
 .stat.hot b{color:var(--bad)}
-.stat .dl{position:absolute;top:-8px;right:-4px;font-style:normal;font-family:var(--f-mono);font-size:11px;font-weight:700;padding:0 4px;background:var(--sheet);border:1px solid currentColor;animation:floatup 2.4s ease-out forwards}
+.stat .dl{position:absolute;top:100%;left:9px;margin-top:-2px;z-index:1;font-style:normal;font-family:var(--f-mono);font-size:11px;font-weight:700;padding:0 4px;background:var(--sheet);border:1px solid currentColor;animation:floatup 2.4s ease-out forwards}
 .stat.flashg{animation:fg 1.2s} .stat.flashb{animation:fb 1.2s}
 @keyframes fg{0%{background:color-mix(in srgb,var(--good) 30%,var(--sheet))}100%{background:transparent}}
 @keyframes fb{0%{background:color-mix(in srgb,var(--bad) 30%,var(--sheet))}100%{background:transparent}}
@@ -178,6 +178,9 @@ svg text.tok{font-family:var(--f-ui);font-size:9.5px;font-weight:800;fill:#fff}
 .ticks span{color:var(--muted)} .ticks span.ok{color:var(--good)} .ticks b{color:var(--ink);font-weight:600}
 .result{position:relative;margin:12px 16px 0;border-left:3px solid var(--good);background:var(--sheet2);padding:8px 34px 8px 12px;font-family:var(--f-body);font-size:15px}
 .result b{font-family:var(--f-ui)}
+.modal .result{margin:0 0 12px}
+.carry{margin-bottom:6px;padding-bottom:4px;border-bottom:1px dashed var(--rule)}
+.carry .result{margin:0 0 8px}
 .result .x{all:unset;cursor:pointer;position:absolute;top:4px;right:8px;font-size:18px;line-height:1;color:var(--muted);padding:2px 4px}
 .result .x:hover{color:var(--ink)}
 .deskgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);min-height:440px}
