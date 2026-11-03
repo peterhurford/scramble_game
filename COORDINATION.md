@@ -36,7 +36,6 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
-| theft-rsi (c6fcd3f) | owner to confirm | engine.js: theftRsi, stealDeal, slCost (SL4/SL5 costs); rule change, needs a search |
 | ui-popups (881b8d5) | owner to confirm | ui.js, index.html: popups, top-bar chips; no rules |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
