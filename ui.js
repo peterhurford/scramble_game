@@ -246,8 +246,10 @@ function alerts() {
     head: 'The ceasefire holds, but there is no deal', body: 'The war ended the interim deal with Beijing, and Phase 2 needs one. Make Beijing a new offer before you call the summit.' });
   if (S.phase === 'p1' && S.pacing.active && S.pacing.low > 0) {
     const left = 3 - S.pacing.low;
-    out.push({ k: 'breaking' + (left === 1 ? '1' : ''), cls: 'war', chip: `Pause breaks in ${left} mo`, tip: 'Three months with pacing support under 25 breaks the pause; support under 12 breaks it at once.',
-      head: left === 1 ? 'The pause breaks next month' : 'The pause is failing', body: `Pacing support is under 25. ${left === 1 ? 'One more month' : left + ' more months'} like this and the pause breaks; under 12 it breaks at once. Raise support: speeches, wins with the cabinet, a deal with Beijing.` });
+    out.push({ k: 'breaking' + (left === 1 ? '1' : ''), cls: 'war', chip: left === 1 ? 'The President\u2019s last month' : 'The President is losing patience', tip: 'The pause is losing the country, and the Oval knows it.',
+      head: left === 1 ? 'One more bad month' : 'The President is losing patience', body: left === 1
+        ? 'The Chief of Staff catches you outside the Oval. \u201cThe President told me this morning: one more month like this and the orders get lifted. I\u2019d take that literally.\u201d'
+        : 'The Chief of Staff closes the door. \u201cThe calls about the pause come in every day, and none of them are good. A couple more months like this and the President pulls it. We need a speech, a win, a deal with Beijing. Something.\u201d' });
   }
   return out;
 }
