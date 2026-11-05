@@ -246,10 +246,15 @@ function seen(s) {
   const c = s.cn, b = E.cnSources({ sme: 1, remote: 1, smuggle: 1, legal: 1 }), src = t ? E.cnSources(c) : { offshore: b.offshore * Math.min(1, c.remoteT), smuggled: b.smuggled * Math.min(1, c.smuggleT), legal: b.legal * c.legalT };
   return Object.assign(src, extra, { dist: t ? c.dist : Math.min(1, c.distT), cyber: t ? c.cyber : 1, hide: t ? c.hide : 1 });
 }
+// polFirst (a PIN, not searched): these Phase 0 policies come first, in this order, before the rest by gene; with 'sl4' in it, an ordered SL4 is implemented before the next one.
+const first = G => (G.polFirst || []).filter(p => POL0.includes(p));
+function polOrder(G) { const f = first(G); return f.concat(POL0.filter(p => !f.includes(p) && G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a])); }
+function slFirst(s, G) { if (!first(G).includes('sl4') || !s.policies.sl4 || s.sl >= 4) return false; let n = 0; while (s.ap > 0 && s.sl < 4 && tryAct(s, 'proj_sl4', {}, G, 'polFirst: implement SL4 before the next policy')) n++; return n > 0; }
 // ctrlLate (the true hawk): keep imposing the four export controls after Phase 0 in priority order, and drop one once the President rejects it.
+const rank = (G, p) => { const i = first(G).indexOf(p); return i >= 0 ? i - 10 : -G['pol.' + p]; };
 const CTRL = ['chips', 'remote', 'distill', 'smuggle'], REJ = new WeakMap(), rejOf = s => REJ.get(s) || REJ.set(s, new Set()).get(s);
 function ctrlNow(s, G) {
-  const id = CTRL.filter(p => G['pol.' + p] >= 0 && !s.policies[p] && !rejOf(s).has(p) && !(GATE[p] && gated(s, G, p) !== false)).sort((a, b) => G['pol.' + b] - G['pol.' + a])[0];
+  const id = CTRL.filter(p => G['pol.' + p] >= 0 && !s.policies[p] && !rejOf(s).has(p) && !(GATE[p] && gated(s, G, p) !== false)).sort((a, b) => rank(G, a) - rank(G, b))[0];
   if (!id || !tryAct(s, id, {}, G, 'true hawk: an export control is still missing')) return false;
   if (!s.policies[id]) rejOf(s).add(id); return true;
 }
@@ -277,8 +282,9 @@ function turn(s, G) {
     const saving = v0.ic.mid < G.saveIc;
     if (v0.ic.mid < G.speechIc && v0.briefOdds < 0.5 && tryAct(s, 'speech', {}, G, 'IC says RSI within ' + G.speechIc.toFixed(1) + ' months and the meeting is not yet winnable')) step();
     if (G.leverEarly && leverNow(s, G)) step();
-    const pols = POL0.filter(p => G['pol.' + p] >= 0).sort((a, b) => G['pol.' + b] - G['pol.' + a]);
-    for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (G.ctrlLate && rejOf(s).has(id)) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { if (G.ctrlLate && CTRL.includes(id) && !s.policies[id]) rejOf(s).add(id); step(); if (s.phase !== 'p0' || s.roomUsed >= E.roomMax(s)) break; } }
+    const pols = polOrder(G);
+    if (slFirst(s, G)) step();
+    for (const id of pols) { if (saving && s.pc - E.actionCost(s, id, {}).pc < G.saveReserve) break; if (GATE[id] && gated(s, G, id) !== false) continue; if (first(G).includes(id) && s.sl < 4 && s.policies.sl4 && first(G).indexOf(id) > first(G).indexOf('sl4') && first(G).includes('sl4')) { slFirst(s, G); if (s.sl < 4) break; } if (G.ctrlLate && rejOf(s).has(id)) continue; if (tryAct(s, id, {}, G, 'highest-priority Phase 0 policy still open (order: ' + pols.join(' > ') + ')')) { if (G.ctrlLate && CTRL.includes(id) && !s.policies[id]) rejOf(s).add(id); step(); if (s.phase !== 'p0' || s.roomUsed >= E.roomMax(s)) break; } }
     if (s.phase !== 'p0') return;
     const v1 = E.quickView(s);
     const wantBrief = (v1.rObs > G.briefR && v1.briefOdds > G.briefOdds) || (v1.ic.mid < G.briefIc && v1.briefOdds > G.briefIcOdds);
