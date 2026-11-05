@@ -242,7 +242,8 @@ const TUNE = {
   theftLeadMax: 1.6,
   theftRsi: 1.5, // with no deal, theft attempts rise smoothly by a further x(1 + theftRsi * x^4), x the share of the way to the RSI threshold: +2% at 30%, +36% at 70%, x2.5 at it
   stealDeal: 0.6, // Beijing's reluctance to deal while it could steal a US lead: x the theft success odds at this SL, x its cyber strength (cap 2), x the lead up to 3 months
-  slCost: 1, // SL4 and SL5 costs over their old values (drag, capital, labs, industry, actions); 0 is the old ladder
+  slCost: 1, // SL4 and SL5 costs over their old values (drag, capital, labs, industry); 0 is the old ladder
+  sl4Need: 1, // actions to implement an ordered SL4
   resolveDeadline: 0.1,
   warResolve: 2,
   reassureBold: 2,
@@ -314,7 +315,7 @@ const PROJECTS = [
   { id: 'control', name: 'AI control protocols with the labs', need: 2, desc: 'Trusted monitoring, restricted permissions, control evaluations that gate scaling.', done: 'Runaway risk at careful or covered labs falls a lot; automation limits are easier to sign. Monitoring overhead slows US labs a little.' },
   { id: 'cyberdef', name: 'Defenders first: early model access for critical infrastructure', need: 1, pc: 1, desc: 'The labs give CISA, the utilities, the banks and Cyber Command each new model weeks before release, so defenders patch what attackers will find. Worth more as open models get stronger.', done: 'AI-enabled cyberattacks come less than half as often, and when one lands, markets -1 instead of -4 and you gain credibility instead of losing it. Labs +4.', fx(s) { s.policies.cyberdef = true; s.labs.forEach(l => l.rel += 4); } },
   { id: 'synth', name: 'DNA synthesis screening and bio evals', need: 1, pc: 1, desc: 'Every DNA synthesis order screened against dangerous sequences, benchtop synthesizers registered, and bio-uplift evals required before a model ships. Cheap now; nobody wants to pass it the week after an attack.', done: 'Bio near-misses come much less often, and when one comes, screening catches it: credibility instead of panic. Industry -2.', fx(s) { s.policies.synth = true; industry(s, -2); } },
-  { id: 'sl4', name: 'Implement SL4 at the labs', get need() { return 1 + Math.round(TUNE.slCost); }, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: most theft attempts that would have walked out with the weights now fail. The overhead slows US labs noticeably.', fx(s) { setSL(s, 4); } },
+  { id: 'sl4', name: 'Implement SL4 at the labs', get need() { return TUNE.sl4Need; }, desc: 'Audits, insider-threat programs and hardened networks, so the executive order is real at every frontier lab. Requires the SL4 executive order.', done: 'Security SL4: most theft attempts that would have walked out with the weights now fail. The overhead slows US labs noticeably.', fx(s) { setSL(s, 4); } },
   { id: 'sl5', name: 'Raise the labs to SL5', need: 3, get pc() { return Math.round(2 * TUNE.slCost); }, desc: 'Hardware-enforced access, air-gapped research networks, two-person integrity. Built to stop a nation-state, and a slog: months of rebuilding networks, vetting staff and fighting the labs over every air gap. Requires SL4 in place first. Worth the most when Beijing\u2019s hackers push hard.', done: 'Security SL5: a theft attempt now rarely succeeds, even a nation-state\u2019s. Air gaps and vetting slow US labs badly at first, easing over a year as the labs adapt. Labs -28, industry -16, markets -6.', fx(s) { setSL(s, 5); s.flags.sl5Since = s.t; s.labs.forEach(l => l.rel -= 20 + 8 * TUNE.slCost); industry(s, -12 - 4 * TUNE.slCost); s.markets -= 6; } },
 ];
 
@@ -1101,7 +1102,7 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
   avail(s) { return s.sl >= 4 ? 'Already at SL' + s.sl : true; },
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3. Worth the most when Beijing\u2019s hackers push hard (the Beijing tab).',
-  effect: () => 'Orders SL4. It takes effect after 2 more actions implementing it: then most theft attempts fail instead of most succeeding, and the overhead slows US labs noticeably. Labs -12, industry -4.',
+  effect: () => 'Orders SL4. It takes effect after ' + TUNE.sl4Need + ' more action' + (TUNE.sl4Need > 1 ? 's' : '') + ' implementing it: then most theft attempts fail instead of most succeeding, and the overhead slows US labs noticeably. Labs -12, industry -4.',
   apply(s) { s.labs.forEach(l => l.rel -= 8 + 4 * TUNE.slCost); industry(s, -2 - 2 * TUNE.slCost); return 'The order is signed. The labs complain about cost; implementation starts.'; },
 });
 def({ id: 'probe', cat: 'politics', name: 'Ask a friendly chair for an investigation', phases: ['p0', 'scramble', 'p1'], ap: 0, pc: 1,
@@ -1698,7 +1699,7 @@ const CHIPS = {
   proj_zk: () => ['+New verification tech', '~Not trusted until Phase 2'],
   proj_legal: () => ['+Better odds in court', '+Makes a DPA threat credible'],
   proj_control: () => ['+Lowers the chance of losing control', '-Slows US labs a little'],
-  proj_sl4: () => ['+Weights harder to steal', '-Slows US labs', '-Takes 2 actions'],
+  proj_sl4: () => ['+Weights harder to steal', '-Slows US labs', '-Takes ' + TUNE.sl4Need + ' action' + (TUNE.sl4Need > 1 ? 's' : '')],
   proj_sl5: () => ['+Weights much harder to steal', '-Slows US labs a lot', '-Costs capital', '-Labs and industry angry', '-Markets dip', '-Takes 3 actions'],
   meet: (s, prm) => ['+Relationship up', '+Warms them to pacing a little', '-Rivals a little jealous'].concat(prm.who && meetMult(s, prm.who) < 1 ? ['-Does less: you met recently'] : []),
   favor: s => ['+Relationship up a lot', '+Their influence grows', '-Rivals annoyed'].concat(recentFavors(s) ? ['-Credibility: another favor so soon'] : []),
