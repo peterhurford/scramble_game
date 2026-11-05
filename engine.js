@@ -204,6 +204,9 @@ const TUNE = {
   ctrlHeat: 0.5,
   ctrlMkt: 1,
   ctrlHawk: 3,
+  ctrlLabs: 2, // each export control: labs + this
+  ctrlUsDrag: 0, // 1 restores the old US slowdown from distill (1.5%), remote (2%) and chips (3%)
+  ctrlWho: 1, // chips costs Commerce -8 (0: Treasury -8); remote costs State -5 (0: nothing)
   cnCompW: 0.4,
   secretRate: 0.5,
   usCatch: 0.1,
@@ -452,10 +455,10 @@ function usDrag(s) {
   const parts = [];
   if (SL[s.sl].drag) parts.push(['SL' + s.sl + ' security overhead', slDrag(s)]);
   if (s.done.control) parts.push(['AI control protocols', 0.05]);
-  if (s.policies.distill) parts.push(['API know-your-customer friction', 0.015]);
+  if (s.policies.distill && TUNE.ctrlUsDrag) parts.push(['API know-your-customer friction', 0.015 * TUNE.ctrlUsDrag]);
   if (s.policies.methods) parts.push(['Research secrecy and visa screening', 0.015]);
-  if (s.policies.remote) parts.push(['Lost foreign cloud revenue', 0.02]);
-  if (s.policies.chips) parts.push(['Chip export revenue and supply friction', 0.03]);
+  if (s.policies.remote && TUNE.ctrlUsDrag) parts.push(['Lost foreign cloud revenue', 0.02 * TUNE.ctrlUsDrag]);
+  if (s.policies.chips && TUNE.ctrlUsDrag) parts.push(['Chip export revenue and supply friction', 0.03 * TUNE.ctrlUsDrag]);
   if (s.flags.minerals && s.flags.minerals.until >= s.turn) parts.push(['Beijing\u2019s mineral export curbs', s.flags.minerals.d]);
   if (s.flags.strait && s.flags.strait >= s.turn) parts.push(['Taiwan Strait disruption', 0.12]);
   if (s.flags.cables && s.flags.cables >= s.turn) parts.push(['Cut undersea cables to Taiwan', 0.05]);
@@ -1069,15 +1072,15 @@ def({ id: 'assess', cat: 'intel', name: 'Commission an IC assessment', phases: [
 def({ id: 'distill', cat: 'policy', name: 'Anti-distillation crackdown', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.5, industry: 0.6, commerce: 0.5 },
   desc: 'KYC for frontier APIs, a cutoff for resellers, lawsuits against account farms, detection shared across labs.',
-  effect: s => 'The US-model outputs China harvests nearly dry up over three months. A little harvested data goes a long way, so China keeps most of its distillation boost. Worth the most early: much of its value is a one-time boost already baked into where China stands. Customer friction slows US labs a touch.' + ctrlGainText(),
+  effect: s => 'The US-model outputs China harvests nearly dry up over three months. A little harvested data goes a long way, so China keeps most of its distillation boost. Worth the most early: much of its value is a one-time boost already baked into where China stands.' + ctrlGainText(),
   apply(s) { ctrlGain(s); s.cn.distT = Math.min(s.cn.distT, 0.68 * cnBase(s).dist); s.tension += 5 * TUNE.ctrlHeat; shiftCN(s, { sec: 3 * TUNE.ctrlHeat, m: -3 * TUNE.ctrlHeat }); return 'Commerce and the labs announce the crackdown together, including a cutoff for resellers. Three Chinese labs lose 24,000 accounts overnight.'; },
 });
 def({ id: 'remote', cat: 'policy', name: 'Close the remote-access loophole', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.8, markets: -0.4, allies: -0.5, commerce: 1 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
   desc: 'Chinese firms train their largest runs on data centers abroad, above all in Johor, Malaysia. Close the cloud loophole.',
-  effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +' + Math.round(8 * TUNE.ctrlHeat) + '. US clouds lose foreign revenue: US labs a touch slower.' + ctrlGainText(),
-  apply(s) { ctrlGain(s); s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8 * TUNE.ctrlHeat; shiftCN(s, { sec: 4 * TUNE.ctrlHeat, m: -2 * TUNE.ctrlHeat }); s.coalition -= 3; return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
+  effect: () => 'China loses most of its offshore training compute over two months; how much that is depends on how much it has. Beijing temperature +' + Math.round(8 * TUNE.ctrlHeat) + '. The Secretary of State worries about Malaysia and the Gulf' + (TUNE.ctrlWho ? ' (-5)' : '') + '.' + ctrlGainText(),
+  apply(s) { ctrlGain(s); s.cn.remoteT = Math.min(s.cn.remoteT, 0.15); s.tension += 8 * TUNE.ctrlHeat; shiftCN(s, { sec: 4 * TUNE.ctrlHeat, m: -2 * TUNE.ctrlHeat }); s.coalition -= 3; if (TUNE.ctrlWho) rel(s, 'sec', -5); return 'Commerce issues the rule. Beijing calls it “technological hegemony.”'; },
 });
 def({ id: 'methods', cat: 'policy', name: 'Stop the leak of US methods', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true, once: true,
   tags: { hawk: 1.2, industry: -0.8, control: 0.4 },
@@ -1095,8 +1098,8 @@ def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', pha
   tags: { hawk: 1.6, markets: -1.2, industry: -0.6, deal: -0.8, allies: -0.4 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
   desc: 'Pull the licenses for chips sold legally to Chinese firms, close the smuggled-HBM channel, and get the Dutch and Japanese to stop servicing chipmaking tools in China. The big, expensive lever, and nearly all of it comes from the legal chips.',
-  effect: s => 'China loses its legal chips now, a real cut to its compute; HBM curbs trim its domestic output a little more over a year (the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets ' + (TUNE.ctrlMkt >= 3 ? '+' : '') + (TUNE.ctrlMkt - 3) + ', Beijing temperature +' + Math.round(12 * TUNE.ctrlHeat) + ', Treasury unhappy. US labs a touch slower, and Beijing may answer with mineral export curbs that slow them much more.' + ctrlGainText(true),
-  apply(s) { ctrlGain(s); const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12 * TUNE.ctrlHeat; shiftCN(s, { m: -5 * TUNE.ctrlHeat, sec: 7 * TUNE.ctrlHeat }); rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
+  effect: s => 'China loses its legal chips now, a real cut to its compute; HBM curbs trim its domestic output a little more over a year (the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets ' + (TUNE.ctrlMkt >= 3 ? '+' : '') + (TUNE.ctrlMkt - 3) + ', Beijing temperature +' + Math.round(12 * TUNE.ctrlHeat) + ', ' + (TUNE.ctrlWho ? 'Commerce' : 'Treasury') + ' unhappy (-8). Beijing may answer with mineral export curbs that slow US labs.' + ctrlGainText(true),
+  apply(s) { ctrlGain(s); const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12 * TUNE.ctrlHeat; shiftCN(s, { m: -5 * TUNE.ctrlHeat, sec: 7 * TUNE.ctrlHeat }); rel(s, TUNE.ctrlWho ? 'doc' : 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
 });
 def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, get pc() { return 2 + Math.round(TUNE.slCost); }, room: true, once: true,
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
@@ -1228,8 +1231,8 @@ const SEQ = {
 };
 const HAWKS = ['vp', 'sec', 'war', 'doc'];
 // Each export control reassures markets a little (TUNE.ctrlMkt) and wins standing with the hawks (TUNE.ctrlHawk), which feeds capital through allies.
-function ctrlGain(s) { s.markets += TUNE.ctrlMkt; HAWKS.forEach(id => rel(s, id, TUNE.ctrlHawk)); }
-const ctrlGainText = noMkt => (noMkt ? '' : ' Markets +' + TUNE.ctrlMkt + ';') + ' Hawks +' + TUNE.ctrlHawk + '.';
+function ctrlGain(s) { s.markets += TUNE.ctrlMkt; HAWKS.forEach(id => rel(s, id, TUNE.ctrlHawk)); s.labs.forEach(l => l.rel += TUNE.ctrlLabs); }
+const ctrlGainText = noMkt => (noMkt ? '' : ' Markets +' + TUNE.ctrlMkt + ';') + ' Hawks +' + TUNE.ctrlHawk + (TUNE.ctrlLabs ? '; labs +' + TUNE.ctrlLabs : '') + '.';
 def({ id: 'sequence', cat: 'crisis', name: 'Go first, or wait for Beijing?', phases: ['scramble'], ap: 1, pc: 1, room: true,
   params: { kind: 'variant', options: () => Object.keys(SEQ).map(k => ({ id: k, label: SEQ[k].label, desc: SEQ[k].desc })) },
   tags: (s, prm) => SEQ[prm.variant || 'first'].tags,
@@ -1708,10 +1711,10 @@ const CHIPS = {
   labmeet: () => ['+Relationship with the lab up'],
   assess: () => ['+Sharper readings for a while'],
   methods: () => ['+Slows China, building over a year', '-Slows US labs slightly', '-Labs grumble', '~Beijing mildly annoyed'],
-  distill: () => ['+Cuts China’s distillation boost by about a third', '-Slows US labs slightly', '-Beijing annoyed'],
-  remote: () => ['+Cuts China’s compute', '-Slows US labs slightly', '-Beijing angry'],
-  smuggle: () => ['+Trims China’s compute', '~Beijing mildly annoyed'],
-  chips: () => ['+Cuts China’s compute, mostly over a year', '-Slows US labs a little', '-Markets dip', '-Beijing very angry', '-Risk of retaliation'],
+  distill: () => ['+Cuts China’s distillation boost by about a third', '+Labs pleased', '-Beijing annoyed'],
+  remote: () => ['+Cuts China’s compute', '+Labs pleased', '-State uneasy', '-Beijing angry'],
+  smuggle: () => ['+Trims China’s compute', '+Labs pleased', '~Beijing mildly annoyed'],
+  chips: () => ['+Cuts China’s compute, mostly over a year', '+Labs pleased', '-Commerce unhappy', '-Markets dip', '-Beijing very angry', '-Risk of retaliation'],
   sl4: () => ['+Weights harder to steal', '-Slows US labs', '-Labs unhappy'],
   speech: () => ['+Raises salience a lot', '-Markets dip slightly'],
   accelerate: () => ['+US labs faster', '-Reach the RSI threshold sooner', '-Alienates China’s scientists'],
