@@ -244,6 +244,7 @@ const TUNE = {
   theftLeadBase: 0.5,
   theftLeadMax: 1.6,
   theftRsi: 1.5, // with no deal, theft attempts rise smoothly by a further x(1 + theftRsi * x^4), x the share of the way to the RSI threshold: +2% at 30%, +36% at 70%, x2.5 at it
+  theftPreScr: 0.8, // theft attempts x this until the first scramble starts; 1 is off
   stealDeal: 0.6, // Beijing's reluctance to deal while it could steal a US lead: x the theft success odds at this SL, x its cyber strength (cap 2), x the lead up to 3 months
   slCost: 1, // SL4 and SL5 costs over their old values (drag, capital, labs, industry); 0 is the old ladder
   sl4Need: 1, // actions to implement an ordered SL4
@@ -686,7 +687,7 @@ function theftRisk(s, pub) {
   // with no deal, TUNE.theftRsi: the last chance to take the model before RSI runs away
   const x = clamp(F / T, 0, 1.2), rsi = 1 + TUNE.theftRsi * Math.pow(Math.min(x, 1), 4), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : (0.5 + 1.5 * x * x) * rsi;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
-  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (TUNE.theftLeadSlope ? clamp(TUNE.theftLeadBase + TUNE.theftLeadSlope * lead(s), TUNE.theftLeadBase, TUNE.theftLeadMax) : lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * emboldened(s);
+  const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (TUNE.theftLeadSlope ? clamp(TUNE.theftLeadBase + TUNE.theftLeadSlope * lead(s), TUNE.theftLeadBase, TUNE.theftLeadMax) : lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * emboldened(s) * (s.stats.firstScramble == null ? TUNE.theftPreScr : 1);
   const success = SL[s.sl].theft;
   return { attempt, success, net: attempt * success };
 }
