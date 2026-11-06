@@ -206,7 +206,8 @@ const TUNE = {
   ctrlHawk: 3,
   ctrlLabs: 2, // each export control: labs + this
   ctrlUsDrag: 0, // 1 restores the old US slowdown from distill (1.5%), remote (2%) and chips (3%)
-  ctrlWho: 1, // chips costs Commerce -8 (0: Treasury -8); remote costs State -5 (0: nothing)
+  ctrlWho: 1, // chips costs Commerce -ctrlDoc (0: Treasury -8); remote costs State -5 (0: nothing)
+  ctrlDoc: 4, // Commerce's cost for chips under ctrlWho 1
   cnCompW: 0.4,
   secretRate: 0.5,
   usCatch: 0.1,
@@ -1099,8 +1100,8 @@ def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', pha
   tags: { hawk: 1.6, markets: -1.2, industry: -0.6, deal: -0.8, allies: -0.4 },
   avail(s) { return s.flags.summitHold >= s.turn ? 'Treasury hold until the trade summit' : true; },
   desc: 'Pull the licenses for chips sold legally to Chinese firms, close the smuggled-HBM channel, and get the Dutch and Japanese to stop servicing chipmaking tools in China. The big, expensive lever, and nearly all of it comes from the legal chips.',
-  effect: s => 'China loses its legal chips now, a real cut to its compute; HBM curbs trim its domestic output a little more over a year (the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets ' + (TUNE.ctrlMkt >= 3 ? '+' : '') + (TUNE.ctrlMkt - 3) + ', Beijing temperature +' + Math.round(12 * TUNE.ctrlHeat) + ', ' + (TUNE.ctrlWho ? 'Commerce' : 'Treasury') + ' unhappy (-8). Beijing may answer with mineral export curbs that slow US labs.' + ctrlGainText(true),
-  apply(s) { ctrlGain(s); const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12 * TUNE.ctrlHeat; shiftCN(s, { m: -5 * TUNE.ctrlHeat, sec: 7 * TUNE.ctrlHeat }); rel(s, TUNE.ctrlWho ? 'doc' : 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
+  effect: s => 'China loses its legal chips now, a real cut to its compute; HBM curbs trim its domestic output a little more over a year (the servicing ban bites only years out) (fully only with coalition 45+, now ' + Math.round(s.coalition) + '). Markets ' + (TUNE.ctrlMkt >= 3 ? '+' : '') + (TUNE.ctrlMkt - 3) + ', Beijing temperature +' + Math.round(12 * TUNE.ctrlHeat) + ', ' + (TUNE.ctrlWho ? 'Commerce' : 'Treasury') + ' unhappy (-' + (TUNE.ctrlWho ? TUNE.ctrlDoc : 8) + '). Beijing may answer with mineral export curbs that slow US labs.' + ctrlGainText(true),
+  apply(s) { ctrlGain(s); const full = s.coalition >= 45; s.cn.legalT = 0; s.cn.smeT = full ? 0.2 : 0.6; s.markets -= 3; s.tension += 12 * TUNE.ctrlHeat; shiftCN(s, { m: -5 * TUNE.ctrlHeat, sec: 7 * TUNE.ctrlHeat }); if (TUNE.ctrlWho) rel(s, 'doc', -TUNE.ctrlDoc); else rel(s, 'tsy', -8); s.coalition -= full ? 2 : 6; return (full ? 'The Hague and Tokyo sign on. ' : 'The Dutch agree; Tokyo stalls, so the tool cutoff is partial. ') + 'Verdant Semiconductor\u2019s stock falls 7%.'; },
 });
 def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontier labs', phases: ['p0', 'scramble', 'p1'], ap: 1, get pc() { return 2 + Math.round(TUNE.slCost); }, room: true, once: true,
   tags: { control: 1, industry: -0.8, hawk: 0.8 },
