@@ -144,8 +144,8 @@ function renderTitle() {
   closeModal();
   const diffs = Object.keys(E.DIFFS).map(k => `<button class="opt ${k === 'advisor' ? 'on' : ''}" data-diff="${k}"><b>${E.DIFFS[k].label}</b><small>${E.DIFFS[k].desc}</small></button>`).join('');
   app.innerHTML = `<div class="title"><div class="tcard">
-    <div class="thero"><div class="eb">A game about pacing the frontier · Oct 2026 – Dec 2028</div><h1>The Scramble</h1>
-    <div class="tgrid"><p>You are the White House AI Czar. Recursive self-improvement may be a year away. When the moment comes it will look like the Cuban Missile Crisis, not a treaty negotiation. Get in position, win the room, pace the frontier, and bring Beijing in before it’s too late.</p>
+    <div class="thero"><h1>The Scramble</h1>
+    <div class="tgrid"><p>You are the White House AI Czar. Recursive self-improvement may be a year away. Get in position, win the room, pace the frontier, and bring Beijing in before it’s too late.</p>
     <ol class="steps">
       <li><span><b>Phase 0.</b> Prepare, win allies in the cabinet, read the indicators.</span></li>
       <li><span><b>The scramble.</b> Fourteen days to decide how America paces.</span></li>
@@ -154,7 +154,6 @@ function renderTitle() {
     <div class="tbody">
       <div><div class="lbl">Difficulty</div><div class="diffs">${diffs}</div></div>
       <div class="row"><button class="btn" id="newgame">New game</button>${saved && !saved.ending ? `<button class="ghost" id="cont">Continue · ${esc(E.dateLabel(saved.t))}</button>` : ''}<button class="ghost" id="howto">How to play</button></div>
-      <div class="sub">Fictional people and companies; real places and mechanisms. Numbers follow the AIPI pacing concept note and “The Scramble” (The Power Law). Every probability is a game estimate.</div>
     </div></div></div>`;
   let diff = 'advisor';
   app.querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diff = b.dataset.diff; app.querySelectorAll('[data-diff]').forEach(x => x.classList.toggle('on', x === b)); });

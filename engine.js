@@ -1813,7 +1813,6 @@ function nth(s, id, arr) { return arr[evN(s, id) % arr.length]; }
 
 ev({ id: 'intro', forced: true, title: 'Phase 0', stamp: 'EEOB, Room 374',
   body: s => `<p>Your indicator model puts the median date for recursive self-improvement, when AI can replace expert humans across all of AI research, at about a year from now. There is a real chance it comes sooner. Fewer than a hundred people in the world work full time on verifying what frontier labs do.</p>
-  <p>When the President finally decides to pace the frontier, it will feel like the Cuban Missile Crisis, not the NPT: two weeks, fifteen people, incomplete information. Whatever exists on that day is what the President gets to use.</p>
   <p>Your job now is to get in position. Build projects, cultivate the cabinet, push the policies you can win, and watch the indicators. When the time comes, you can ask for an emergency meeting. Ask too early and you are the advisor who cried wolf. Ask too late and there may be nothing left to pace.</p>`,
   choices: [{ label: 'Get to work', fx: s => '' }] });
 
