@@ -400,7 +400,7 @@ const fold = k => ui.fold && ui.fold[k] ? 'open' : '';
 // What a lab wants and what it just did (TUNE.labAI): the CEO's worry, its lean on pacing, any notice it has given, its latest move.
 function labAgenda(v, ld) {
   const a = v.labAI && v.labAI.find(x => x.id === ld.id); if (!a) return '';
-  const lean = a.pro > 0.6 ? 'wants pacing' : a.pro > 0.2 ? 'leans toward pacing' : a.pro > -0.2 ? 'on the fence' : a.pro > -0.6 ? 'leans against pacing' : 'fights pacing';
+  const lean = a.pro < -0.2 && a.conv > 0 ? 'wants pacing, not from you' : a.pro > 0.6 ? 'wants pacing' : a.pro > 0.2 ? 'leans toward pacing' : a.pro > -0.2 ? 'on the fence' : a.pro > -0.6 ? 'leans against pacing' : 'fights pacing';
   return `<div class="sub" style="margin:-2px 0 6px" title="A CEO grows more worried as the lab’s own models near the threshold, and after scares at the lab. Worry, goodwill and how much the lab prizes room to build set its lean; each lab makes one move a month from it.">${esc(ld.ceo)} is ${a.fear} · ${lean}${a.hold ? ' · holding its largest run' : ''}${a.notice != null ? ' · <b style="color:var(--bad)">leaves the Charter in ' + Math.max(0, a.notice) + ' mo</b>' : ''}${a.terms.length ? ' · holds: ' + esc(a.terms.join('; ')) : ''}${a.move ? '<br>' + esc(a.move) : ''}</div>`;
 }
 function labPanel(v) {

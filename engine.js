@@ -250,6 +250,7 @@ const TUNE = {
   labGood: 40, // goodwill that moves a lab's lean on pacing by 1 (its conviction is worth about 1 for Mindscale against, 0.5-1.4 for Prometheus with fear)
   labFade: 0.08, // share of positive goodwill a lab forgets each month: favours have to be kept up
   labMeetFade: 0.6, // each meeting with the same CEO in the last 6 months scales the next one's goodwill by this
+  labSpurn: 1, // credibility (or IC quality) a lab that wants pacing but distrusts you takes from you with each public swipe (or withheld eval)
   labStay: 20, // goodwill a lab must gain during its notice to stay with its complaint unanswered (a granted term gives 12)
   meetDecay: 0.6,
   favorCred: 2,
@@ -1385,7 +1386,9 @@ function labFear(s, l) { const d = LD(l.id), prox = clamp((l.cap / labT(s, l) - 
 function fearWord(f) { return f < 25 ? 'unworried' : f < 45 ? 'uneasy' : f < 65 ? 'worried' : f < 85 ? 'frightened' : 'alarmed'; }
 function scare(s, id, d) { if (!TUNE.labAI) return; const l = L(s, id); l.scare = clamp((l.scare || 0) + d, 0, 40); }
 // Where a lab stands on pacing, about -1 (fights it) to +1 (wants it): fear by how much it weighs safety, goodwill, against how much it weighs room to build.
-function labPro(s, l) { const w = LD(l.id).w; return w.safe * labFear(s, l) / 50 + l.rel / TUNE.labGood - w.free; }
+// conviction: what the lab thinks of pacing itself; lean adds what it thinks of you
+function labConv(s, l) { const w = LD(l.id).w; return w.safe * labFear(s, l) / 50 - w.free; }
+function labPro(s, l) { return labConv(s, l) + l.rel / TUNE.labGood; }
 // Terms a lab would trade for: its own list, less what it already holds.
 function labTerms(s, labId) { const l = L(s, labId); return LD(labId).terms.filter(t => !(l.terms && l.terms[t.id])); }
 function termList(labId, withDeal) { const ts = LD(labId).terms; return withDeal === true ? [ts[0]] : Array.isArray(withDeal) ? ts.filter(t => withDeal.indexOf(t.id) >= 0) : []; }
@@ -1413,12 +1416,12 @@ const LAB_COURT = { anti: ['doc', 'war', 'vp', 'tsy', 'cos'], pro: ['dni', 'cos'
 function labNote(s, l, text, tone) { l.move = { text, turn: s.turn }; log(s, text, tone); }
 function labTurn(s) {
   s.labs.forEach(l => {
-    const d = LD(l.id), pro = labPro(s, l), fear = labFear(s, l), cd = (k, n) => !(l.cd && l.cd[k] > s.turn - n), mark = k => { (l.cd = l.cd || {})[k] = s.turn; };
+    const d = LD(l.id), pro = labPro(s, l), conv = labConv(s, l), fear = labFear(s, l), cd = (k, n) => !(l.cd && l.cd[k] > s.turn - n), mark = k => { (l.cd = l.cd || {})[k] = s.turn; };
     if (l.scare) l.scare *= 0.93;
     if (l.rel > 0) l.rel -= TUNE.labFade * l.rel;
     if (l.hold && (fear < 65 || covered(s, l))) l.hold = false;
     // a lab that fights pacing: front-run the pause, then the Hill, then the cabinet
-    if (pro < -0.2) {
+    if (pro < -0.2 && conv <= 0) {
       if (s.phase === 'p0' && !l.sprinted && s.alarm >= 70 && l.rel < 30) { l.sprinted = true; l.cap += TUNE.labSprint; return labNote(s, l, d.name + ' pulls its next training run forward: it wants the model finished before anyone can stop it.', 'bad'); }
       if (s.phase === 'p0' && s.senateLobby > 3 && !l.truce && cd('hill', 2)) { mark('hill'); s.senateLobby -= TUNE.labHill * Math.min(1, -pro); return labNote(s, l, d.name + '\u2019s lobbyists work the offices you just left.', 'bad'); }
       if ((s.phase === 'p0' ? s.alarm > 30 : paced(s)) && cd('court', 3)) {
@@ -1426,10 +1429,17 @@ function labTurn(s) {
         if (p) { mark('court'); p.shift -= TUNE.labCourt * Math.min(1, -pro); return labNote(s, l, d.ceo + ' has dinner with ' + PD(s, p.id).name + ', who comes away cooler on pacing.', 'bad'); }
       }
     }
-    // a lab that wants pacing: hold its own run, warn in public, brief the cabinet
-    if (pro > 0.2) {
+    // a lab that wants pacing holds its own run and warns in public whatever it thinks of you
+    if (conv > 0.2) {
       if (!paced(s) && !l.hold && fear >= 80 && cd('hold', 6)) { mark('hold'); l.hold = true; s.salience += 3; s.labs.forEach(x => { if (x !== l) scare(s, x.id, 5); }); return labNote(s, l, d.name + ' stops its largest run on its own and dares its rival to match it.', 'good'); }
       if (fear >= 60 && cd('warn', 5)) { mark('warn'); s.salience += TUNE.labWarn; if (s.phase === 'p0') s.alarm += 4; return labNote(s, l, d.ceo + ' goes public: \u201cWe are months from systems none of us can supervise.\u201d', 'good'); }
+    }
+    // it briefs the cabinet only if it trusts you; if it does not, it backs pacing and fights the administration
+    if (pro < -0.2 && conv > 0) {
+      if (cd('admin', 6)) { mark('admin'); s.cred -= TUNE.labSpurn; s.salience += 2; return labNote(s, l, d.ceo + ' tells a Senate panel the lab backs pacing, just not this White House\u2019s version of it.', 'bad'); }
+      if (cd('evals', 8)) { mark('evals'); s.intelQ = Math.max(0, s.intelQ - TUNE.labSpurn); return labNote(s, l, d.name + ' stops sending its evals to the IC before release.', 'bad'); }
+    }
+    if (pro > 0.2) {
       if ((s.phase === 'p0' ? s.alarm > 30 : paced(s)) && cd('court', 3)) {
         const p = LAB_COURT.pro.map(id => P(s, id)).filter(p => p.shift < 1).sort((a, b) => b.infl - a.infl)[0];
         if (p) { mark('court'); p.shift += TUNE.labCourt * Math.min(1, pro); return labNote(s, l, d.ceo + ' briefs ' + PD(s, p.id).name + ' on what its models can now do. It lands.', 'good'); }
@@ -3210,7 +3220,7 @@ function view(s) {
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
     rObs: rObserved(s), pauseMood: pauseMood(s), inZone, strait: straitEstimate(s), open: s.open, // public weights: benchmarked by anyone, so seen exactly
     misuse: { cyber: cyberP(s), bio: bioP(s), agents: s.agents || 0 },
-    labAI: TUNE.labAI ? s.labs.map(l => ({ id: l.id, fear: fearWord(labFear(s, l)), pro: labPro(s, l), move: l.move && l.move.turn >= s.turn - 2 ? l.move.text : '', notice: l.notice ? l.notice.due - s.turn : null, hold: !!l.hold, terms: LD(l.id).terms.filter(t => l.terms && l.terms[t.id]).map(t => t.name) })) : null,
+    labAI: TUNE.labAI ? s.labs.map(l => ({ id: l.id, fear: fearWord(labFear(s, l)), pro: labPro(s, l), conv: labConv(s, l), move: l.move && l.move.turn >= s.turn - 2 ? l.move.text : '', notice: l.notice ? l.notice.due - s.turn : null, hold: !!l.hold, terms: LD(l.id).terms.filter(t => l.terms && l.terms[t.id]).map(t => t.name) })) : null,
   };
 }
 
