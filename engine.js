@@ -229,6 +229,8 @@ const TUNE = {
   launchBacking: 1,
   supportGrace: 1,
   aloneFloor: 4,
+  keepAsk: 1,
+  keepCost: { trust: 8, tension: 5, holdTrust: 6, holdWar: 6, again: 1.5 },
   chipLever: 0.55,
   reliefLever: 0.25,
   appealSwing: 0.5,
@@ -450,8 +452,9 @@ function frontierLab(s) { let b = s.labs[0]; s.labs.forEach(l => { if (l.cap > b
 function lead(s) { return frontier(s) - s.cn.cap; }
 // The gap as Washington sees it (the IC's estimate): what US politics react to. Beijing knows its own position and acts on lead().
 function seenLead(s) { return leadEstimate(s).mid; }
-// Pacing alone: with no deal and the IC's lead down to TUNE.aloneFloor, paused labs keep pace with the IC's estimate of China instead of stopping.
-function keepGap(s) { return paced(s) && !s.cn.deal && seenLead(s) < TUNE.aloneFloor; }
+// Pacing alone: with no deal and the IC's lead down to TUNE.aloneFloor, paused labs keep pace with the IC's estimate of China instead of stopping,
+// if the player chose that in the keep_pace event (with TUNE.keepAsk 0 they always do, unasked).
+function keepGap(s) { return paced(s) && !s.cn.deal && seenLead(s) < TUNE.aloneFloor && (!TUNE.keepAsk || s.pacing.keep === true); }
 // Growth a threshold leaves paced labs, before automation limits and drag.
 function thGrowth(s) { return { '1e20': 0.06, '1e21': 0.12, '1e22': 0.7 }[s.pacing.threshold] || 0.12; }
 function paced(s) { return !!s.pacing.active; }
@@ -1347,7 +1350,7 @@ function launchPhase1(s) {
   return 'The President signs at 9:40p. Phase 1 begins at midnight. Coverage: ' + coverage(s) + '% of US frontier compute.';
 }
 function activatePacing(s) {
-  s.pacing.active = true; s.pacing.armed = false; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, lead(s)); s.pacing.low = 0; s.pacing.graced = false; s.pacing.grace = null;
+  s.pacing.active = true; s.pacing.armed = false; s.pacing.keep = null; s.pacing.keepAsked = 0; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, lead(s)); s.pacing.low = 0; s.pacing.graced = false; s.pacing.grace = null;
   if (s.pacing.mech === 'charter') s.labs.forEach(l => { if (l.signed && l.signedVoluntary) l.covered = true; }); // a lab that signed while the pause was on standby
   s.labs.forEach(l => { if (l.covered) l.comp = complianceBase(s, l); });
   s.markets -= s.flags.marketPlan ? 4 : 8;
@@ -2386,6 +2389,17 @@ ev({ id: 'wobble', forced: true, title: 'The pause wobbles', stamp: 'Oval Office
     { label: '“Until Phase 2. Here is the plan.”', hint: 'Credibility check: success buys a month.', fx: s => { if (rnd(s) < s.cred / 100) { s.pacing.low = 0; return 'The President nods. “One more month.”'; } s.cred -= 5; return '“That’s what you said last month.”'; } },
     { label: 'Ask for a Presidential address', hint: 'Free speech: salience +12 if it lands.', fx: s => { s.salience += 12; s.pacing.low = Math.max(0, s.pacing.low - 1); return 'The President tells the country why the pause matters.'; } },
   ] });
+const f1 = x => (Math.round(x * 10) / 10).toFixed(1);
+ev({ id: 'keep_pace', forced: true, title: 'Keep pace with China?', stamp: 'Situation Room',
+  body: s => { const e = cnEstimate(s), ld = Math.max(0, seenLead(s)); return s.pacing.keepAsked > 1
+    ? `<p>The DNI is back. China is now about ${f1(ld)} months behind the paused labs and still closing, about ${f1(e.rate)} a month against our ${f1(thGrowth(s))}. \u201cYou held last time. At this rate they pass us in ${Math.max(1, Math.round(ld / Math.max(0.05, e.rate - thGrowth(s))))} months.\u201d The labs\u2019 CEOs are on the phone again.</p>`
+    : `<p>The DNI\u2019s estimate: with no deal, China is about ${f1(ld)} months behind the paused labs and gaining about ${f1(e.rate)} a month, against our ${f1(thGrowth(s))}. The pause is closing the gap for Beijing. The labs\u2019 CEOs want to resume training at China\u2019s pace: enough to hold the lead, not to widen it. The Secretary of War agrees. The pause would stand in name.</p>`; },
+  choices: [
+    { label: 'Let the labs keep pace with China', hint: s => `Paused labs grow at the IC\u2019s estimate of China\u2019s pace while its lead is under ${TUNE.aloneFloor} months, and the frontier keeps nearing the threshold. Beijing trust -${TUNE.keepCost.trust}, tension +${TUNE.keepCost.tension}.`,
+      fx: s => { s.pacing.keep = true; s.cn.trust -= TUNE.keepCost.trust; s.tension += TUNE.keepCost.tension; return 'The labs restart training, metered to the DNI\u2019s estimate of China. Beijing\u2019s state media call the pause a fraud.'; } },
+    { label: 'Hold the pause', hint: s => `The labs stay at the paused rate and China keeps closing; if it passes the frontier the pause breaks. Beijing trust +${TUNE.keepCost.holdTrust}, Secretary of War -${TUNE.keepCost.holdWar}.` + (s.pacing.keepAsked < 2 ? ` Asked again if the lead falls under ${TUNE.keepCost.again} months.` : ''),
+      fx: s => { s.pacing.keep = false; s.cn.trust += TUNE.keepCost.holdTrust; rel(s, 'war', -TUNE.keepCost.holdWar); return 'The orders stand. In Beijing, the science faction circulates the DNI\u2019s leaked line: America is keeping its word.'; } },
+  ] });
 ev({ id: 'one_month', forced: true, title: 'One month', stamp: 'Oval Office',
   body: s => `<p>The President calls you in. \u201cI\u2019m getting killed on this. One month. If it isn\u2019t turned around by ${monthLabel(s.pacing.grace ? s.pacing.grace.t : s.t + 1)}, I\u2019m lifting the orders.\u201d</p>`,
   choices: [{ label: 'Get to work', hint: 'The pause holds one more month. If it is still this weak then, it breaks.', fx: () => 'You clear your calendar.' }] });
@@ -2394,12 +2408,12 @@ ev({ id: 'collapse', forced: true, title: 'The pause breaks', stamp: 'Oval Offic
   choices: [{ label: 'Start over', hint: 'Back to Phase 0. You can try for another scramble.', fx: s => { endPacing(s); return 'You start rebuilding the case.'; } }] });
 // One collapse per tick, and it replaces a pending one-month warning.
 function queueCollapse(s) { s.queue = s.queue.filter(q => q.id !== 'one_month'); if (!s.queue.some(q => q.id === 'collapse')) s.queue.push({ id: 'collapse' }); }
-const P1_FORCED = ['court', 'deadline_up', 'walkout', 'wobble', 'one_month', 'collapse'];
+const P1_FORCED = ['court', 'deadline_up', 'walkout', 'wobble', 'one_month', 'collapse', 'keep_pace'];
 function endPacing(s) {
   s.queue = s.queue.filter(q => P1_FORCED.indexOf(q.id) < 0); // Phase 1 crises queued alongside the collapse no longer apply
   s.pacing.active = false; s.pacing.collapsed++; s.phase = 'p0'; s.alarm = 45; s.cred -= 10;
   s.labs.forEach(l => { l.covered = false; l.defect = false; l.secret = false; });
-  s.pacing.mech = null; s.pacing.threshold = null; s.pacing.automation = null; s.pacing.trigger = null; s.pacing.seq = null; s.pacing.armed = false; s.pacing.deadline = null; s.flags.extended = 0; s.flags.wentFirst = false; s.flags.verifyEnjoined = false;
+  s.pacing.keep = null; s.pacing.keepAsked = 0; s.pacing.mech = null; s.pacing.threshold = null; s.pacing.automation = null; s.pacing.trigger = null; s.pacing.seq = null; s.pacing.armed = false; s.pacing.deadline = null; s.flags.extended = 0; s.flags.wentFirst = false; s.flags.verifyEnjoined = false;
   s.labs.forEach(l => { l.signed = false; l.refused = false; });
   s.apMax = Math.max(DIFFS[s.diff].ap + (s.done.team ? 1 : 0), s.apMax - 1);
   if (s.cn.deal) { s.cn.deal = null; s.tension += 10; log(s, 'The China deal lapses with the pause.', 'bad'); }
@@ -3070,7 +3084,9 @@ function tick(s) {
   if (s.phase === 'p1' && paced(s) && monthly) {
     s.stats.monthsPaced++;
     s.flags.monthsInP1 = (s.flags.monthsInP1 || 0) + 1;
-    if (keepGap(s) && !s.flags.keptGap) { s.flags.keptGap = s.turn; log(s, 'With no deal and the lead down to about ' + Math.round(seenLead(s)) + ' months, the paused labs now keep pace with China instead of stopping.', 'info'); }
+    if (!TUNE.keepAsk) { if (keepGap(s) && !s.flags.keptGap) { s.flags.keptGap = s.turn; log(s, 'With no deal and the lead down to about ' + Math.round(seenLead(s)) + ' months, the paused labs now keep pace with China instead of stopping.', 'info'); } }
+    // Asked once when the IC's lead first falls under the floor with no deal; if the player held, asked again under TUNE.keepCost.again months.
+    else if (!s.cn.deal && s.pacing.keep !== true && !s.queue.some(q => q.id === 'keep_pace') && (s.pacing.keepAsked === 0 ? seenLead(s) < TUNE.aloneFloor : s.pacing.keepAsked === 1 && seenLead(s) < TUNE.keepCost.again)) { s.pacing.keepAsked++; s.queue.push({ id: 'keep_pace' }); }
     const ps = pacingSupport(s);
     if (ps < 25) s.pacing.low++; else s.pacing.low = Math.max(0, s.pacing.low - 1);
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
@@ -3284,6 +3300,7 @@ const API = {
   L,
   LD,
   lead,
+  keepGap,
   frontier,
   covered,
   coverage,
