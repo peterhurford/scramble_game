@@ -247,6 +247,7 @@ const TUNE = {
   labWatch: 0.25, // extra chance a rival's cheating is caught while a compliant signatory is watching it
   labBlind: 0.2, // each lab's own fixed misjudgment of the threshold (log sd): its worry tracks what it believes, so the Labs panel reads the threshold about as well as the IC, not exactly; 0 = labs see the true threshold
   labNotice: 2, // months of notice a lab gives before it walks out of the Charter
+  labStay: 20, // goodwill a lab must gain during its notice to stay with its complaint unanswered (a granted term gives 12)
   meetDecay: 0.6,
   favorCred: 2,
   senateFlip: 7, // Senate votes from the opposition Senate's hearings: one a seat of swing from 51-49 to 56-44
@@ -1436,12 +1437,12 @@ function labTurn(s) {
   if (s.phase === 'p0' && s.t > 4 && labPro(s, m) < 0 && s.senateLobby > 2 && !has('lab_preempt')) { s.queue.push({ id: 'lab_preempt' }); s.seen.lab_preempt = s.turn; }
   else if (s.phase === 'p0' && s.t > 3 && labPro(s, pr) > 0.2 && !has('lab_pilot')) { s.queue.push({ id: 'lab_pilot' }); s.seen.lab_pilot = s.turn; }
   else if (s.phase === 'p0' && s.labs.every(l => labFear(s, l) >= 40) && s.alarm >= 55 && !has('lab_pact') && !has('ceo_call')) { s.queue.push({ id: 'lab_pact' }); s.seen.lab_pact = s.turn; }
-  // notice given: when it runs out the lab stays if you raised its goodwill by 10, or its complaint is gone; otherwise it walks
+  // notice given: when it runs out the lab stays if its goodwill is up by labStay, or its complaint is gone; otherwise it walks
   if (s.pacing.mech === 'charter' && !s.flags.statute) s.labs.forEach(l => {
     if (!l.notice || s.turn < l.notice.due) return;
     const n = l.notice; l.notice = null;
     if (!l.covered || !l.signedVoluntary) return;
-    if (l.rel >= n.rel + 10 || (n.why === 'china' && (s.cn.deal || seenLead(s) >= 3)) || (n.why === 'rival' && s.labs.every(x => x.covered && !x.defect))) return labNote(s, l, LD(l.id).name + ' withdraws its notice and stays in the Charter.', 'good');
+    if (l.rel >= n.rel + TUNE.labStay || (n.why === 'china' && (s.cn.deal || seenLead(s) >= 3)) || (n.why === 'rival' && s.labs.every(x => x.covered && !x.defect))) return labNote(s, l, LD(l.id).name + ' withdraws its notice and stays in the Charter.', 'good');
     if (!s.queue.some(q => q.id === 'walkout')) s.queue.push({ id: 'walkout', lab: l.id });
   });
 }
@@ -2322,9 +2323,9 @@ function walkNow(s, id) { const l = L(s, id); l.notice = null; l.signed = false;
 ev({ id: 'ultimatum', forced: true, title: 'Notice', stamp: 'Lab general counsel',
   body: s => { const id = s.queue[0].lab, l = L(s, id), w = WALK_WHY[(l.notice || {}).why || 'trust']; return `<p>${LD(id).ceo} calls before the letter arrives: ${LD(id).name} will leave the Pacing Charter in ${TUNE.labNotice} months. ${w[0]} \u201cI am telling you first because I would rather not do it.\u201d</p>`; },
   choices: s => { const id = s.queue[0] && s.queue[0].lab, l = id && L(s, id), n = id ? LD(id).name : 'The lab', t = id && labTerms(s, id)[0], w = WALK_WHY[(l && l.notice || {}).why || 'trust']; return [
-    t ? { label: 'Meet them: ' + t.name.charAt(0).toLowerCase() + t.name.slice(1), hint: t.pc + ' capital. ' + n + ' +12 and it stays. ' + t.hint, fx: s => { if (s.pc < t.pc) return 'You do not have the capital to promise it. The notice stands.'; s.pc -= t.pc; const x = grant(s, id, t.id); l.rel = clamp(l.rel + 12, -100, 100); l.notice = null; l.comp = clamp(l.comp + 5); return LD(id).ceo + ' withdraws the notice.' + x; } }
-      : { label: 'Appeal to ' + LD(id || 'mindscale').ceo + ' in person', hint: '1 capital. ' + n + ' +10, enough to keep it if nothing else sours.', fx: s => { if (s.pc < 1) return 'You do not have the capital. The notice stands.'; s.pc -= 1; l.rel = clamp(l.rel + 10, -100, 100); return 'Two hours in a conference room in Palo Alto. No promises either way.'; } },
-    { label: 'Use the ' + TUNE.labNotice + ' months', hint: n + ' stays if by then you have ' + w[1] + ', or its goodwill is up 10. Otherwise it walks, and you can still compel it.', fx: () => 'You tell ' + LD(id).ceo + ' you heard it. The clock is running.' },
+    t ? { label: 'Meet them: ' + t.name.charAt(0).toLowerCase() + t.name.slice(1), hint: t.pc + ' capital. ' + n + ' +12, most of the ' + TUNE.labStay + ' it wants; the notice stands. ' + t.hint, fx: s => { if (s.pc < t.pc) return 'You do not have the capital to promise it. The notice stands.'; s.pc -= t.pc; const x = grant(s, id, t.id); l.rel = clamp(l.rel + 12, -100, 100); l.comp = clamp(l.comp + 5); return LD(id).ceo + ' thanks you and does not withdraw the notice. \u201cIt helps. It is not what I called about.\u201d' + x; } }
+      : { label: 'Appeal to ' + LD(id || 'mindscale').ceo + ' in person', hint: '1 capital. ' + n + ' +10, half of the ' + TUNE.labStay + ' it wants; the notice stands.', fx: s => { if (s.pc < 1) return 'You do not have the capital. The notice stands.'; s.pc -= 1; l.rel = clamp(l.rel + 10, -100, 100); return 'Two hours in a conference room in Palo Alto. No promises either way.'; } },
+    { label: 'Use the ' + TUNE.labNotice + ' months', hint: n + ' stays if by then you have ' + w[1] + ', or its goodwill is up ' + TUNE.labStay + '. Otherwise it walks, and you can still compel it.', fx: () => 'You tell ' + LD(id).ceo + ' you heard it. The clock is running.' },
     { label: 'Tell them to go now', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months. The other lab +6: you did not pay for loyalty.', fx: s => { s.labs.forEach(x => { if (x.id !== id) x.rel = clamp(x.rel + 6, -100, 100); }); return walkNow(s, id); } },
   ]; } });
 ev({ id: 'lab_preempt', forced: true, title: 'An offer from Mindscale', stamp: 'A steakhouse on K Street',
