@@ -247,6 +247,9 @@ const TUNE = {
   labWatch: 0.25, // extra chance a rival's cheating is caught while a compliant signatory is watching it
   labBlind: 0.2, // each lab's own fixed misjudgment of the threshold (log sd): its worry tracks what it believes, so the Labs panel reads the threshold about as well as the IC, not exactly; 0 = labs see the true threshold
   labNotice: 2, // months of notice a lab gives before it walks out of the Charter
+  labGood: 40, // goodwill that moves a lab's lean on pacing by 1 (its conviction is worth about 1 for Mindscale against, 0.5-1.4 for Prometheus with fear)
+  labFade: 0.08, // share of positive goodwill a lab forgets each month: favours have to be kept up
+  labMeetFade: 0.6, // each meeting with the same CEO in the last 6 months scales the next one's goodwill by this
   labStay: 20, // goodwill a lab must gain during its notice to stay with its complaint unanswered (a granted term gives 12)
   meetDecay: 0.6,
   favorCred: 2,
@@ -1090,8 +1093,8 @@ def({ id: 'allies', cat: 'diplo', name: 'Build the allied coalition', phases: ['
 def({ id: 'labmeet', cat: 'labs', name: 'Meet a lab CEO', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 0,
   params: { kind: 'lab' },
   desc: 'Build the relationship before you need it. Labs that trust you sign and comply.',
-  effect: () => 'Lab relationship +12; signed labs gain compliance.',
-  apply(s, prm) { const l = L(s, prm.lab); l.rel = clamp(l.rel + 12, -100, 100); if (l.signed) l.comp = clamp(l.comp + 6); return LD(l.id).ceo + ' ' + pick(s, ['agrees the race is getting dangerous, off the record.', 'wants to know who else is signing.', 'asks what happens if China doesn’t stop.']); },
+  effect: () => 'Lab relationship +12' + (TUNE.labAI ? ', less for a CEO you met in the last 6 months; goodwill fades unless kept up' : '') + '; signed labs gain compliance.',
+  apply(s, prm) { const l = L(s, prm.lab); l.rel = clamp(l.rel + 12 * (TUNE.labAI ? Math.pow(TUNE.labMeetFade, (l.meets = (l.meets || []).filter(t => t > s.turn - 6)).push(s.turn) - 1) : 1), -100, 100); if (l.signed) l.comp = clamp(l.comp + 6); return LD(l.id).ceo + ' ' + pick(s, ['agrees the race is getting dangerous, off the record.', 'wants to know who else is signing.', 'asks what happens if China doesn’t stop.']); },
 });
 def({ id: 'assess', cat: 'intel', name: 'Commission an IC assessment', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
   desc: 'A National Intelligence Estimate on RSI timing and Chinese capability. Sharper readings for three months (six days in the scramble).',
@@ -1382,7 +1385,7 @@ function labFear(s, l) { const d = LD(l.id), prox = clamp((l.cap / labT(s, l) - 
 function fearWord(f) { return f < 25 ? 'unworried' : f < 45 ? 'uneasy' : f < 65 ? 'worried' : f < 85 ? 'frightened' : 'alarmed'; }
 function scare(s, id, d) { if (!TUNE.labAI) return; const l = L(s, id); l.scare = clamp((l.scare || 0) + d, 0, 40); }
 // Where a lab stands on pacing, about -1 (fights it) to +1 (wants it): fear by how much it weighs safety, goodwill, against how much it weighs room to build.
-function labPro(s, l) { const w = LD(l.id).w; return w.safe * labFear(s, l) / 50 + l.rel / 80 - w.free; }
+function labPro(s, l) { const w = LD(l.id).w; return w.safe * labFear(s, l) / 50 + l.rel / TUNE.labGood - w.free; }
 // Terms a lab would trade for: its own list, less what it already holds.
 function labTerms(s, labId) { const l = L(s, labId); return LD(labId).terms.filter(t => !(l.terms && l.terms[t.id])); }
 function termList(labId, withDeal) { const ts = LD(labId).terms; return withDeal === true ? [ts[0]] : Array.isArray(withDeal) ? ts.filter(t => withDeal.indexOf(t.id) >= 0) : []; }
@@ -1412,6 +1415,7 @@ function labTurn(s) {
   s.labs.forEach(l => {
     const d = LD(l.id), pro = labPro(s, l), fear = labFear(s, l), cd = (k, n) => !(l.cd && l.cd[k] > s.turn - n), mark = k => { (l.cd = l.cd || {})[k] = s.turn; };
     if (l.scare) l.scare *= 0.93;
+    if (l.rel > 0) l.rel -= TUNE.labFade * l.rel;
     if (l.hold && (fear < 65 || covered(s, l))) l.hold = false;
     // a lab that fights pacing: front-run the pause, then the Hill, then the cabinet
     if (pro < -0.2) {
