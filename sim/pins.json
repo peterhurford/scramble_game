@@ -1,0 +1,6 @@
+{
+ "_note": "Search pins (PIN env for sim/hillclimb.js). HAWK rebuilt 13 Nov from the v38hawk2/v39 hawk genomes for v40; pol.assess is free (1 in every v38hawk2/v39 hawk genome, unrecorded whether pinned).",
+ "HAWK": {"polFirst":["sl4","distill","remote","chips","smuggle"],"ctrlLate":true,"pol.distill":0.99,"pol.remote":0.98,"pol.chips":0.975,"pol.smuggle":0.97,"pol.sl4":1,"gate.distill":0,"gate.remote":0,"gate.chips":0,"gate.smuggle":0,"gate.sl4":0,"proj.sl4":1,"pgate.sl4":0},
+ "DOVE": {"pol.chips":-1,"pol.remote":-1,"pol.distill":-1,"pol.smuggle":-1,"warnK":"none"},
+ "TOG": {"seq":"together","gofirstIc":0}
+}
