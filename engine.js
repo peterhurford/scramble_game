@@ -38,9 +38,9 @@ function pick(s, arr) { return arr[Math.floor(rnd(s) * arr.length)]; }
 
 /* ================= static data ================= */
 const DIFFS = {
-  analyst: { label: 'Analyst', ap: 4, Tmed: 14, tension: 26, cred: 60, theft: 0.7, desc: 'More staff, more time, a calmer Beijing.' },
-  advisor: { label: 'Advisor', ap: 3, Tmed: 12.5, tension: 32, cred: 55, theft: 1.0, desc: 'The intended experience.' },
-  excomm:  { label: 'ExComm', ap: 3, Tmed: 11.8, tension: 38, cred: 52, theft: 1.3, desc: 'Earlier threshold, hotter Beijing, less patience.' },
+  analyst: { label: 'Analyst', ap: 4, Tmed: 13.4, tension: 26, cred: 60, theft: 0.7, desc: 'More staff, more time, a calmer Beijing.' },
+  advisor: { label: 'Advisor', ap: 3, Tmed: 12, tension: 32, cred: 55, theft: 1.0, desc: 'The intended experience.' },
+  excomm:  { label: 'ExComm', ap: 3, Tmed: 11.3, tension: 38, cred: 52, theft: 1.3, desc: 'Earlier threshold, hotter Beijing, less patience.' },
 };
 
 const PRINCIPALS = [
@@ -789,7 +789,8 @@ function endWar(s, text) {
 function trueIndicators(s, F) {
   const c = s.cal || {}, m = calMult(s); const Tk = k => s.T * (1 + m * (c[k] || 0));
   const r = k => Math.max(0.02, F / Tk(k));
-  return { uplift: 1 + 9 * Math.pow(r('uplift'), 2.5), cobench: Math.min(99, 85 * Math.pow(r('cobench'), 1.2)), horizon: 174 * Math.pow(2, (F - Tk('horizon')) / 5), arr: 1000 * Math.pow(2, (F - Tk('arr')) / 4.5) };
+  // uplift: staff-reported, 12x at the start (METR, Model 4, Oct 2026) to 50x at the threshold, about METR's 3.9x a year over a 12-month threshold
+  return { uplift: 12 * Math.pow(50 / 12, r('uplift')), cobench: Math.min(99, 85 * Math.pow(r('cobench'), 1.2)), horizon: 174 * Math.pow(2, (F - Tk('horizon')) / 5), arr: 1000 * Math.pow(2, (F - Tk('arr')) / 4.5) };
 }
 // Better intelligence corrects the game's standing miscalibration: the indicator markers and the IC's bias sit closer to the truth.
 function calMult(s) { return clamp(1.2 - 0.8 * s.intelQ / 100, 0.4, 1.2); }
@@ -802,7 +803,7 @@ function recordIndicators(s) {
 }
 function rObserved(s) {
   const i = s.ind[s.ind.length - 1];
-  const ra = Math.pow(Math.max(0, (i.uplift - 1) / 9), 1 / 2.5);
+  const ra = Math.max(0, Math.log(i.uplift / 12) / Math.log(50 / 12));
   const rb = Math.pow(i.cobench / 85, 1 / 1.2);
   return (ra + rb) / 2;
 }
@@ -1821,7 +1822,7 @@ ev({ id: 'intro', forced: true, title: 'Phase 0', stamp: 'EEOB, Room 374',
 ev({ id: 'knock', forced: true, title: 'The knock', stamp: '8:45a · The residence',
   body: s => { const i = s.ind[s.ind.length - 1]; return `<p>${nth(s, 'knock', ['The Chief of Staff knocks on the bedroom door. The President is in a bathrobe with the morning papers. The Chief hands over a folder and nods at you to start.', 'Again. This time the Chief of Staff doesn\u2019t knock. The President looks at the folder, then at you. \u201cYou said this last time.\u201d', 'The President is already up, reading the overnight indicators on a tablet. \u201cI\u2019m starting to know these numbers. They keep going up.\u201d', 'Six-fifteen in the Oval. The President has stopped asking whether you are sure, and started asking what it costs to be wrong.'])}</p>
   <div class="cable">OVERNIGHT // AI R&amp;D INDICATORS
-- Researcher-reported AI R&amp;D uplift: ${i.uplift.toFixed(1)}x  (RSI marker: 10x)
+- Researcher-reported AI R&amp;D uplift: ${i.uplift.toFixed(1)}x  (RSI marker: 50x)
 - Internal AI R&amp;D eval: ${Math.round(i.cobench)}%  (marker: 85%)
 - 80%-reliability time horizon: ${Math.round(i.horizon)}h  (marker: 174h)
 - ${nth(s, 'knock', ['Two CEOs called after midnight. Quote: "If we don\'t slow down, we will soon lose confidence that we are in control."', 'A lab safety lead resigned at 2:00a. Her letter: "I can no longer tell you what our models are doing."', 'One lab paused its own largest run for 36 hours over a monitoring alert, then restarted it.', 'Prometheus\' board met overnight. Mindscale\'s did not.'])}</div>

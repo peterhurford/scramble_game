@@ -56,7 +56,7 @@ const EVTYPE = {
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'], movement: ['The movement', 'flag', '#7A4FA0'], world: ['Meanwhile', 'eye', '#3B7A9E'] };
 function evType(id) { if (/^m_/.test(id) || id === 'march') return 'movement'; if (/^w_/.test(id) || /^(pope|g7|deepfake)$/.test(id)) return 'world'; for (const k in EVTYPE) if (EVTYPE[k].indexOf(id) >= 0) return k; return 'politics'; }
 const IND = [
-  { k: 'uplift', name: 'AI R&D speedup', mark: 10, fmt: v => f1(v) + '×', markLabel: '10×' },
+  { k: 'uplift', name: 'AI R&D speedup (staff-reported)', mark: 50, fmt: v => f1(v) + '×', markLabel: '50×' },
   { k: 'cobench', name: 'Internal R&D eval', mark: 85, fmt: v => Math.round(v) + '%', markLabel: '85%' },
   { k: 'horizon', name: 'Task horizon (80%)', mark: 174, fmt: v => v >= 1000 ? Math.round(v / 100) / 10 + 'k h' : Math.round(v) + ' h', markLabel: '174 h', log: true },
   { k: 'arr', name: 'Top lab revenue', mark: 1000, fmt: v => v >= 1000 ? '$' + f1(v / 1000) + 'T' : '$' + Math.round(v) + 'B', markLabel: '$1T', log: true },
