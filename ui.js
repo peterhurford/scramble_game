@@ -50,7 +50,7 @@ const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WA
 const EVTYPE = {
   crisis: ['one_month', 'bio_attack', 'cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
   beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un', 'smuggle_bust', 'cn_scientist', 'tsy_channel', 'war_drill'],
-  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'czar_podcast', 'lab_resign', 'cure'],
+  labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'czar_podcast', 'lab_resign', 'cure', 'walkout', 'ultimatum', 'lab_preempt', 'lab_pilot', 'lab_pact'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs', 'insurers'],
 };
 const EVMETA = { crisis: ['Crisis', 'alert', 'var(--bad)'], beijing: ['Beijing', 'globe', 'var(--cn)'], labs: ['The labs', 'cpu', 'var(--accent)'], markets: ['The economy', 'trend', 'var(--warn)'], politics: ['The cabinet', 'users', '#5B5F97'], movement: ['The movement', 'flag', '#7A4FA0'], world: ['Meanwhile', 'eye', '#3B7A9E'] };
@@ -397,6 +397,12 @@ function chinaPanel(v) {
     <div class="sb"><div class="row"><div class="lbl">Frontier so far</div><span class="sp"></span><span class="legend" style="margin:0"><span><i style="background:var(--us)"></i>US</span><span><i style="background:var(--cn)"></i>China</span><span><i style="background:var(--accent);opacity:.3"></i>paced</span></span></div>${historyChart(v)}</div>`;
 }
 const fold = k => ui.fold && ui.fold[k] ? 'open' : '';
+// What a lab wants and what it just did (TUNE.labAI): the CEO's worry, its lean on pacing, any notice it has given, its latest move.
+function labAgenda(v, ld) {
+  const a = v.labAI && v.labAI.find(x => x.id === ld.id); if (!a) return '';
+  const lean = a.pro > 0.6 ? 'wants pacing' : a.pro > 0.2 ? 'leans toward pacing' : a.pro > -0.2 ? 'on the fence' : a.pro > -0.6 ? 'leans against pacing' : 'fights pacing';
+  return `<div class="sub" style="margin:-2px 0 6px" title="A CEO grows more worried as the lab’s own models near the threshold, and after scares at the lab. Worry, goodwill and how much the lab prizes room to build set its lean; each lab makes one move a month from it.">${esc(ld.ceo)} is ${a.fear} · ${lean}${a.hold ? ' · holding its largest run' : ''}${a.notice != null ? ' · <b style="color:var(--bad)">leaves the Charter in ' + Math.max(0, a.notice) + ' mo</b>' : ''}${a.terms.length ? ' · holds: ' + esc(a.terms.join('; ')) : ''}${a.move ? '<br>' + esc(a.move) : ''}</div>`;
+}
 function labPanel(v) {
   const i = S.ind[S.ind.length - 1];
   const sharp = S.flags.assessUntil >= S.turn;
@@ -409,7 +415,7 @@ function labPanel(v) {
         const l = E.L(S, ld.id);
         const status = E.covered(S, l) ? '<span class="pill good">Paced</span>' : l.signed ? '<span class="pill acc">Signed</span>' : l.refused ? '<span class="pill bad">Refused</span>' : S.pacing.active ? '<span class="pill warn">Unbound</span>' : '<span class="pill muted">Racing</span>';
         const behind = F - E.knownCap(l);
-        return `<div class="lab" title="${Math.round(ld.share * 100)}% of compute · safety ${ld.safety}"><div class="lt"><b>${esc(ld.name)}</b><span class="sub">${behind < 0.05 ? 'at the frontier' : f1(behind) + ' mo back'}${E.covered(S, l) ? ' · compliance ' + (l.comp < 40 ? 'shaky' : l.comp < 70 ? 'mixed' : 'solid') : ''}</span></div><span class="rel ${l.rel >= 0 ? 'up' : 'dn'}">${l.rel > 0 ? '+' : ''}${Math.round(l.rel)}</span>${status}</div>`;
+        return `<div class="lab" title="${Math.round(ld.share * 100)}% of compute · safety ${ld.safety}"><div class="lt"><b>${esc(ld.name)}</b><span class="sub">${behind < 0.05 ? 'at the frontier' : f1(behind) + ' mo back'}${E.covered(S, l) ? ' · compliance ' + (l.comp < 40 ? 'shaky' : l.comp < 70 ? 'mixed' : 'solid') : ''}</span></div><span class="rel ${l.rel >= 0 ? 'up' : 'dn'}">${l.rel > 0 ? '+' : ''}${Math.round(l.rel)}</span>${status}</div>${labAgenda(v, ld)}`;
       }).join('')}
       <div class="kv" style="margin-top:8px"><span title="${esc(v.drag.parts.map(x => x[0]).join(', ') || 'Nothing is slowing US labs')}">Slowed by our own moves</span><span class="v">${dragWord(v.drag.total)}</span>
         <span title="Beijing tries to steal weights now and then; SL4 and SL5 make an attempt much likelier to fail.">Security SL${S.sl} · theft risk</span><span class="v">${theftWord(v.theft.net)}</span></div></div>
@@ -728,6 +734,14 @@ function openCharter() {
     const l = E.L(S, ld.id); const r = ui.charter[ld.id];
     if (l.signed && !r) return `<div class="labrow"><div><b>${esc(ld.name)}</b></div><span class="pill good">Signed</span></div>`;
     if (r) return `<div class="labrow"><div><b>${esc(ld.name)}</b> <span class="sub">needed under ${Math.round(100 * r.p)}, drew ${Math.round(100 * r.roll)}</span></div><span class="stamp ${r.signed ? 'good' : 'bad'}">${r.signed ? 'SIGNED' : 'REFUSED'}</span><div class="res">${esc(r.text)}</div></div>`;
+    if (E.TUNE.labAI) {
+      // terms on the table: tick any the lab has not been granted; the odds bar and the parts list follow the ticks
+      const sel = (ui.charterTerms = ui.charterTerms || {})[ld.id] = ui.charterTerms[ld.id] || [], open = E.labTerms(S, ld.id), pick = open.filter(x => sel.indexOf(x.id) >= 0), cost = pick.reduce((a, x) => a + x.pc, 0), p = E.charterOdds(S, ld.id, sel);
+      return `<div class="labrow"><div><b>${esc(ld.name)}</b> <span class="sub">${Math.round(ld.share * 100)}% of compute · safety ${ld.safety} · with you ${Math.round(l.rel)}</span><div class="sub">${esc(ld.blurb)}</div>${oddsBar(p)}
+        <div class="sub">${E.charterParts(S, ld.id, sel).filter(x => Math.abs(x[1]) >= 0.05).map(x => `<span style="color:var(--${x[1] > 0 ? 'good' : 'bad'})">${x[1] > 0 ? '+' : '−'}</span> ${esc(x[0])}`).join(' · ')}</div>
+        ${open.map(x => `<label class="sub" style="display:block;margin-top:4px" title="${esc(x.hint)}"><input type="checkbox" data-term="${ld.id}:${x.id}" ${sel.indexOf(x.id) >= 0 ? 'checked' : ''}> ${esc(x.name)} (${x.pc} ${icon('coin')}) <span style="opacity:.7">${esc(x.hint)}</span></label>`).join('')}</div>
+        <div class="col2"><button class="ghost" data-askt="${ld.id}" ${S.pc >= cost ? '' : 'disabled'}>${pick.length ? 'Offer and ask (' + cost + ' ' + icon('coin') + ')' : 'Ask'} · ${E.oddsWord(p)}</button></div></div>`;
+    }
     const p0 = E.charterOdds(S, ld.id, false), p1 = E.charterOdds(S, ld.id, true);
     return `<div class="labrow"><div><b>${esc(ld.name)}</b> <span class="sub">${Math.round(ld.share * 100)}% of compute · safety ${ld.safety} · with you ${Math.round(l.rel)}</span><div class="sub">${esc(ld.blurb)}</div>${oddsBar(p0)}</div>
       <div class="col2"><button class="ghost" data-ask="${ld.id}">Ask · ${E.oddsWord(p0)}</button><button class="ghost" data-deal="${ld.id}" ${S.pc >= ld.deal.pc ? '' : 'disabled'} title="${esc(ld.deal.name)}">Sweeten (${ld.deal.pc} ${icon('coin')}) · ${E.oddsWord(p1)}</button><span class="sub">${esc(ld.deal.name)}</span></div></div>`;
@@ -738,6 +752,8 @@ function openCharter() {
     <div class="obrow"><span>Signed</span>${meter(100 * signedShare, 'good')}<b class="mono">${Math.round(100 * signedShare)}%</b></div>
     <div>${rows}</div>
     <div class="row" style="margin-top:14px"><span class="sp"></span><button class="btn" id="cdone">Done</button></div></div>`, true);
+  $('#modal').querySelectorAll('[data-term]').forEach(b => b.onchange = () => { const [lab, tid] = b.dataset.term.split(':'), sel = ui.charterTerms[lab], i = sel.indexOf(tid); if (i >= 0) sel.splice(i, 1); else sel.push(tid); openCharter(); });
+  $('#modal').querySelectorAll('[data-askt]').forEach(b => b.onclick = () => { const id = b.dataset.askt, r = E.charterDecide(S, id, ui.charterTerms[id] || []); if (r.error) return toast(r.error); ui.charter[id] = r; ui.charterTerms[id] = []; save(); openCharter(); });
   $('#modal').querySelectorAll('[data-ask]').forEach(b => b.onclick = () => { const r = E.charterDecide(S, b.dataset.ask, false); if (r.error) return toast(r.error); ui.charter[b.dataset.ask] = r; save(); openCharter(); });
   $('#modal').querySelectorAll('[data-deal]').forEach(b => b.onclick = () => { const r = E.charterDecide(S, b.dataset.deal, true); if (r.error) return toast(r.error); ui.charter[b.dataset.deal] = r; save(); openCharter(); });
   $('#cdone').onclick = () => { E.finishConvening(S); ui.charter = null; save(); closeModal(); renderGame(); afterChange(outcome('The signing table.', changedBox(diffList(ui.before || {}, snap())))); };
@@ -823,6 +839,7 @@ function showHelp() {
     <li><b>Phase 1</b> (monthly): hold pacing support above 25 against fatigue, catch cheaters, make Beijing an offer, build verification, then call the Phase 2 summit.</li></ul>
     <h4>Legal authority</h4>
     <p>The pause starts on executive authority, which courts can enjoin: each month there is a chance of an injunction (highest under the DPA, lowest under the Charter, scaled by how hostile this game\u2019s courts are; the legal authorities study cuts it and sharpens your read). Ask Congress for a pacing statute instead: work the Hill to 60 Senate votes, send the bill, and two months later it needs 55 votes on the floor. The whip count is soft (often 9 votes off), the labs campaign against it, and a failed bill waits 8 months. A statute cuts the court risk to under half the Charter\u2019s, covers every lab and stops Charter walkouts. Without it, a court can also void Phase 2 after Beijing signs. Labs bound against their will lobby the Hill every month, and a weak Senate invites riders that cut verification money.</p>
+    <p>The labs have agendas. Each CEO has a worry level that rises as the lab\u2019s own models near the threshold and after scares; worry, goodwill with you and how much the lab prizes room to build set whether it leans for or against pacing (the Labs panel shows both, and its latest move). A lab against pacing pulls a run forward when it sees the pause coming, lobbies the Hill behind you and dines with the cabinet. A lab for it warns in public, briefs principals, backs a pacing bill and may hold its own largest run. Labs bring offers; at the signing table each will trade for several terms, and favors to one cost you the other. A signatory gives two months\u2019 notice before it walks, naming what would keep it, and a compliant signatory makes its rival\u2019s cheating easier to catch.</p>
     <h4>Intelligence and cheating</h4>
     <p>Cheating alerts come with the IC’s confidence, and weak intelligence produces false alarms: publishing or interdicting on a false one costs Beijing’s trust and your credibility, while dismissing a real one lets the cheating run. At the summit, if your intelligence and verification are too weak to see a hidden program, Beijing may sign and cheat anyway, and you lose.</p>
     <h4>The Strait</h4>
@@ -895,7 +912,7 @@ if (location.hash === '#autotest') {
       S = E.newGame({ seed: 77 + g }); renderGame(); afterChange();
       for (let step = 0; step < 400 && !S.ending; step++) {
         if (modalOpen()) {
-          const b = $('#modal').querySelector('[data-ch]') || $('#modal').querySelector('#mclose') || $('#modal').querySelector('[data-ask]') || $('#modal').querySelector('#cdone') || $('#modal').querySelector('#osend');
+          const b = $('#modal').querySelector('[data-ch]') || $('#modal').querySelector('#mclose') || $('#modal').querySelector('[data-term]:not(:checked)') || $('#modal').querySelector('[data-askt]') || $('#modal').querySelector('[data-ask]') || $('#modal').querySelector('#cdone') || $('#modal').querySelector('#osend');
           if (b) { b.click(); continue; } closeModal(); continue;
         }
         const acts = app.querySelectorAll('.act:not(.off)');

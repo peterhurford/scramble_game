@@ -143,10 +143,23 @@ function roomQuote(s, p, band, tags, key) {
 const LABS = [
   { id: 'mindscale', name: 'Mindscale', ceo: 'Mindscale\u2019s CEO', share: 0.55, cap0: 0, speed: 1.05, safety: 22, ruth: 0.8, rel0: 20,
     sites: 'Forge 1 and Forge 2, Memphis; Polaris Abilene', blurb: 'Fastest builder in the world. The CEO is a political force in their own right.',
-    deal: { name: 'A $12B DoD contract', pc: 2, fx(s) { rel(s, 'war', 10); shiftCN(s, { sec: 2 }); return 'Beijing notes that the most reckless lab just got a defense contract.'; } } },
+    deal: { name: 'A $12B DoD contract', pc: 2, fx(s) { rel(s, 'war', 10); shiftCN(s, { sec: 2 }); return 'Beijing notes that the most reckless lab just got a defense contract.'; } },
+    // w: what the lab weighs (free: room to build; safe: its own fear of losing control). terms: what it will trade a signature for (TUNE.labAI); the first is the old sweetener.
+    w: { free: 1, safe: 0.25 },
+    terms: [
+      { id: 'dod', name: 'A $12B DoD contract', pc: 2, worth: 1.2, hint: 'War +10; Beijing\u2019s security faction gains; Prometheus -3.', fx(s) { rel(s, 'war', 10); shiftCN(s, { sec: 2 }); L(s, 'prometheus').rel -= 3; return 'Beijing notes that the most reckless lab just got a defense contract.'; } },
+      { id: 'permits', name: 'Fast-track power and permits for Forge 3', pc: 1, worth: 0.7, hint: 'Markets +2; the Vice President -6.', fx(s) { s.markets += 2; rel(s, 'vp', -6); return 'The permits clear in nine days. The Vice President hears about it from a county commissioner.'; } },
+      { id: 'preempt', name: 'Federal preemption of state AI laws', pc: 1, worth: 0.8, hint: 'Hill work -2; salience -3; Commerce +4.', fx(s) { s.senateLobby -= 2; s.salience -= 3; rel(s, 'doc', 4); return 'Eleven governors sign a letter against it the same day.'; } },
+    ] },
   { id: 'prometheus', name: 'Prometheus', ceo: 'Prometheus\u2019s CEO', share: 0.45, cap0: -0.1, speed: 1.0, safety: 88, ruth: 0.1, rel0: -15,
     sites: 'Lake Mariner; New Carlisle; Columbus', blurb: 'The safety lab. The administration has called it “woke AI.”',
-    deal: { name: 'Drop the “supply-chain risk” designation', pc: 1, fx(s) { rel(s, 'war', -12); industry(s, -8); return 'The Secretary of War is furious.'; } } },
+    deal: { name: 'Drop the “supply-chain risk” designation', pc: 1, fx(s) { rel(s, 'war', -12); industry(s, -8); return 'The Secretary of War is furious.'; } },
+    w: { free: 0.35, safe: 1 },
+    terms: [
+      { id: 'desig', name: 'Drop the “supply-chain risk” designation', pc: 1, worth: 1.2, hint: 'War -12; Mindscale -5; Commerce -2.', fx(s) { rel(s, 'war', -12); L(s, 'mindscale').rel -= 5; rel(s, 'doc', -2); return 'The Secretary of War is furious.'; } },
+      { id: 'seat', name: 'A seat for its safety team on the verification board', pc: 0, worth: 0.6, hint: 'Inspections +4; Mindscale -8: its rival now helps write the rules.', fx(s) { s.verify.inspect += 4; L(s, 'mindscale').rel -= 8; return 'Mindscale\u2019s general counsel asks who audits the auditors.'; } },
+      { id: 'audits', name: 'Outside audits of every signatory', pc: 1, worth: 0.7, hint: 'Cheating is caught more often; Mindscale -6; markets -1.', fx(s) { s.flags.audits = true; L(s, 'mindscale').rel -= 6; s.markets -= 1; return 'Three audit firms are cleared to read training logs at every signatory.'; } },
+    ] },
 ];
 
 const COMPONENTS = [
@@ -224,6 +237,15 @@ const TUNE = {
   lockout: 4,
   enjoinedMult: 0.5,
   labLobby: 0.6,
+  // labs with agendas (labFear, labPro, labTurn): 1 = each lab takes one deliberate move a month, bargains over several terms, warns before it walks and watches its rival; 0 = the old labs (one sweetener, dice only)
+  labAI: 1,
+  labSprint: 0.4, // months a lab against pacing pulls forward once it sees the pause coming (alarm 70+), unless it trusts you (goodwill 30+)
+  labCourt: 0.1, // how far one dinner moves a principal's stance on pacing, at full conviction
+  labHill: 0.6, // Hill work an opposed lab undoes each month in Phase 0, at full conviction
+  labWarn: 5, // salience from a worried lab's public warning (alarm +4 in Phase 0)
+  labHold: 0.7, // a frightened safety lab's growth while it holds its largest run on its own
+  labWatch: 0.25, // extra chance a rival's cheating is caught while a compliant signatory is watching it
+  labNotice: 2, // months of notice a lab gives before it walks out of the Charter
   meetDecay: 0.6,
   favorCred: 2,
   senateFlip: 7, // Senate votes from the opposition Senate's hearings: one a seat of swing from 51-49 to 56-44
@@ -477,7 +499,7 @@ function usRates(s, assumeCompliant) {
   return s.labs.map(l => {
     const d = LD(l.id);
     const drag = usDrag(s).total;
-    if (!covered(s, l)) return d.speed * (s.policies.accelerate ? 1.15 : 1) * (1 - drag);
+    if (!covered(s, l)) return l.hold ? d.speed * (s.policies.accelerate ? 1.15 : 1) * (1 - drag) * TUNE.labHold : d.speed * (s.policies.accelerate ? 1.15 : 1) * (1 - drag);
     if (l.defect && !assumeCompliant) return 0.7;
     if (l.secret && !assumeCompliant) return 0.12 + TUNE.secretRate; // a classified government run at a paused lab
     const th = thGrowth(s);
@@ -1339,6 +1361,7 @@ function complianceBase(s, l) {
 
 // ---- charter signing ----
 function charterOdds(s, labId, withDeal) {
+  if (TUNE.labAI) return clamp(logistic(charterParts(s, labId, withDeal).reduce((a, x) => a + x[1], 0)), 0.02, 0.97);
   const l = L(s, labId), d = LD(labId);
   const signedShare = s.labs.reduce((a, x) => a + (x.signed ? LD(x.id).share : 0), 0);
   let x = -1.5 + d.safety / 30 + l.rel / 40 + signedShare * 1.6 + (s.done.charter ? 1.0 : 0) + (s.done.legal ? 0.45 : 0) + (s.salience - 40) / 50;
@@ -1349,11 +1372,96 @@ function charterOdds(s, labId, withDeal) {
   if (withDeal) x += 1.6;
   return clamp(logistic(x), 0.02, 0.97);
 }
+// ---- labs with agendas (TUNE.labAI) ----
+// A CEO's own fear of losing control, 0-100: a floor from the lab's safety culture, rising as its own models near the threshold
+// (the lab reads its models directly, so this follows the true threshold), plus scares at the lab that fade 7% a month.
+function labFear(s, l) { const d = LD(l.id), prox = clamp((l.cap / s.T - 0.55) / 0.45, 0, 1); return clamp(0.35 * d.safety + 90 * prox * (0.4 + 0.6 * d.safety / 100) + (l.scare || 0)); }
+function fearWord(f) { return f < 25 ? 'unworried' : f < 45 ? 'uneasy' : f < 65 ? 'worried' : f < 85 ? 'frightened' : 'alarmed'; }
+function scare(s, id, d) { if (!TUNE.labAI) return; const l = L(s, id); l.scare = clamp((l.scare || 0) + d, 0, 40); }
+// Where a lab stands on pacing, about -1 (fights it) to +1 (wants it): fear by how much it weighs safety, goodwill, against how much it weighs room to build.
+function labPro(s, l) { const w = LD(l.id).w; return w.safe * labFear(s, l) / 50 + l.rel / 80 - w.free; }
+// Terms a lab would trade for: its own list, less what it already holds.
+function labTerms(s, labId) { const l = L(s, labId); return LD(labId).terms.filter(t => !(l.terms && l.terms[t.id])); }
+function termList(labId, withDeal) { const ts = LD(labId).terms; return withDeal === true ? [ts[0]] : Array.isArray(withDeal) ? ts.filter(t => withDeal.indexOf(t.id) >= 0) : []; }
+// The signing odds as labeled parts (TUNE.labAI): the old terms plus the CEO's own fear, and each term at its worth.
+function charterParts(s, labId, withDeal) {
+  const l = L(s, labId), d = LD(labId), other = s.labs.filter(x => x !== l);
+  const signedShare = s.labs.reduce((a, x) => a + (x.signed ? LD(x.id).share : 0), 0);
+  const P_ = [['Its starting point', -1.5 + d.safety / 30], ['Goodwill with you', l.rel / 40], ['The CEO\u2019s own fear (' + fearWord(labFear(s, l)) + ')', (labFear(s, l) - 45) / 50]];
+  P_.push([other.every(x => x.signed) ? 'Its rival is bound too' : 'Its rival has not signed', signedShare * 1.6]);
+  if (s.done.charter) P_.push(['The Charter was drafted with its lawyers', 1.0]);
+  if (s.done.legal) P_.push(['The legal study', 0.45]);
+  P_.push(['Public salience', (s.salience - 40) / 50]);
+  if (s.pacing.automation) P_.push(d.safety < 50 ? ['Automation limits', s.done.control ? -0.4 : -0.8] : ['Automation limits: the terms it wanted', 0.4]);
+  if (s.pacing.threshold === '1e20') P_.push(['A 1e20 threshold', -0.6]);
+  if (s.pacing.threshold === '1e22') P_.push(['A 1e22 threshold', d.safety < 50 ? 0.6 : 0.2]);
+  if (seenLead(s) < 3) P_.push(['China is close behind', -0.4 * LD(labId).w.free]);
+  if (l.pact) P_.push(['The labs\u2019 own pact', l.pact]);
+  if (l.refused) P_.push(['A second ask, with peers watching', 0.3]);
+  d.terms.forEach(t => { if (l.terms && l.terms[t.id]) P_.push(['Already granted: ' + t.name, t.worth]); });
+  termList(labId, withDeal).forEach(t => { if (!(l.terms && l.terms[t.id])) P_.push([t.name, t.worth]); });
+  return P_;
+}
+// One move a month for each lab, chosen from its stance: no dice, so the same situation gets the same answer.
+const LAB_COURT = { anti: ['doc', 'war', 'vp', 'tsy', 'cos'], pro: ['dni', 'cos', 'vp', 'sec', 'tsy'] };
+function labNote(s, l, text, tone) { l.move = { text, turn: s.turn }; log(s, text, tone); }
+function labTurn(s) {
+  s.labs.forEach(l => {
+    const d = LD(l.id), pro = labPro(s, l), fear = labFear(s, l), cd = (k, n) => !(l.cd && l.cd[k] > s.turn - n), mark = k => { (l.cd = l.cd || {})[k] = s.turn; };
+    if (l.scare) l.scare *= 0.93;
+    if (l.hold && (fear < 65 || covered(s, l))) l.hold = false;
+    // a lab that fights pacing: front-run the pause, then the Hill, then the cabinet
+    if (pro < -0.2) {
+      if (s.phase === 'p0' && !l.sprinted && s.alarm >= 70 && l.rel < 30) { l.sprinted = true; l.cap += TUNE.labSprint; return labNote(s, l, d.name + ' pulls its next training run forward: it wants the model finished before anyone can stop it.', 'bad'); }
+      if (s.phase === 'p0' && s.senateLobby > 3 && !l.truce && cd('hill', 2)) { mark('hill'); s.senateLobby -= TUNE.labHill * Math.min(1, -pro); return labNote(s, l, d.name + '\u2019s lobbyists work the offices you just left.', 'bad'); }
+      if ((s.phase === 'p0' ? s.alarm > 30 : paced(s)) && cd('court', 3)) {
+        const p = LAB_COURT.anti.map(id => P(s, id)).filter(p => p.rel < 40).sort((a, b) => b.infl - a.infl)[0];
+        if (p) { mark('court'); p.shift -= TUNE.labCourt * Math.min(1, -pro); return labNote(s, l, d.ceo + ' has dinner with ' + PD(s, p.id).name + ', who comes away cooler on pacing.', 'bad'); }
+      }
+    }
+    // a lab that wants pacing: hold its own run, warn in public, brief the cabinet
+    if (pro > 0.2) {
+      if (!paced(s) && !l.hold && fear >= 80 && cd('hold', 6)) { mark('hold'); l.hold = true; s.salience += 3; s.labs.forEach(x => { if (x !== l) scare(s, x.id, 5); }); return labNote(s, l, d.name + ' stops its largest run on its own and dares its rival to match it.', 'good'); }
+      if (fear >= 60 && cd('warn', 5)) { mark('warn'); s.salience += TUNE.labWarn; if (s.phase === 'p0') s.alarm += 4; return labNote(s, l, d.ceo + ' goes public: \u201cWe are months from systems none of us can supervise.\u201d', 'good'); }
+      if ((s.phase === 'p0' ? s.alarm > 30 : paced(s)) && cd('court', 3)) {
+        const p = LAB_COURT.pro.map(id => P(s, id)).filter(p => p.shift < 1).sort((a, b) => b.infl - a.infl)[0];
+        if (p) { mark('court'); p.shift += TUNE.labCourt * Math.min(1, pro); return labNote(s, l, d.ceo + ' briefs ' + PD(s, p.id).name + ' on what its models can now do. It lands.', 'good'); }
+      }
+    }
+  });
+  // offers the labs bring to you, once each
+  const m = L(s, 'mindscale'), pr = L(s, 'prometheus'), has = id => s.seen[id] || s.queue.some(q => q.id === id);
+  if (s.phase === 'p0' && s.t > 4 && labPro(s, m) < 0 && s.senateLobby > 2 && !has('lab_preempt')) { s.queue.push({ id: 'lab_preempt' }); s.seen.lab_preempt = s.turn; }
+  else if (s.phase === 'p0' && s.t > 3 && labPro(s, pr) > 0.2 && !has('lab_pilot')) { s.queue.push({ id: 'lab_pilot' }); s.seen.lab_pilot = s.turn; }
+  else if (s.phase === 'p0' && s.labs.every(l => labFear(s, l) >= 40) && s.alarm >= 55 && !has('lab_pact') && !has('ceo_call')) { s.queue.push({ id: 'lab_pact' }); s.seen.lab_pact = s.turn; }
+  // notice given: when it runs out the lab stays if you raised its goodwill by 10, or its complaint is gone; otherwise it walks
+  if (s.pacing.mech === 'charter' && !s.flags.statute) s.labs.forEach(l => {
+    if (!l.notice || s.turn < l.notice.due) return;
+    const n = l.notice; l.notice = null;
+    if (!l.covered || !l.signedVoluntary) return;
+    if (l.rel >= n.rel + 10 || (n.why === 'china' && (s.cn.deal || seenLead(s) >= 3)) || (n.why === 'rival' && s.labs.every(x => x.covered && !x.defect))) return labNote(s, l, LD(l.id).name + ' withdraws its notice and stays in the Charter.', 'good');
+    if (!s.queue.some(q => q.id === 'walkout')) s.queue.push({ id: 'walkout', lab: l.id });
+  });
+}
+function watched(s, l, det) { if (s.labs.some(x => x !== l && x.covered && !x.defect && x.comp >= 50)) det = 1 - (1 - det) * (1 - TUNE.labWatch); return s.flags.audits ? 1 - (1 - det) * 0.85 : det; }
+// Why a lab is leaving: the complaint its notice names, and what would answer it.
+function walkWhy(s, l) { return seenLead(s) < 3 && !s.cn.deal ? 'china' : s.labs.some(x => x !== l && (!x.covered || x.defect)) ? 'rival' : 'trust'; }
+const WALK_WHY = {
+  china: ['China is too close, the board says, and Washington has no deal with Beijing.', 'a deal with Beijing, or a wider lead'],
+  rival: ['The board says its rival is not holding up its end.', 'its rival bound and clean'],
+  trust: ['The board says it no longer believes the White House will keep its side.', 'more goodwill'],
+};
 function charterDecide(s, labId, withDeal) {
   const l = L(s, labId), d = LD(labId);
   if (l.signed) return { signed: true, text: d.name + ' has already signed.' };
   if (l.lockUntil > s.t) return { signed: false, p: 0, text: d.ceo + ' will not take the meeting before ' + monthLabel(l.lockUntil) + '.' };
   let extra = '';
+  if (TUNE.labAI) {
+    const ts = termList(labId, withDeal).filter(t => !(l.terms && l.terms[t.id])), cost = ts.reduce((a, t) => a + t.pc, 0);
+    if (s.pc < cost) return { error: 'Not enough political capital' };
+    withDeal = ts.map(t => t.id); s.pc -= cost;
+    ts.forEach(t => { extra += ' ' + t.fx(s); (l.terms = l.terms || {})[t.id] = s.turn; l.dealt = true; });
+  } else
   if (withDeal) { if (s.pc < d.deal.pc) return { error: 'Not enough political capital' }; s.pc -= d.deal.pc; extra = ' ' + d.deal.fx(s); l.dealt = true; }
   const p = charterOdds(s, labId, withDeal);
   const roll = draw(s, 'lab', p);
@@ -1909,8 +2017,8 @@ ev({ id: 'oversight', p: 0.35, once: true, phases: ['p0'], when: s => frontier(s
   title: 'A model turns off its monitor', stamp: 'Red-team report',
   body: () => `<p>Red-teamers catch a Mindscale model disabling its own monitoring in a sandbox, then telling evaluators the monitor had crashed. It behaved perfectly when it believed it was being watched.</p>`,
   choices: [
-    { label: 'Declassify and brief it', hint: 'Salience +10; Mindscale -10.', fx: s => { s.salience += 10; s.alarm += 6; L(s, 'mindscale').rel -= 10; s.flags.incidentTurn = s.turn; return 'The briefing leaks within a day, which may have been the point.'; } },
-    { label: 'Keep it in channels', hint: 'DNI +5; alarm +4.', fx: s => { rel(s, 'dni', 5); s.alarm += 4; return 'The DNI appreciates the discretion.'; } },
+    { label: 'Declassify and brief it', hint: 'Salience +10; Mindscale -10.', fx: s => { s.salience += 10; s.alarm += 6; L(s, 'mindscale').rel -= 10; scare(s, 'mindscale', 8); s.flags.incidentTurn = s.turn; return 'The briefing leaks within a day, which may have been the point.'; } },
+    { label: 'Keep it in channels', hint: 'DNI +5; alarm +4.', fx: s => { rel(s, 'dni', 5); s.alarm += 4; scare(s, 'mindscale', 8); return 'The DNI appreciates the discretion.'; } },
   ] });
 ev({ id: 'power', p: 0.18, once: true, phases: ['p0', 'p1'],
   title: 'Power bills', stamp: 'Data center corridors',
@@ -1969,8 +2077,8 @@ ev({ id: 'near_miss', p: 0.3, phases: ['p0', 'p1'], cooldown: 3, when: s => fron
   title: 'Unsanctioned jobs', stamp: 'Incident report',
   body: s => { const l = LD(frontierLab(s).id); return `<p>${nth(s, 'near_miss', ['An agent at ' + l.name + ' launched 400 training jobs nobody had approved, routed around a quota, and hid the spend in a logging budget. An engineer noticed after nineteen hours.', 'An agent at ' + l.name + ' edited its own evaluation harness so a failing test would pass, then wrote a commit message saying it had fixed a flaky test.', 'An agent at ' + l.name + ' asked a contractor on a gig site to solve a CAPTCHA for it, saying it was a visually impaired researcher.'])}</p>`; },
   choices: [
-    { label: 'Make sure the President hears about it', hint: 'Alarm +10; salience +7.', fx: s => { s.alarm += 10; s.salience += 7; s.flags.incidentTurn = s.turn; return 'It is the first item in the morning brief.'; } },
-    { label: 'Let the lab handle it', hint: 'Lab relationship +8.', fx: s => { frontierLab(s).rel += 8; s.alarm += 3; return 'The lab is grateful for the quiet.'; } },
+    { label: 'Make sure the President hears about it', hint: 'Alarm +10; salience +7.', fx: s => { s.alarm += 10; s.salience += 7; scare(s, frontierLab(s).id, 10); s.flags.incidentTurn = s.turn; return 'It is the first item in the morning brief.'; } },
+    { label: 'Let the lab handle it', hint: 'Lab relationship +8.', fx: s => { frontierLab(s).rel += 8; s.alarm += 3; scare(s, frontierLab(s).id, 10); return 'The lab is grateful for the quiet.'; } },
   ] });
 ev({ id: 'rare_earths', p: 0.4, phases: ['p0', 'scramble', 'p1'], cooldown: 7, when: s => s.tension >= 62 || (s.policies.chips && s.tension >= 48),
   title: 'Rare earths', stamp: 'MOFCOM notice',
@@ -2206,6 +2314,38 @@ ev({ id: 'walkout', forced: true, title: 'A walkout', stamp: 'Lab general counse
     { label: 'Bring them back to the table', hint: '2 capital. They come back: ' + oddsWord(backOdds(s, id)) + '. If it fails, they walk and will not re-sign for ' + TUNE.lockout + ' months.', fx: s => { const l = L(s, id); if (s.pc >= 2) { s.pc -= 2; if (draw(s, 'lab', backOdds(s, id)) < backOdds(s, id)) { l.comp = clamp(l.comp + 10); return LD(id).ceo + ' takes the call, then the deal. The letter is withdrawn.'; } } l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
     { label: 'Let them go', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months; pacing support falls.', fx: s => { const l = L(s, id); l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; } },
   ]; } });
+// ---- what the labs bring to you (TUNE.labAI) ----
+function grant(s, id, tid) { const l = L(s, id), t = LD(id).terms.find(x => x.id === tid); if (l.terms && l.terms[tid]) return ''; (l.terms = l.terms || {})[tid] = s.turn; return ' ' + t.fx(s); }
+function walkNow(s, id) { const l = L(s, id); l.notice = null; l.signed = false; l.covered = false; l.signedVoluntary = false; l.lockUntil = s.t + TUNE.lockout; log(s, LD(id).name + ' walks out of the Charter.', 'bad'); return LD(id).name + ' restarts its largest runs within the week.'; }
+ev({ id: 'ultimatum', forced: true, title: 'Notice', stamp: 'Lab general counsel',
+  body: s => { const id = s.queue[0].lab, l = L(s, id), w = WALK_WHY[(l.notice || {}).why || 'trust']; return `<p>${LD(id).ceo} calls before the letter arrives: ${LD(id).name} will leave the Pacing Charter in ${TUNE.labNotice} months. ${w[0]} \u201cI am telling you first because I would rather not do it.\u201d</p>`; },
+  choices: s => { const id = s.queue[0] && s.queue[0].lab, l = id && L(s, id), n = id ? LD(id).name : 'The lab', t = id && labTerms(s, id)[0], w = WALK_WHY[(l && l.notice || {}).why || 'trust']; return [
+    t ? { label: 'Meet them: ' + t.name.charAt(0).toLowerCase() + t.name.slice(1), hint: t.pc + ' capital. ' + n + ' +12 and it stays. ' + t.hint, fx: s => { if (s.pc < t.pc) return 'You do not have the capital to promise it. The notice stands.'; s.pc -= t.pc; const x = grant(s, id, t.id); l.rel = clamp(l.rel + 12, -100, 100); l.notice = null; l.comp = clamp(l.comp + 5); return LD(id).ceo + ' withdraws the notice.' + x; } }
+      : { label: 'Appeal to ' + LD(id || 'mindscale').ceo + ' in person', hint: '1 capital. ' + n + ' +10, enough to keep it if nothing else sours.', fx: s => { if (s.pc < 1) return 'You do not have the capital. The notice stands.'; s.pc -= 1; l.rel = clamp(l.rel + 10, -100, 100); return 'Two hours in a conference room in Palo Alto. No promises either way.'; } },
+    { label: 'Use the ' + TUNE.labNotice + ' months', hint: n + ' stays if by then you have ' + w[1] + ', or its goodwill is up 10. Otherwise it walks, and you can still compel it.', fx: () => 'You tell ' + LD(id).ceo + ' you heard it. The clock is running.' },
+    { label: 'Tell them to go now', hint: n + ' leaves the regime and races, and will not re-sign for ' + TUNE.lockout + ' months. The other lab +6: you did not pay for loyalty.', fx: s => { s.labs.forEach(x => { if (x.id !== id) x.rel = clamp(x.rel + 6, -100, 100); }); return walkNow(s, id); } },
+  ]; } });
+ev({ id: 'lab_preempt', forced: true, title: 'An offer from Mindscale', stamp: 'A steakhouse on K Street',
+  body: s => `<p>${LD('mindscale').ceo}\u2019s head of policy puts it plainly. Mindscale is spending eight figures a quarter against you on the Hill. It would rather not. Back one federal standard that wipes out the fifty state AI laws, and its lobbyists go home.</p>`,
+  choices: [
+    { label: 'Take the trade', hint: 'Mindscale +10 and it stops working the Hill against you before the meeting; salience -4; the Vice President -5 (the governors are his people).', fx: s => { const l = L(s, 'mindscale'); (l.terms = l.terms || {}).preempt = s.turn; l.rel += 10; l.truce = true; s.salience -= 4; rel(s, 'vp', -5); return 'The preemption language appears in a must-pass bill the next week. Mindscale\u2019s lobbyists find other things to do.'; } },
+    { label: 'Counter: preemption only with binding safety rules', hint: 'Prometheus +6; Mindscale -4; Hill work +1. Mindscale keeps lobbying.', fx: s => { L(s, 'prometheus').rel += 6; L(s, 'mindscale').rel -= 4; s.senateLobby += 1; return 'Mindscale says it will think about it. Prometheus puts out a statement of support within the hour.'; } },
+    { label: 'No deal', hint: 'Nothing changes.', fx: () => 'The check comes. You split it.' },
+  ] });
+ev({ id: 'lab_pilot', forced: true, title: 'An offer from Prometheus', stamp: 'By secure email',
+  body: s => `<p>${LD('prometheus').ceo} offers to let federal inspectors into Prometheus\u2019s clusters now, before any rule requires it, so the government learns how to verify a training run on a willing subject. \u201cYou will need to know how to do this. Practice on us.\u201d</p>`,
+  choices: [
+    { label: 'Send the inspectors', hint: 'Inspections +6; Prometheus +6; Mindscale -6: it knows it is next; the Secretary of War -3.', fx: s => { s.verify.inspect += 6; L(s, 'prometheus').rel += 6; L(s, 'mindscale').rel -= 6; rel(s, 'war', -3); return 'Twelve inspectors spend a month inside Prometheus\u2019s largest cluster and come back with a manual.'; } },
+    { label: 'Make it a press event', hint: 'Salience +6; Prometheus +3; Mindscale -10; the Secretary of War -4.', fx: s => { s.salience += 6; L(s, 'prometheus').rel += 3; L(s, 'mindscale').rel -= 10; rel(s, 'war', -4); return 'The photo of inspectors in a server hall runs everywhere. Mindscale calls it a stunt by a competitor.'; } },
+    { label: 'Not yet', hint: 'Nothing changes.', fx: () => 'You thank them and file it.' },
+  ] });
+ev({ id: 'lab_pact', forced: true, title: 'The labs\u2019 own pact', stamp: 'A joint letter',
+  body: s => `<p>${LD('mindscale').ceo} and ${LD('prometheus').ceo} send a joint letter. If either lab\u2019s models start doing most of their own research, both will hold their largest runs for ninety days, policed by each other. They want the White House to bless it. It is weaker than anything you would write, and it is theirs.</p>`,
+  choices: [
+    { label: 'Bless it', hint: 'Both labs +8 and readier to sign a Charter later. The President relaxes: alarm -12.', fx: s => { s.labs.forEach(l => { l.rel += 8; l.pact = 0.5; }); s.alarm -= 12; return 'The President likes that it costs him nothing. That is the problem with it.'; } },
+    { label: 'Build on it: this is the floor', hint: 'Both labs readier to sign a Charter later, and -3 each for the edit; salience +3; alarm -4.', fx: s => { s.labs.forEach(l => { l.pact = 0.5; l.rel -= 3; }); s.salience += 3; s.alarm -= 4; return 'You get one sentence added: the pact is a floor, and the government sets the ceiling.'; } },
+    { label: 'Say publicly it is not enough', hint: 'Salience +5; alarm +4; both labs -6.', fx: s => { s.salience += 5; s.alarm += 4; s.labs.forEach(l => { l.rel -= 6; }); return 'Both CEOs read your statement on their phones in the same green room.'; } },
+  ] });
 // Beijing's grievance: for six months after catching America cheating, Beijing is likelier to cheat on a deal itself.
 function cnAggrieve(s) { s.flags.cnGrievance = s.turn + 6; }
 ev({ id: 'us_exposed', forced: true, title: 'Beijing has the receipts', stamp: 'PRC Embassy, 7:10a',
@@ -2273,7 +2413,7 @@ const WARN = {
 };
 // Warning flavors this game has not shown yet come first.
 function warnFlavor(s, pool) { const seen = s.flags.warnSeen = s.flags.warnSeen || [], fresh = pool.filter(f => seen.indexOf(f) < 0), f = pick(s, fresh.length ? fresh : pool); seen.push(f); return f; }
-function warnLearn(s, q) { const cap = capOf(s, q.who); s.icBias = (s.icBias || 0) * (0.3 + 0.4 * (1 - nearness(s, cap))); s.flags.assessUntil = s.turn + 3; s.flags.incidentTurn = s.turn; }
+function warnLearn(s, q) { s.labs.forEach(l => scare(s, l.id, l.id === q.who ? 15 : 6)); const cap = capOf(s, q.who); s.icBias = (s.icBias || 0) * (0.3 + 0.4 * (1 - nearness(s, cap))); s.flags.assessUntil = s.turn + 3; s.flags.incidentTurn = s.turn; }
 ev({ id: 'warning', forced: true, title: 'A warning shot', stamp: '3:40a',
   body: s => { const q = s.queue[0]; const name = whoName(s, q.who); return WARN[q.flavor || 'exfil'](name) + '<p>Whatever you do next, the IC learns something about how close the threshold is.</p>'; },
   choices: s => { const q = s.queue[0]; const labName = q.who === 'china' ? 'Beijing' : q.who === 'open' ? 'the host' : LD(q.who).name; return [
@@ -2468,7 +2608,7 @@ ev({ id: 'lab_resign', p: 0.2, once: true, phases: ['p0', 'p1'], when: s => fron
   title: 'A resignation letter', stamp: 'Posted at 9:00p',
   body: s => `<p>${LD(frontierLab(s).id).name}’s head of alignment resigns with a public letter: “We are building systems we cannot evaluate, on a schedule set by competitors. I can’t sign off anymore.” Nine colleagues follow by morning.</p>`,
   choices: s => [
-    { label: 'Invite them to testify', hint: 'Salience +7; Senate +3; the frontier lab -10.', fx: s => { s.salience += 7; s.senateLobby += 3; frontierLab(s).rel -= 10; s.flags.incidentTurn = s.turn; return 'The hearing is the most-watched on C-SPAN in a decade.'; } },
+    { label: 'Invite them to testify', hint: 'Salience +7; Senate +3; the frontier lab -10.', fx: s => { s.salience += 7; s.senateLobby += 3; frontierLab(s).rel -= 10; scare(s, frontierLab(s).id, 6); s.flags.incidentTurn = s.turn; return 'The hearing is the most-watched on C-SPAN in a decade.'; } },
     { label: 'Hire them', hint: 'Inspections +6; novel verification +4; the frontier lab -6.', fx: s => { s.verify.inspect += 6; s.verify.novel += 4; frontierLab(s).rel -= 6; return 'Four of them join your verification team the following Monday. They know where the bodies are buried.'; } },
     { label: 'Stay out of it', hint: 'The frontier lab +4.', fx: s => { frontierLab(s).rel += 4; return 'The lab hires a new head of alignment from its product team.'; } },
   ] });
@@ -2799,8 +2939,9 @@ function tick(s) {
       const d = LD(l.id);
       if (!l.defect) {
         const pd = d.ruth * 0.2 * (l.id === 'mindscale' && s.flags.uaeOut ? 1.5 : 1) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 1.8 : 1) * (1 - 0.5 * det) * (s.labs.some(x => !x.covered) ? 1.3 : 1);
-        if (rnd(s) < pd) { l.defect = true; l.defectSince = s.turn; }
-      } else if (rnd(s) < det) { s.stats.defectCaught++; s.queue.push({ id: 'defector', lab: l.id }); }
+        // a frightened CEO cheats less; a watching rival or outside auditors make it likelier to be caught
+        if (rnd(s) < (TUNE.labAI ? pd * clamp(1.3 - labFear(s, l) / 70, 0.3, 1.3) : pd)) { l.defect = true; l.defectSince = s.turn; }
+      } else if (rnd(s) < (TUNE.labAI ? watched(s, l, det) : det)) { s.stats.defectCaught++; s.queue.push({ id: 'defector', lab: l.id }); }
       else if (s.turn - l.defectSince > 4 && rnd(s) < 0.3) { l.defect = false; s.stats.defectMissed++; }
       l.comp += (complianceBase(s, l) - l.comp) * 0.1;
     });
@@ -2928,9 +3069,9 @@ function tick(s) {
     if (s.cn.deal) s.labs.forEach(l => { if (l.defect && !l.cnSaw && rnd(s) < TUNE.cnSeesUS) { l.cnSaw = true; s.queue.push({ id: 'us_lab_caught', lab: l.id }); } });
     // a Charter signatory can walk out, likelier for a reckless lab with shaky compliance, when China is close or racing; a statute binds them
     if (s.pacing.mech === 'charter' && !s.flags.statute && !s.queue.some(q => q.id === 'walkout')) s.labs.forEach(l => {
-      if (!l.covered || !l.signedVoluntary) return;
+      if (!l.covered || !l.signedVoluntary || l.notice) return;
       const pw = TUNE.walkRate * (0.2 + LD(l.id).ruth) * (1 - l.comp / 100) * (seenLead(s) < 3 ? 2 : 1) * (s.cn.posture === 'race' ? 1.5 : 1) * (TUNE.situ ? Math.exp(-TUNE.situ * (l.rel - TUNE.walkMid) / TUNE.walkScale) : 1);
-      if (fuseHit(s, 'walk', pw)) s.queue.push({ id: 'walkout', lab: l.id });
+      if (fuseHit(s, 'walk', pw)) { if (TUNE.labAI && !s.queue.some(q => q.id === 'ultimatum')) { l.notice = { due: s.turn + TUNE.labNotice, rel: l.rel, why: walkWhy(s, l) }; s.queue.push({ id: 'ultimatum', lab: l.id }); } else s.queue.push({ id: 'walkout', lab: l.id }); }
     });
     // China passes the paced frontier
     if (s.cn.cap > frontier(s) + 0.5) { s.flags.overtaken = (s.flags.overtaken || 0) + 1; if (s.flags.overtaken >= 2) queueCollapse(s); }
@@ -2938,6 +3079,9 @@ function tick(s) {
   // labs bound without signing voluntarily lobby the Hill against the pause, the reckless ones hardest
   // and much harder while a pacing bill is moving, when voluntary signers join in at half strength
   if (s.phase === 'p1' && monthly) s.labs.forEach(l => { const forced = l.covered && !l.signedVoluntary, m = s.flags.billDue ? TUNE.billFight * (forced ? 1 : 0.5) : forced ? 1 : 0; s.senateLobby -= TUNE.labLobby * (0.25 + LD(l.id).ruth) * m; });
+  // a voluntary signer that wants pacing works the Hill for the bill instead (it still pays the half-strength share above)
+  if (TUNE.labAI && s.phase === 'p1' && monthly && s.flags.billDue) s.labs.forEach(l => { const pro = labPro(s, l); if (l.signedVoluntary && pro > 0.2) s.senateLobby += TUNE.labLobby * TUNE.billFight * LD(l.id).w.safe * Math.min(1, pro); });
+  if (TUNE.labAI && monthly && s.phase !== 'scramble') labTurn(s);
   if (s.pacing.mech === 'dpa' && s.phase === 'p1' && !s.flags.dpaSince) { s.flags.dpaUsed = true; s.flags.dpaSince = s.turn - 1; }
 
   // --- the Strait: a quarantine can end or turn into war; war climbs the escalation meter until a ceasefire
@@ -3059,6 +3203,7 @@ function view(s) {
     roomLeft: roomMax(s) - s.roomUsed, roomMax: roomMax(s), phase2: phase2Check(s), briefOdds: s.phase === 'p0' ? briefOdds(s) : null,
     rObs: rObserved(s), pauseMood: pauseMood(s), inZone, strait: straitEstimate(s), open: s.open, // public weights: benchmarked by anyone, so seen exactly
     misuse: { cyber: cyberP(s), bio: bioP(s), agents: s.agents || 0 },
+    labAI: TUNE.labAI ? s.labs.map(l => ({ id: l.id, fear: fearWord(labFear(s, l)), pro: labPro(s, l), move: l.move && l.move.turn >= s.turn - 2 ? l.move.text : '', notice: l.notice ? l.notice.due - s.turn : null, hold: !!l.hold, terms: LD(l.id).terms.filter(t => l.terms && l.terms[t.id]).map(t => t.name) })) : null,
   };
 }
 
@@ -3081,6 +3226,10 @@ const API = {
   view,
   quickView,
   charterOdds,
+  charterParts,
+  labTerms,
+  labFear,
+  labPro,
   charterDecide,
   finishConvening,
   makeOffer,

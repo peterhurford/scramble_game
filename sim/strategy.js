@@ -9,7 +9,7 @@ const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offs
 // Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
 const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'cyber_incident', 'bio_scare', 'agent_llc', 'agent_market', 'agent_compute', 'lab_resign', 'insurers', 'deepfake', 'march', 'cure', 'cn_scientist', 'us_defect', 'state_law', 'bio_attack', 'tsy_channel', 'war_drill', 'cos_squeeze'];
+const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'cyber_incident', 'bio_scare', 'agent_llc', 'agent_market', 'agent_compute', 'lab_resign', 'insurers', 'deepfake', 'march', 'cure', 'cn_scientist', 'us_defect', 'state_law', 'bio_attack', 'tsy_channel', 'war_drill', 'cos_squeeze', 'ultimatum', 'lab_preempt', 'lab_pilot', 'lab_pact'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
@@ -45,6 +45,8 @@ g('seq', 'choice', ['first', 'deadline', 'together', 'adaptive']);
 g('seqIc', 'real', 2, 10);
 g('dealBelow', 'real', 0, 1);
 g('dealMinShare', 'real', 0, 0.3);
+// which terms the bot will put on the signing table (TUNE.labAI)
+E.LABS.forEach(l => l.terms.forEach(t => g('term.' + t.id, 'bool')));
 g('waitFull', 'bool');
 g('scrIdle', 'choice', ['remote', 'meet', 'allies', 'none']);
 g('scrOffer', 'bool');
@@ -87,6 +89,7 @@ const GROUPS = Object.keys(GATE).filter(p => p !== 'sl4').map(p => ['pol.' + p, 
     ['briefR', 'briefOdds', 'briefIc', 'briefIcOdds'], ['seq', 'seqIc', 'trig'], ['pol.chips', 'pol.remote', 'pol.distill', 'pol.smuggle', 'gate.chips', 'gate.remote', 'gate.distill', 'gate.smuggle']]);
 
 const PREF = {
+  lab_pact: 1,
   warn_due: 0,
   distill_report: 0,
   smuggle_bust: 2,
@@ -178,6 +181,12 @@ function expertGenome() {
     seqIc: 6,
     dealBelow: 0.55,
     dealMinShare: 0.15,
+    'term.dod': true,
+    'term.permits': true,
+    'term.preempt': true,
+    'term.desig': true,
+    'term.seat': true,
+    'term.audits': true,
     waitFull: true,
     scrIdle: 'remote',
     scrOffer: false,
@@ -230,6 +239,13 @@ function tryAct(s, id, prm, G, why) {
 function charter(s, G) {
   E.LABS.forEach(ld => {
     if (E.L(s, ld.id).signed) return;
+    if (E.TUNE.labAI) {
+      // add allowed terms in the lab's order until the odds clear dealBelow, keeping 1 capital back
+      const ts = []; let pc = s.pc - 1;
+      if (ld.share >= G.dealMinShare) E.labTerms(s, ld.id).forEach(t => { if (G['term.' + t.id] !== false && t.pc <= pc && E.charterOdds(s, ld.id, ts) < G.dealBelow) { ts.push(t.id); pc -= t.pc; } });
+      const r = E.charterDecide(s, ld.id, ts); note(s, 'sign', ld.name + (ts.length ? ' (terms: ' + ts.join(', ') + ')' : '') + (r.signed ? ' SIGNS' : ' REFUSES'), ts.length ? 'odds below ' + Math.round(100 * G.dealBelow) + '% and a big lab' : 'ask without terms');
+      return;
+    }
     const deal = E.charterOdds(s, ld.id, false) < G.dealBelow && s.pc >= ld.deal.pc + 1 && ld.share >= G.dealMinShare;
     const r = E.charterDecide(s, ld.id, deal); note(s, 'sign', ld.name + (deal ? ' (sweetened: ' + ld.deal.name + ')' : '') + (r.signed ? ' SIGNS' : ' REFUSES'), deal ? 'odds below ' + Math.round(100 * G.dealBelow) + '% and a big lab' : 'ask without a side deal');
   });
