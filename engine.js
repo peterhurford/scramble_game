@@ -245,6 +245,7 @@ const TUNE = {
   labWarn: 5, // salience from a worried lab's public warning (alarm +4 in Phase 0)
   labHold: 0.7, // a frightened safety lab's growth while it holds its largest run on its own
   labWatch: 0.25, // extra chance a rival's cheating is caught while a compliant signatory is watching it
+  labBlind: 0.2, // each lab's own fixed misjudgment of the threshold (log sd): its worry tracks what it believes, so the Labs panel reads the threshold about as well as the IC, not exactly; 0 = labs see the true threshold
   labNotice: 2, // months of notice a lab gives before it walks out of the Charter
   meetDecay: 0.6,
   favorCred: 2,
@@ -1373,9 +1374,10 @@ function charterOdds(s, labId, withDeal) {
   return clamp(logistic(x), 0.02, 0.97);
 }
 // ---- labs with agendas (TUNE.labAI) ----
-// A CEO's own fear of losing control, 0-100: a floor from the lab's safety culture, rising as its own models near the threshold
-// (the lab reads its models directly, so this follows the true threshold), plus scares at the lab that fade 7% a month.
-function labFear(s, l) { const d = LD(l.id), prox = clamp((l.cap / s.T - 0.55) / 0.45, 0, 1); return clamp(0.35 * d.safety + 90 * prox * (0.4 + 0.6 * d.safety / 100) + (l.scare || 0)); }
+// A CEO's own fear of losing control, 0-100: a floor from the lab's safety culture, rising as its own models near where the lab
+// believes the threshold is (labT: the truth times a per-game, per-lab error, TUNE.labBlind), plus scares at the lab that fade 7% a month.
+function labT(s, l) { return TUNE.labBlind ? s.T * Math.exp(TUNE.labBlind * Math.sqrt(-2 * Math.log(Math.max(1e-9, hash01(s.seed, 'labT', l.id)))) * Math.cos(2 * Math.PI * hash01(s.seed, 'labU', l.id))) : s.T; }
+function labFear(s, l) { const d = LD(l.id), prox = clamp((l.cap / labT(s, l) - 0.55) / 0.45, 0, 1); return clamp(0.35 * d.safety + 90 * prox * (0.4 + 0.6 * d.safety / 100) + (l.scare || 0)); }
 function fearWord(f) { return f < 25 ? 'unworried' : f < 45 ? 'uneasy' : f < 65 ? 'worried' : f < 85 ? 'frightened' : 'alarmed'; }
 function scare(s, id, d) { if (!TUNE.labAI) return; const l = L(s, id); l.scare = clamp((l.scare || 0) + d, 0, 40); }
 // Where a lab stands on pacing, about -1 (fights it) to +1 (wants it): fear by how much it weighs safety, goodwill, against how much it weighs room to build.
