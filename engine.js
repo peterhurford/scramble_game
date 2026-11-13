@@ -230,7 +230,8 @@ const TUNE = {
   supportGrace: 1,
   aloneFloor: 4,
   keepAsk: 1,
-  keepCost: { trust: 8, tension: 5, holdTrust: 6, holdWar: 6, again: 1.5 },
+  keepCost: { trust: 8, tension: 5, holdTrust: 15, holdWar: 6, again: 1.5 },
+  keepDeal: { u: 0.5, months: 6 },
   chipLever: 0.55,
   reliefLever: 0.25,
   appealSwing: 0.5,
@@ -1573,6 +1574,7 @@ function cnParts(s, terms, pub) {
   const f = s.cn.f, ld = pub ? seenLead(s) : lead(s); // the player's preview reads the IC's gap; Beijing decides on the true one
   const P_ = [['Base reluctance', -1.55], ['Who has the floor in Beijing', 0.03 * (f.sci - 20) + 0.015 * (f.m - 50) - 0.03 * (f.sec - 30)]];
   P_.push([ld >= 4 ? 'The US lead' : 'China is close behind', TUNE.leadSlope * (clamp(ld, -4, 12) - 4)]);
+  if (s.pacing.keep === false && s.pacing.heldAt != null && s.t - s.pacing.heldAt < TUNE.keepDeal.months) P_.push(['America kept its word and stayed paused', TUNE.keepDeal.u]);
   const cm = pub ? crossoverMonths(s) : cnCatchUp(s); if (cm < 6) P_.push(['China could overtake within ' + Math.max(1, Math.round(cm)) + ' months', -TUNE.overtakePen * (1 - cm / 6)]);
   if (chanClosed(s) && !terms.lane && !terms.chips && !terms.relief && f.sec > 40) P_.push(['Every channel closed, and nothing in the offer reopens one', -0.4]);
   if (paced(s)) P_.push(['America is pacing', 0.5]);
@@ -2397,8 +2399,8 @@ ev({ id: 'keep_pace', forced: true, title: 'Keep pace with China?', stamp: 'Situ
   choices: [
     { label: 'Let the labs keep pace with China', hint: s => `The labs train just fast enough that China stops gaining on them, so the lead holds roughly where it is, but the frontier keeps nearing the danger threshold. Beijing trust -${TUNE.keepCost.trust}, tension +${TUNE.keepCost.tension}.`,
       fx: s => { s.pacing.keep = true; s.cn.trust -= TUNE.keepCost.trust; s.tension += TUNE.keepCost.tension; return 'The labs restart training, metered to the DNI\u2019s estimate of China. Beijing\u2019s state media call the pause a fraud.'; } },
-    { label: 'Hold the pause', hint: s => `The labs stay paused and China keeps closing; if China passes them, the pause breaks. Beijing trust +${TUNE.keepCost.holdTrust}, Secretary of War -${TUNE.keepCost.holdWar}.` + (s.pacing.keepAsked < 2 ? ` Asked again if the lead falls under ${TUNE.keepCost.again} months.` : ''),
-      fx: s => { s.pacing.keep = false; s.cn.trust += TUNE.keepCost.holdTrust; rel(s, 'war', -TUNE.keepCost.holdWar); return 'The orders stand. In Beijing, the science faction circulates the DNI\u2019s leaked line: America is keeping its word.'; } },
+    { label: 'Hold the pause', hint: s => `The labs stay paused and China keeps closing; if China passes them, the pause breaks. Beijing trust +${TUNE.keepCost.holdTrust}, and for ${TUNE.keepDeal.months} months Beijing is likelier to accept an offer. Secretary of War -${TUNE.keepCost.holdWar}.` + (s.pacing.keepAsked < 2 ? ` Asked again if the lead falls under ${TUNE.keepCost.again} months.` : ''),
+      fx: s => { s.pacing.keep = false; s.pacing.heldAt = s.t; s.cn.trust += TUNE.keepCost.holdTrust; rel(s, 'war', -TUNE.keepCost.holdWar); return 'The orders stand. In Beijing, the science faction circulates the DNI\u2019s leaked line: America is keeping its word.'; } },
   ] });
 ev({ id: 'one_month', forced: true, title: 'One month', stamp: 'Oval Office',
   body: s => `<p>The President calls you in. \u201cI\u2019m getting killed on this. One month. If it isn\u2019t turned around by ${monthLabel(s.pacing.grace ? s.pacing.grace.t : s.t + 1)}, I\u2019m lifting the orders.\u201d</p>`,
