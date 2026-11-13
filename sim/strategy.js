@@ -9,7 +9,7 @@ const GATE = { distill: ['dist', 1], remote: ['offshore', 0.4], malaysia: ['offs
 // Projects a strategy can make conditional on a reading: concealment and cyber push (Beijing tab), the courts (counsel), Beijing's science faction.
 const PGATE = { geoint: ['hide', 1.5], legal: ['courts', 1.5], sl4: ['cyber', 1.8], sl5: ['cyber', 1.8], track2: ['sci', 30] };
 const PEOPLE = E.PRINCIPALS.map(p => p.id);
-const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 'cn_squeeze', 'cn_wedge', 'cn_counter', 'cn_press', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'cyber_incident', 'bio_scare', 'agent_llc', 'agent_market', 'agent_compute', 'lab_resign', 'insurers', 'deepfake', 'march', 'cure', 'cn_scientist', 'us_defect', 'state_law', 'bio_attack', 'tsy_channel', 'war_drill', 'cos_squeeze', 'ultimatum', 'lab_preempt', 'lab_pilot', 'lab_pact', 'keep_pace'];
+const EVENTS = ['us_exposed', 'us_lab_caught', 'warn_due', 'walkout', 'rider', 'knock', 'midterms', 'probe', 'distill_report', 'smuggle_bust', 'trade_summit', 'czar_podcast', 'lantern_oped', 'kite', 'oversight', 'power', 'titan_feud', 'leak', 'johor', 'bio', 'capex', 'ceo_call', 'near_miss', 'rare_earths', 'taiwan', 'verdant', 'cn_un', 'g7', 'czar_endrun', 'feud', 'vp_issue', 'hawk_push', 'debate', 'deadline_up', 'cn_beg', 'cn_squeeze', 'cn_wedge', 'cn_counter', 'cn_press', 'cn_econ', 'cn_coerce', 'cn_op', 's_leak', 's_beijing', 's_titan', 's_hill', 'defector', 'cn_cheat', 'court', 'lobby_end', 'uae', 'hearing', 'markets_wobble', 'commerce_ex', 'wobble', 'theft', 'war', 'warning', 'algo_break', 'bill', 'blockade', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'war_talks', 'cable_cut', 'tsmc_shield', 'cyber_incident', 'bio_scare', 'agent_llc', 'agent_market', 'agent_compute', 'lab_resign', 'insurers', 'deepfake', 'march', 'cure', 'cn_scientist', 'us_defect', 'state_law', 'bio_attack', 'tsy_channel', 'war_drill', 'cos_squeeze', 'ultimatum', 'lab_preempt', 'lab_pilot', 'lab_pact', 'keep_pace'];
 
 const GENES = [];
 const g = (key, type, a, b) => GENES.push({ key, type, a, b });
@@ -134,6 +134,9 @@ const PREF = {
   cn_wedge: 1,
   cn_counter: 0,
   cn_press: 1,
+  cn_econ: 0,
+  cn_coerce: 1,
+  cn_op: 0,
   czar_endrun: 0,
   feud: 0,
   vp_issue: 0,

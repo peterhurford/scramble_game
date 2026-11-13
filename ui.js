@@ -49,7 +49,7 @@ const FACTION_COLOR = { Populist: '#8A5A2B', Politics: '#5B5F97', Dealmaker: '#2
 const SEAT = { vp: 'VP', cos: 'COS', tsy: 'TSY', doc: 'DOC', sec: 'ST', war: 'WAR', dni: 'DNI' };
 const EVTYPE = {
   crisis: ['one_month', 'bio_attack', 'cyber_incident', 'bio_scare', 'war_begins', 'war_exempt', 'war_cyber', 'war_escalate', 'quake', 'debate', 'deadline_up', 'warning', 'knock', 'runaway', 'war', 'theft', 'theft_foiled', 'ceo_call', 'near_miss', 'window', 'collapse', 'wobble', 'intro'],
-  beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_squeeze', 'cn_wedge', 'cn_counter', 'cn_press', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un', 'smuggle_bust', 'cn_scientist', 'tsy_channel', 'war_drill'],
+  beijing: ['us_exposed', 'us_lab_caught', 'blockade', 'war_talks', 'cable_cut', 'cn_breakthrough', 'cn_beg', 'cn_squeeze', 'cn_wedge', 'cn_counter', 'cn_press', 'cn_econ', 'cn_coerce', 'cn_op', 'cn_race', 'cn_cheat', 'kite', 'rare_earths', 'taiwan', 's_beijing', 'johor', 'cn_un', 'smuggle_bust', 'cn_scientist', 'tsy_channel', 'war_drill'],
   labs: ['agent_llc', 'agent_market', 'agent_compute', 'algo_break', 'distill_report', 'lantern_oped', 'oversight', 'titan_feud', 's_titan', 'defector', 'us_defect', 'control_fail', 'bio', 'uae', 'lobby_end', 'commerce_ex', 'tinder', 'czar_podcast', 'lab_resign', 'cure', 'walkout', 'ultimatum', 'lab_preempt', 'lab_pilot', 'lab_pact'],
   markets: ['tsmc_shield', 'grid', 'flash_crash', 'ipo', 'capex', 'markets_wobble', 'trade_summit', 'verdant', 'power', 'jobs', 'insurers'],
 };
@@ -628,6 +628,7 @@ function doAction() {
   if (S._seen) delete S._seen.fresh[id];
   if (res.modal === 'offer') { openOffer(); return; }
   if (res.modal === 'charter') { ui.before = before; save(); openCharter(); return; }
+  if (res.vetoed) { save(); renderGame(); afterChange(outcome('State sat on it.', esc(res.text) + changedBox(diffList(before, snap())), 'bad')); return; }
   if (a.room) { save(); showVote(a, res, diffList(before, snap())); return; }
   if (a.params && a.params.kind !== 'variant') ui.params = {};
   if (gate(id) !== true) ui.sel = null; // done or locked now: move on to the first open action
@@ -773,6 +774,7 @@ function openOffer() {
     <div class="fac" style="margin-bottom:6px"><div class="m" style="width:${f.m}%">MARKET</div><div class="sec" style="width:${f.sec}%">SECURITY</div><div class="sci" style="width:${f.sci}%">SCIENCE</div></div>
     <div class="sub" style="margin-bottom:10px">Market wants a lane for its models; Security hates inspections; Science responds to shared evaluations. ${S.pacing.active ? 'America is already pacing.' : S.pacing.armed ? 'America is on standby: Beijing finds it ' + E.credWord(E.standbyCred(S)) + '.' : 'America is not pacing: Beijing will ask why it should stop first.'}</div>
     <div class="terms">${terms}</div>
+    ${(() => { const st = E.stateRead(S); return `<div class="sub" style="margin-bottom:8px">${esc(st.text)}.</div>`; })()}
     <div class="twoodds"><div><div class="lbl">President approves</div>${oddsBar(pv.room.p)}</div><div><div class="lbl">Beijing accepts (IC read)</div>${oddsBar(pv.cn.mid)}</div></div>
     <details id="owhy" class="sub" style="margin:4px 0 10px" ${ui.offerWhy ? 'open' : ''}><summary>What Beijing weighs in this package</summary>${parts(E.cnParts(S, t, true).map(p => [p[0], 10 * p[1]]))}</details>
     ${whip(pv.room.positions, true)}
@@ -784,6 +786,7 @@ function openOffer() {
     const before = snap();
     const r = E.makeOffer(S, Object.assign({}, t));
     if (r.error) return toast(r.error);
+    if (r.vetoed) { save(); closeModal(); renderGame(); afterChange(outcome('State sat on it.', esc(r.text) + changedBox(diffList(before, snap())), 'bad')); return; }
     save(); const diffs = diffList(before, snap());
     openModal(`<div class="mh"><span>${icon('globe')} Beijing</span><span>${esc(E.dateLabel(S.t))}</span></div><div class="mb">
       <div class="lbl">The President: needed under ${Math.round(100 * r.room.p)}, drew ${Math.round(100 * r.roll)}</div>${oddsBar(r.room.p, r.roll)}

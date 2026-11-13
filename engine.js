@@ -235,6 +235,11 @@ const TUNE = {
   cnExploit: 1, // with little US leverage Beijing pockets a unilateral pause (up to -0.4x this on signing) and cheats more under a deal (up to x(1 + 0.6x this))
   cnState: 1, // State carries China diplomacy: the Secretary's relationship / 40 (capped at ±1) scales offers (±0.25), threat credibility (±0.1), reassurance (±0.1) and ceasefires (±0.06); 0: only Ally or Hostile counts, offers only
   cnCheatAim: 1, // cheating follows payoff: x(1 + this/2) at a 2-month US lead or less, x(1 - this/2) at 8 months or more
+  cnTheft: 1, // Beijing plans theft operations when a lead is worth stealing and lab security is weak (cnOpWorth); for 3 months attempts run x(1 + 1.5x this)
+  cnStrait: 1, // a move: a Strait coercion ladder (drills, then customs inspections) against a big US lead near the threshold; each rung adds 0.012x this to the monthly crisis odds
+  cnEcon: 1, // a move: an economic-war ladder (minerals, an entity list, Treasuries); each rung hits markets now and bleeds 0.6x rung x this a month until it ends
+  cnAlarm: 1, // Beijing's own fear (0-1) from either side nearing the threshold and from incidents: shifts its factions toward Science and makes a deal worth up to +0.3x this
+  cnVeto: 1, // a Secretary of State below -5 sits on China diplomacy with chance this x (-relationship - 5) / 80, up to 40%: the action is spent, the capital is not
   secretRate: 0.5,
   usCatch: 0.1,
   cnSeesUS: 0.15,
@@ -738,8 +743,9 @@ function theftRisk(s, pub) {
   const x = clamp(F / T, 0, 1.2), rsi = 1 + TUNE.theftRsi * Math.pow(Math.min(x, 1), 4), ramp = c.deal ? Math.min(1, 0.5 + 1.5 * x * x) : (0.5 + 1.5 * x * x) * rsi;
   const cyber = pub ? cnReadout(s).seen.cyber : (c.cyber || 1);
   const attempt = TUNE.theftBase * ramp * cyber * DIFFS[s.diff].theft * (c.posture === 'race' ? 2.2 : 1) * (paced(s) ? 1.3 : 1) * (TUNE.theftLeadSlope ? clamp(TUNE.theftLeadBase + TUNE.theftLeadSlope * lead(s), TUNE.theftLeadBase, TUNE.theftLeadMax) : lead(s) > 6 ? 1.3 : 1) * (s.war ? 1.8 : 1) * (!pub && c.deal && c.cheat ? TUNE.cheatSteal : 1) * lean(s, TUNE.theftResolve) * emboldened(s) * (s.stats.firstScramble == null ? TUNE.theftPreScr : 1);
-  const success = SL[s.sl].theft;
-  return { attempt, success, net: attempt * success };
+  const op = TUNE.cnTheft && c.op && (!pub || c.op.seen), success = SL[s.sl].theft * (op && c.op.locked ? 0.4 : 1);
+  const att = attempt * (op ? 1 + 1.5 * TUNE.cnTheft : 1);
+  return { attempt: att, success, net: att * success };
 }
 function monthlyRisk(s) { return 1 - hazards(s).reduce((a, x) => a * (1 - x.h), 1); }
 // The IC's p(doom): it opens low and climbs toward the chance of a bad ending from here as months pass and alarms land (doomWake). That chance is a logistic fit (sim/doom.js) on bot games over these features, read off the true state, then blurred
@@ -781,6 +787,7 @@ function straitParts(s, pub) {
   if (s.cn.posture === 'race') P_.push(['Beijing is racing', 0.012]);
   const pre = TUNE.straitPre * clamp((ld - 3) / 6, 0, 1) * Math.pow(x, 3) * (paced(s) ? 0.35 : 1) * (reassured(s) ? 1 - TUNE.reassureCut * reassureCred(s) * reassureFrom(s) : 1);
   if (pre > 0.0005) P_.push([paced(s) ? 'A big US lead near the threshold, even paced' : 'A big US lead racing toward the threshold', pre]);
+  if (TUNE.cnStrait && s.cn.ladder) P_.push(['Beijing’s coercion ladder, rung ' + s.cn.ladder, 0.012 * s.cn.ladder * TUNE.cnStrait]);
   return P_;
 }
 // The Security faction scales it (x1 at its usual 30), and a deal cuts it 70%.
@@ -1603,6 +1610,7 @@ function cnParts(s, terms, pub) {
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
   if (terms.freeze) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
+  if (TUNE.cnAlarm && (s.cn.fear || 0) >= 0.05) P_.push(['Beijing is frightened of what both sides are building', 0.3 * TUNE.cnAlarm * s.cn.fear]);
   if (TUNE.cnState) { const k = stateCarry(s); if (Math.abs(k) >= 0.05) P_.push([k > 0 ? 'The Secretary of State is carrying your offer' : 'The Secretary of State is undercutting your offer', 0.25 * k]); }
   else if (tierSign(s, 'sec')) P_.push([isAlly(s, 'sec') ? 'The Secretary of State is carrying your offer' : 'The Secretary of State is undercutting your offer', 0.25 * tierSign(s, 'sec')]);
   if (terms.misuse) P_.push(['Joint misuse response (worth more as open models get dangerous)', misusePactWorth(s)]);
@@ -1747,6 +1755,7 @@ function sealDeal(s, terms, text) {
   s.tension -= 12; s.markets += 4; s.cred += 6;
   termFx(s, terms);
   if (s.flags.warn) { warnRec(s).won++; s.flags.warn = null; }
+  if (s.cn.econ) econEnd(s, 'The deal ends Beijing’s economic campaign.');
   log(s, text, 'good');
   if (s.pacing.armed && !s.pacing.active) { activatePacing(s); log(s, 'The pause begins on both sides.', 'good'); }
 }
@@ -1754,6 +1763,7 @@ function makeOffer(s, terms) {
   const a = ACT.offer;
   if (s.ap < a.ap || s.pc < a.pc) return { error: 'Not enough actions or capital' };
   if (s.roomUsed >= roomMax(s)) return { error: 'The President has no more time for decisions this turn' };
+  const veto = stateVeto(s, 'offer'); if (veto) { s.ap -= a.ap; return { pass: false, vetoed: true, text: veto }; }
   s.ap -= a.ap; s.pc -= a.pc; s.roomUsed++;
   const rp = roomPreviewTags(s, 'offer', offerTags(terms), JSON.stringify(terms));
   const roll = draw(s, 'room', rp.p); const pass = roll < rp.p;
@@ -1914,7 +1924,22 @@ const CHIPS = {
   strike: () => ['+Sets China back badly', '-Beijing enraged', '-Could start a war'],
 };
 function oddsWord(p) { return p < 0.12 ? 'very unlikely' : p < 0.33 ? 'unlikely' : p < 0.58 ? 'a toss-up' : p < 0.8 ? 'likely' : p < 0.93 ? 'very likely' : 'near-certain'; }
-function chips(s, id, params) { const f = CHIPS[id]; return f ? (f(s, params || {}) || []) : []; }
+function chips(s, id, params) { const f = CHIPS[id], out = f ? (f(s, params || {}) || []) : []; return STATE_DIPLO.indexOf(id) >= 0 ? out.concat(stateChips(s)) : out; }
+// China diplomacy goes through the Secretary of State: stateCarry scales how far Beijing believes it (cnState), and a cool Secretary may sit on it (cnVeto).
+const STATE_DIPLO = ['offer', 'warn', 'sound', 'reassure', 'ceasefire'];
+function stateVetoP(s) { return TUNE.cnVeto ? clamp(TUNE.cnVeto * (-P(s, 'sec').rel - 5) / 80, 0, 0.4) : 0; }
+function stateVeto(s, id) {
+  const p = STATE_DIPLO.indexOf(id) >= 0 ? stateVetoP(s) : 0;
+  if (!p || draw(s, 'state', p) >= p) return null;
+  s.stats.stateVetoes = (s.stats.stateVetoes || 0) + 1; log(s, 'The Secretary of State sat on it: ' + ACT[id].name.toLowerCase() + '.', 'bad');
+  return pick(s, ['The Secretary of State says the timing is wrong and the cable never goes out. No capital spent.', 'State \u201chas concerns\u201d and the instructions sit in the Seventh Floor in-box. No capital spent.', 'The Secretary of State takes it to the President first, and it dies there. No capital spent.']);
+}
+function stateRead(s) {
+  const r = P(s, 'sec').rel, k = stateCarry(s), v = stateVetoP(s);
+  const how = !TUNE.cnState ? '' : k >= 0.3 ? 'carrying it hard' : k >= 0.05 ? 'carrying it' : k <= -0.3 ? 'undercutting it' : k <= -0.05 ? 'lukewarm on it' : 'neither help nor hindrance';
+  return { tier: relTier(r), how, veto: v, text: 'Goes through the Secretary of State (' + relTier(r) + ')' + (how ? ', ' + how : '') + (v ? '. Chance State sits on it: ' + oddsWord(v) : '') };
+}
+function stateChips(s) { if (!TUNE.cnState && !TUNE.cnVeto) return []; const r = stateRead(s); return [(stateCarry(s) > 0.05 ? '+' : stateCarry(s) < -0.05 || r.veto ? '-' : '~') + 'Through the Secretary of State (' + r.tier + ')' + (r.how ? ': ' + r.how : '')].concat(r.veto ? ['-State may sit on it: ' + oddsWord(r.veto)] : []); }
 
 /* ================= action plumbing ================= */
 function actionCost(s, id, params) { const a = ACT[id]; if (a.cost) return a.cost(s, params || {}); return { ap: a.ap, pc: a.pc }; }
@@ -1956,6 +1981,7 @@ function act(s, id, params) {
   if (a.params && a.params.kind === 'lab' && !params.lab) return { error: 'Choose a lab' };
   if (a.params && a.params.kind === 'comp' && !params.comp) return { error: 'Choose a component' };
   if (a.modal === 'offer') return { modal: 'offer' };
+  const veto = stateVeto(s, id); if (veto) { s.ap -= c.ap; normalize(s); return { pass: false, vetoed: true, text: veto }; }
   s.ap -= c.ap; s.pc -= c.pc;
   let res;
   if (a.room) {
@@ -3017,6 +3043,10 @@ function cnMoves(s) {
   if (TUNE.cnCounter && !c.deal && c.rejected && s.turn - c.rejected.turn <= 4 && c.f.sec <= 42 && (paced(s) || s.pacing.armed)) { const t = counterTerms(s, c.rejected.terms); if (t) M.push({ id: 'cn_counter', terms: t, score: 1.5 + cnUtility(s, t) }); }
   // under a deal the US has little left to answer with, Beijing asks for one more carrot (twice a deal at most)
   if (TUNE.cnPress && c.deal && !c.cheat && (c.deal.presses || 0) < 2 && s.turn - c.deal.turn >= 3) { const ask = CARROT_IDS.filter(k => !c.deal.terms[k]).sort((a, b) => worthOf(s, b, termMult(s, b)) - worthOf(s, a, termMult(s, a)))[0]; if (ask) M.push({ id: 'cn_press', k: ask, score: 1.7 - 0.9 * usLeverage(s) }); }
+  // the economic-war ladder (each rung makes the next likelier: sunk costs), climbed against controls, a grievance, a racing US lead or a market already down; Beijing's Market faction holds it back
+  if (TUNE.cnEcon && (!c.deal || c.cheat) && (c.econ || 0) < 3) M.push({ id: 'cn_econ', score: TUNE.cnEcon * (0.2 + 0.3 * held.length + ((s.flags.cnGrievance || 0) >= s.turn ? 0.5 : 0) + 0.4 * clamp((lead(s) - 3) / 6, 0, 1) + (s.markets < 95 ? 0.3 : 0) + (c.posture === 'race' ? 0.3 : 0) + 0.15 * (c.econ || 0) - 0.004 * Math.max(0, c.f.m - 50)) });
+  // the Strait ladder, against a big US lead near the threshold (a pause cuts the motive, as in straitParts)
+  if (TUNE.cnStrait && !c.deal && (c.ladder || 0) < 2) { const pre = clamp((lead(s) - 3) / 6, 0, 1) * Math.pow(clamp(frontier(s) / s.T, 0, 1), 2) * (paced(s) ? 0.35 : 1); M.push({ id: 'cn_coerce', score: TUNE.cnStrait * (0.3 + 2 * pre + 0.01 * (c.f.sec - 30) + (c.posture === 'race' ? 0.2 : 0)) }); }
   return M.sort((a, b) => b.score - a.score);
 }
 // What Beijing is up to, as the advisor can read it (public facts and the IC's estimates only): shown on the Beijing tab.
@@ -3026,20 +3056,85 @@ function cnPlays(s) {
   if (cnFreeRide(s) < -0.15) out.push('Pocketing your pause: you have little it fears losing, so it sees no reason to pay for what it already has.');
   if (cnWaitOut(s) < 0) out.push('Waiting you out: Beijing expects your pause to fall on its own (' + waitWhy(s).join(', ') + ').');
   if (TUNE.cnReroute && s.flags.rerouteSeen && TUNE.cnReroute * 0.03 < (c.rebuilt || 0)) out.push('Rerouting: it has rebuilt about ' + Math.round(100 * c.rebuilt) + '% of baseline compute through channels no rule covers.');
+  if (TUNE.cnAlarm && (c.fear || 0) >= 0.2) out.push('Frightened: what both sides are building near the threshold has Beijing’s scientists winning arguments, and a deal is worth more to it.');
+  if (TUNE.cnEcon && c.econ) out.push('Economic war, rung ' + c.econ + ' of 3: US markets lose about ' + (0.6 * c.econ).toFixed(1) + ' points a month until it ends.');
+  if (TUNE.cnStrait && c.ladder) out.push('Coercing in the Strait, rung ' + c.ladder + ' of 2: crisis odds are higher until Beijing steps down.');
+  if (TUNE.cnTheft && c.op && c.op.seen) out.push('Running an operation against a US lab until ' + monthLabel(c.op.until) + (c.op.locked ? ' (the lab is locked down)' : '') + '.');
   if (c.lastMove && s.turn - c.lastMove.turn <= 6) out.push('Last move (' + monthLabel(c.lastMove.t) + '): ' + c.lastMove.text);
   return out;
 }
-const MOVE_TEXT = { rare_earths: 'mineral curbs, in answer to a control.', cn_squeeze: 'a squeeze on US firms, in answer to a control.', cn_wedge: 'an offer to peel an ally off the coalition.', cn_counter: 'a counter-offer on its own terms.', cn_press: 'a demand for more, with the deal already signed.' };
+const MOVE_TEXT = { rare_earths: 'mineral curbs, in answer to a control.', cn_squeeze: 'a squeeze on US firms, in answer to a control.', cn_wedge: 'an offer to peel an ally off the coalition.', cn_counter: 'a counter-offer on its own terms.', cn_press: 'a demand for more, with the deal already signed.', cn_econ: 'a new rung of economic war.', cn_coerce: 'military coercion in the Strait, aimed at your lead.' };
 function cnPlan(s) {
   const c = s.cn;
   if (s.war || s.blockade || s.ending || s.phase === 'scramble' || s.turn - (c.moved || -99) < TUNE.cnPlanGap) return;
   const m = cnMoves(s)[0]; if (!m || m.score < 1 || s.queue.some(q => q.id === m.id)) return;
+  // coercion is a gamble Beijing takes only some months: the likelier the stronger the case
+  if ((m.id === 'cn_econ' || m.id === 'cn_coerce') && rnd(s) >= clamp(m.score / 2, 0, 0.9)) return;
   c.moved = s.turn; c.lastMove = { turn: s.turn, t: s.t, text: MOVE_TEXT[m.id] };
+  if (m.id === 'cn_econ') { const k = c.econ = (c.econ || 0) + 1, e = ECON[k - 1]; s.markets -= e.hit; s.tension += 4; if (k === 1) s.flags.minerals = { until: s.turn + 4, d: 0.08 }; s.stats.econMax = Math.max(s.stats.econMax || 0, k); log(s, 'Beijing escalates its economic campaign: ' + e.name + '.', 'bad'); s.queue.push({ id: m.id, k }); s.seen[m.id] = s.turn; return; }
+  if (m.id === 'cn_coerce') { const k = c.ladder = (c.ladder || 0) + 1; c.ladderT = s.turn; s.tension += 4; s.stats.ladderMax = Math.max(s.stats.ladderMax || 0, k); s.queue.push({ id: m.id, k }); s.seen[m.id] = s.turn; return; }
   if (m.id === 'cn_press') c.deal.presses = (c.deal.presses || 0) + 1; else if (m.k) (c.answered = c.answered || {})[m.k] = true;
   if (m.id === 'cn_counter') c.rejected = null;
   s.queue.push(m.id === 'cn_counter' ? { id: m.id, terms: m.terms } : m.id === 'cn_wedge' ? { id: m.id, n: (c.wedges = (c.wedges || 0) + 1) - 1 } : { id: m.id, k: m.k });
   s.seen[m.id] = s.turn;
 }
+// Beijing's alarm (cnAlarm), 0-1: the larger of what either side's nearness to the threshold warrants and last month's alarm x0.85, plus a jolt for each incident it sees.
+const CN_SCARES = { warning: 0.3, near_miss: 0.15, bio_scare: 0.15, bio_attack: 0.3, control_fail: 0.2, algo_break: 0.1 };
+function cnFearTarget(s) { const x = clamp(Math.max(frontier(s), s.cn.cap) / s.T, 0, 1); return 0.6 * Math.pow(clamp((x - 0.6) / 0.4, 0, 1), 2); }
+// A planned theft pays when the US lead is worth stealing, the threshold is near and lab security is weak; an honest deal mostly stops it.
+function cnOpWorth(s) { const c = s.cn, F = frontier(s); if (c.cap >= F - 0.6) return 0; return TUNE.cnTheft * 0.1 * SL[s.sl].theft * clamp((lead(s) - 1) / 5, 0, 1) * (0.5 + clamp(F / s.T, 0, 1)) * (c.deal && !c.cheat ? 0.2 : 1); }
+function econEnd(s, text) { s.cn.econ = 0; log(s, text, 'cn'); }
+function cnMonthly(s) {
+  const c = s.cn;
+  if (TUNE.cnAlarm) {
+    const n = Object.keys(CN_SCARES).reduce((a, k) => a + CN_SCARES[k] * evN(s, k), 0), jolt = Math.max(0, n - (c.scared || 0)); c.scared = n;
+    c.fear = clamp(Math.max(cnFearTarget(s), 0.85 * (c.fear || 0)) + jolt, 0, 1);
+    if (c.fear >= 0.05) shiftCN(s, { sci: 1.5 * TUNE.cnAlarm * c.fear, sec: -0.5 * TUNE.cnAlarm * c.fear });
+  }
+  // the economic war bleeds US markets each month and Beijing's own exporters, who may win the argument to stop
+  if (TUNE.cnEcon && c.econ) {
+    s.markets -= 0.6 * c.econ * TUNE.cnEcon; shiftCN(s, { m: 0.8 * c.econ });
+    if (rnd(s) < 0.02 * c.econ + 0.003 * Math.max(0, c.f.m - 50)) econEnd(s, 'Beijing’s exporters win the argument: it quietly suspends its economic campaign.');
+  }
+  // the Strait ladder steps down every 4 months once the motive is gone
+  if (TUNE.cnStrait && c.ladder && (c.deal || paced(s) || lead(s) < 3) && s.turn - (c.ladderT || 0) >= 4) { c.ladder--; c.ladderT = s.turn; }
+}
+const ECON = [
+  { name: 'a mineral embargo', hit: 5, text: 'Beijing bans exports of gallium, germanium, graphite and rare-earth magnets to every American company, and to anyone who resells to one. Fabs and data center builders have six weeks of stock.' },
+  { name: 'an entity list for American champions', hit: 8, text: 'Beijing puts three of America’s largest technology companies on its unreliable entity list, orders state buyers to drop them and opens antitrust cases against two more. Together they earn a fifth of their revenue in China.' },
+  { name: 'a run on Treasuries', hit: 12, text: 'The People’s Bank sells $300 billion of Treasuries in a fortnight and lets the yuan slide 6%. Ten-year yields jump 60 basis points and the S&P falls 9% in five sessions.' },
+];
+const econK = s => clamp((s.queue[0] || {}).k || s.cn.econ || 1, 1, 3);
+const econHitBackP = s => clamp(0.25 + 0.005 * (s.coalition - 30) + (P(s, 'doc').rel >= 0 ? 0.1 : -0.1) + 0.3 * (resolve(s) - 0.4), 0.05, 0.75);
+const econTruceP = s => clamp(0.3 + 0.25 * stateCarry(s) + 0.006 * (s.cn.f.m - 50) + 0.003 * s.cn.trust, 0.05, 0.8);
+ev({ id: 'cn_econ', forced: true, title: 'Economic war', stamp: 'MOFCOM and the People’s Bank',
+  body: s => { const k = econK(s), e = ECON[k - 1]; return `<p>${e.text}</p><p>It is rung ${k} of 3. Markets fell ${e.hit} points on the news, and the campaign costs about ${(0.6 * k).toFixed(1)} more a month until it ends. It costs Beijing’s exporters too, and its Market faction is saying so.</p>`; },
+  choices: [
+    { label: 'Have Treasury steady the markets', hint: s => P(s, 'tsy').rel >= 0 ? '1 capital; Treasury -3. Markets win back 60% of the fall (the Treasury Secretary will move fast). The campaign goes on.' : '2 capital; Treasury -3. Markets win back 30% of the fall (the Treasury Secretary will move slowly). The campaign goes on.', fx: s => { const ok = P(s, 'tsy').rel >= 0, cost = ok ? 1 : 2, e = ECON[econK(s) - 1]; if (s.pc < cost) return 'You had no capital for it. Markets find their own floor.'; s.pc -= cost; rel(s, 'tsy', -3); s.markets += (ok ? 0.6 : 0.3) * e.hit; return ok ? 'The Treasury Secretary opens swap lines and announces buybacks before Asia opens. The slide stops.' : 'The Treasury Secretary waits for the Fed. The slide stops a week later than it should have.'; } },
+    { label: 'Have Commerce hit back', hint: s => 'Temperature +6; markets -2; Commerce +4. Beijing steps down a rung: ' + oddsWord(econHitBackP(s)) + ' (more with allies and a record of following through); if not, it climbs again sooner.', fx: s => { const p = econHitBackP(s), e = ECON[econK(s) - 1]; s.tension += 6; s.markets -= 2; rel(s, 'doc', 4); if (draw(s, 'cn', p) < p) { s.cn.econ = Math.max(0, s.cn.econ - 1); s.markets += 0.5 * e.hit; return 'Commerce cuts off Chinese chipmakers’ last US tool suppliers. Beijing quietly steps back a rung.'; } s.cn.moved = (s.cn.moved || 0) - 2; return 'Commerce’s counter-sanctions land, and Beijing calls them proof it was right.'; } },
+    { label: 'Send the Secretary of State to negotiate a truce', hint: s => 'Beijing calls the campaign off: ' + oddsWord(econTruceP(s)) + ' (more with State behind you, Beijing’s Market faction strong and trust). If so, markets win back half the fall and trust +2, but hawks -3. If not, trust -2.', fx: s => { const p = econTruceP(s), e = ECON[econK(s) - 1]; if (draw(s, 'cn', p) < p) { econEnd(s, 'Beijing calls off its economic campaign after talks with the Secretary of State.'); s.markets += 0.5 * e.hit; s.cn.trust += 2; HAWKS.forEach(id => rel(s, id, -3)); return 'The Secretary of State and the Vice Premier agree a truce in Geneva. The hawks call it a ransom.'; } s.cn.trust -= 2; return 'The Vice Premier keeps the Secretary of State waiting two days, then says there is nothing to discuss.'; } },
+  ] });
+const LADDER = [
+  ['Drills with a message', 'The PLA rings Taiwan with live-fire drills, and this time Xinhua says why: “one country’s reckless pursuit of superintelligence threatens all.” The Chinese embassy asks for a meeting about your labs.'],
+  ['Customs at sea', 'China’s coast guard starts “customs inspections” of ships bound for Taiwan. It is not a quarantine yet, but insurers price it as one. Beijing says it ends when America stops racing.'],
+];
+const coerceForceP = s => clamp(0.3 + 0.005 * (s.coalition - 30) + 0.3 * (resolve(s) - 0.4), 0.05, 0.7);
+const coerceTalkP = s => clamp(0.35 + 0.3 * stateCarry(s) + (paced(s) ? 0.15 : 0) + (reassured(s) ? 0.1 : 0), 0.05, 0.85);
+ev({ id: 'cn_coerce', forced: true, title: 'Coercion in the Strait', stamp: s => 'INDOPACOM: ' + LADDER[clamp(((s.queue[0] || {}).k || 1) - 1, 0, 1)][0].toLowerCase(),
+  body: s => { const k = clamp((s.queue[0] || {}).k || 1, 1, 2); return `<p>${LADDER[k - 1][1]}</p><p>It is rung ${k} of a ladder aimed at your lead: while it stands, the monthly chance of a Strait crisis is higher. Beijing steps down by itself once you pause, deal or lose the lead.</p>`; },
+  choices: [
+    { label: 'Send a carrier group', hint: s => 'Temperature +8; War +8. Beijing steps down a rung: ' + oddsWord(coerceForceP(s)) + ' (more with allies and a record of following through); if not, temperature +4 more.', fx: s => { const p = coerceForceP(s); s.tension += 8; rel(s, 'war', 8); if ((s.queue[0] || {}).k === 2) s.flags.strait = s.turn + 2; if (draw(s, 'cn', p) < p) { s.cn.ladder = Math.max(0, s.cn.ladder - 1); return 'Two carriers hold station east of Taiwan. The PLA ends its exercise a day early.'; } s.tension += 4; return 'Two carriers hold station east of Taiwan. The PLA extends its exercise by a week.'; } },
+    { label: 'Signal restraint through the Secretary of State', hint: s => 'Beijing steps down a rung: ' + oddsWord(coerceTalkP(s)) + ' (more with State behind you, a pause or a guarantee standing). If so, temperature -6 and hawks -3; if not, temperature -2.', fx: s => { const p = coerceTalkP(s); if (draw(s, 'cn', p) < p) { s.cn.ladder = Math.max(0, s.cn.ladder - 1); s.tension -= 6; HAWKS.forEach(id => rel(s, id, -3)); return 'The Secretary of State calls the Foreign Minister, twice. The ships turn for home.'; } s.tension -= 2; return 'The Foreign Minister listens politely. The inspections go on.'; } },
+    { label: 'Ignore it', hint: 'The rung stands: Strait crisis odds stay up until Beijing steps down.', fx: s => 'You let the Pentagon issue a statement.' },
+  ] });
+const opStopP = s => clamp(0.3 + 0.3 * stateCarry(s) + 0.004 * s.cn.trust, 0.05, 0.8);
+ev({ id: 'cn_op', forced: true, title: 'An operation in preparation', stamp: 'NSA, Fort Meade',
+  body: s => { const l = (s.queue[0] || {}).lab || frontierLab(s).id; return `<p>NSA sees China’s Ministry of State Security staging against ${LD(l).name}: a recruited contractor, implants in a build server, a new exfiltration route through a Singapore cloud account. The IC’s read is that Beijing has decided the weights are worth the risk now, while the lab’s security is ${s.sl >= 5 ? 'strong' : s.sl >= 4 ? 'middling' : 'weak'} and your lead is worth taking. For three months, a theft is much likelier.</p>`; },
+  choices: [
+    { label: 'Lock the lab down', hint: s => '1 capital; that lab -6. For the rest of the operation a theft succeeds 60% less often.', fx: s => { const l = L(s, (s.queue[0] || {}).lab || frontierLab(s).id); if (s.pc < 1) return 'You had no capital for it. The lab’s security team is told, and that is all.'; s.pc -= 1; l.rel -= 6; if (s.cn.op) s.cn.op.locked = true; return 'FBI agents sit in the lab’s security office for three months. Engineers badge in twice.'; } },
+    { label: 'Have the Secretary of State warn Beijing off', hint: s => 'Beijing calls it off: ' + oddsWord(opStopP(s)) + ' (more with State behind you and trust). Either way, Beijing trust -2.', fx: s => { const p = opStopP(s); s.cn.trust -= 2; if (draw(s, 'cn', p) < p) { s.cn.op = null; return 'The Secretary of State names the contractor to the Chinese ambassador. The implants go quiet within a day.'; } return 'The ambassador denies everything. NSA sees the operation carry on.'; } },
+    { label: 'Watch it and learn', hint: 'Intelligence quality +5; DNI +3. The operation goes on.', fx: s => { s.intelQ += 5; rel(s, 'dni', 3); return 'NSA maps the whole network, and leaves it running.'; } },
+  ] });
 ev({ id: 'cn_squeeze', forced: true, title: 'An investigation', stamp: 'SAMR, Beijing',
   body: s => `<p>${nth(s, 'cn_squeeze', ['China\u2019s market regulator opens antitrust investigations into three American chip and device makers, and customs holds their shipments “for inspection.”', 'Beijing puts two US cloud companies on its unreliable entity list and tells state firms to end their contracts within the quarter.', 'Chinese regulators freeze approvals for every pending merger involving an American technology company.'])} Beijing\u2019s commerce ministry ties it to ${(BEG[(s.queue[0] || {}).k] || BEG.chips).name}. Your labs are paused, so Beijing went for the President\u2019s backing instead: the companies\u2019 CEOs are calling the Treasury Secretary.</p>`,
   choices: [
@@ -3105,6 +3200,7 @@ function tick(s) {
       if (TUNE.cnReroute) cnReroute(s);
     }
     if (TUNE.cnPlan) cnPlan(s);
+    cnMonthly(s);
   }
 
   // --- US labs
@@ -3147,6 +3243,14 @@ function tick(s) {
   c.hidden = c.deal && c.cheat ? (c.hidden || 0) + 0.45 * dt : 0; // revealed (back to 0) once the cheating stops or the deal ends
   {
     const F = frontier(s);
+    if (TUNE.cnTheft) {
+      if (c.op && s.t >= c.op.until) c.op = null;
+      const w = c.op || s.war ? 0 : cnOpWorth(s);
+      if (w > 0.005 && rnd(s) < w * dt) {
+        c.op = { until: s.t + 3 }; s.stats.cnOps = (s.stats.cnOps || 0) + 1;
+        if (rnd(s) < 0.2 + 0.6 * s.intelQ / 100) { c.op.seen = true; s.queue.push({ id: 'cn_op', lab: frontierLab(s).id }); }
+      }
+    }
     const tr = theftRisk(s);
     const steal = () => { c.cap = F - 0.6; s.stats.thefts++; s.tension += 5; shiftCN(s, { sec: 3 }); s.queue.push({ id: 'theft', lab: frontierLab(s).id }); log(s, 'Frontier model weights were stolen.', 'bad'); };
     if (TUNE.fuse > 1) { if (c.cap < F - 0.6 && fuseHit(s, 'theft', tr.attempt * dt * tr.success)) steal(); else if (rnd(s) < 0.5 * tr.attempt * dt * (1 - tr.success)) s.queue.push({ id: 'theft_foiled', lab: frontierLab(s).id }); }
@@ -3445,6 +3549,8 @@ const API = {
   currentAsk,
   cnParts,
   cnPlays,
+  stateRead,
+  stateVetoP,
   cnMoves,
   PD,
   P,
