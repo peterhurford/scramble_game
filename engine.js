@@ -233,6 +233,7 @@ const TUNE = {
   cnAim: 1, // posture follows payoff: race when a paused US with no deal can be caught within a year, engage when far behind and losing ground, and keep an engaging face while cheating
   cnPress: 1, // a move: under a deal, demand one more carrot when the US has little leverage left (usLeverage)
   cnExploit: 1, // with little US leverage Beijing pockets a unilateral pause (up to -0.4x this on signing) and cheats more under a deal (up to x(1 + 0.6x this))
+  cnState: 1, // State carries China diplomacy: the Secretary's relationship / 40 (capped at ±1) scales offers (±0.25), threat credibility (±0.1), reassurance (±0.1) and ceasefires (±0.06); 0: only Ally or Hostile counts, offers only
   cnCheatAim: 1, // cheating follows payoff: x(1 + this/2) at a 2-month US lead or less, x(1 - this/2) at 8 months or more
   secretRate: 0.5,
   usCatch: 0.1,
@@ -686,6 +687,8 @@ const TIER_FX = {
   war: ['Keeps the Pentagon calm: Beijing temperature -0.5 a month.', 'Rattles sabres you have to answer for: Beijing temperature +0.5 a month.'],
   dni: ['Reads you in: intelligence quality +1 a month.', 'Cuts you out: intelligence quality -1 a month.'],
 };
+// How hard State works your China diplomacy, -1 to 1: its Secretary's relationship over 40 (Ally carries fully, Hostile undercuts fully).
+const stateCarry = s => TUNE.cnState ? clamp(P(s, 'sec').rel / 40, -1, 1) : 0;
 const isAlly = (s, id) => P(s, id).rel >= 40, isHostile = (s, id) => P(s, id).rel <= -40;
 const tierSign = (s, id) => isAlly(s, id) ? 1 : isHostile(s, id) ? -1 : 0;
 function tierTick(s) {
@@ -788,7 +791,7 @@ function escalateP(s) { const b = s.blockade; return clamp((0.18 + 0.12 * clamp(
 // The share of crises where Beijing skips the quarantine and goes straight to war: more when hot, most when the motive is preventive.
 function directP(s) { const parts = straitParts(s), tot = parts.reduce((a, x) => a + x[1], 0) || 1, pre = (parts.find(x => /US lead/.test(x[0])) || [0, 0])[1] / tot; return clamp(0.3 + 0.4 * clamp((s.tension - 50) / 40, 0, 1) + 0.4 * pre, 0, 0.9); }
 // Beijing's chance of taking a ceasefire offer: war weariness, its market and science factions, earlier talks; escalation hardens it.
-function ceasefireP(s) { const w = s.war, f = s.cn.f; return w ? clamp(0.12 + 0.05 * w.months + 0.004 * (f.sci + f.m - f.sec) + 0.08 * w.talks - 0.002 * w.esc, 0.05, 0.85) : 0; }
+function ceasefireP(s) { const w = s.war, f = s.cn.f; return w ? clamp(0.12 + 0.05 * w.months + 0.004 * (f.sci + f.m - f.sec) + 0.08 * w.talks - 0.002 * w.esc + 0.06 * stateCarry(s), 0.05, 0.85) : 0; }
 // The IC's read on the Strait: during a quarantine, the chance it turns into war within 3 months; otherwise the chance Beijing starts a crisis
 // within 6. Blurred by weak intelligence (an IC assessment counts +20): a word under 45, a range under 70, a number above.
 function straitEstimate(s) {
@@ -1600,7 +1603,8 @@ function cnParts(s, terms, pub) {
   P_.push(['Beijing temperature', -(s.tension - 30) * 0.018], ['Beijing’s trust', (s.cn.trust - 10) * 0.012]);
   if (terms.freeze) P_.push(['Freeze the current ratio', -0.3]);
   if (terms.inspect) P_.push(['On-site inspections (Security hates them)', -(0.25 + 0.012 * f.sec)]);
-  if (tierSign(s, 'sec')) P_.push([isAlly(s, 'sec') ? 'The Secretary of State is carrying your offer' : 'The Secretary of State is undercutting your offer', 0.25 * tierSign(s, 'sec')]);
+  if (TUNE.cnState) { const k = stateCarry(s); if (Math.abs(k) >= 0.05) P_.push([k > 0 ? 'The Secretary of State is carrying your offer' : 'The Secretary of State is undercutting your offer', 0.25 * k]); }
+  else if (tierSign(s, 'sec')) P_.push([isAlly(s, 'sec') ? 'The Secretary of State is carrying your offer' : 'The Secretary of State is undercutting your offer', 0.25 * tierSign(s, 'sec')]);
   if (terms.misuse) P_.push(['Joint misuse response (worth more as open models get dangerous)', misusePactWorth(s)]);
   CARROT_IDS.forEach(k => { if (terms[k]) P_.push([TERM_SHORT[k] + (pub ? ' (' + termRead(s, k).text + ')' : ''), pub ? termRead(s, k).worth : worthOf(s, k, termMult(s, k))]); });
   // export controls are leverage: Beijing values getting back what you took
@@ -1642,6 +1646,7 @@ function resolveParts(s) {
   const w = s.flags.warns || { kept: 0, won: 0, backed: 0 }, n = Object.keys(CTRL_THREAT).filter(k => s.policies[k]).length;
   const P_ = [['Base', 0.4], ['The allied coalition', clamp(0.006 * (s.coalition - 30), -0.15, 0.2)]];
   if (n) P_.push(['Controls in force', 0.06 * n]);
+  if (Math.abs(stateCarry(s)) >= 0.05) P_.push([stateCarry(s) > 0 ? 'The Secretary of State delivering it' : 'The Secretary of State distancing from it', 0.1 * stateCarry(s)]);
   if (w.kept) P_.push(['Threats you carried out', 0.12 * w.kept]);
   if (w.won) P_.push(['Threats that won a deal', 0.05 * w.won]);
   if (w.backed) P_.push(['Threats you backed down from', -0.15 * w.backed]);
@@ -1704,6 +1709,7 @@ def({ id: 'sound', cat: 'diplo', name: 'Sound out Beijing’s envoy', phases: ['
 function reassured(s) { return !!s.flags.reassure && (!TUNE.reassureMonths || s.t < s.flags.reassure.until); }
 function reassureParts(s) {
   const P_ = [['Base', TUNE.reassureBase], ['Beijing’s trust', clamp((s.cn.trust - 10) * 0.006, -0.15, 0.3)]];
+  if (Math.abs(stateCarry(s)) >= 0.05) P_.push([stateCarry(s) > 0 ? 'The Secretary of State vouching for it' : 'The Secretary of State keeping clear of it', 0.1 * stateCarry(s)]);
   if (paced(s)) P_.push(['America is pacing', 0.2]); else if (s.flags.pledge) P_.push(['The President’s pledge to pause', 0.1]);
   if (s.flags.covertExposed != null && s.turn - s.flags.covertExposed < 6) P_.push(['A covert operation exposed in the last 6 months', -0.3]);
   return P_;
@@ -3044,7 +3050,7 @@ ev({ id: 'cn_squeeze', forced: true, title: 'An investigation', stamp: 'SAMR, Be
 ev({ id: 'cn_wedge', forced: true, title: 'A better offer', stamp: s => 'Cable from ' + WEDGE[((s.queue[0] || {}).n || 0) % WEDGE.length][0],
   body: s => `<p>${WEDGE[((s.queue[0] || {}).n || 0) % WEDGE.length][1]} The embassy\u2019s read: Beijing picked the capital your coalition leans on hardest.</p>`,
   choices: [
-    { label: 'Ask Treasury for a carve-out', hint: s => '1 capital; Treasury -4. ' + (P(s, 'tsy').rel >= 0 ? 'Coalition +2 (the Treasury Secretary will sign it).' : 'Coalition -6 (the Treasury Secretary will not sign it for you).'), fx: s => { if (s.pc < 1) { s.coalition -= 10; return 'You had no capital to match it. The ally takes Beijing\u2019s offer.'; } s.pc -= 1; const ok = P(s, 'tsy').rel >= 0; rel(s, 'tsy', -4); s.coalition += ok ? 2 : -6; return ok ? 'The President calls, with a tariff carve-out in hand. The ally stays, and tells the others what hesitating earned.' : 'The Treasury Secretary sits on the carve-out. The President calls with nothing in hand.'; } },
+    { label: 'Ask Treasury for a carve-out', hint: s => 'Treasury -8. ' + (P(s, 'tsy').rel >= 0 ? 'Coalition +2 (the Treasury Secretary will sign it).' : 'Coalition -6 (the Treasury Secretary will not sign it for you).'), fx: s => { const ok = P(s, 'tsy').rel >= 0; rel(s, 'tsy', -8); s.coalition += ok ? 2 : -6; return ok ? 'The President calls, with a tariff carve-out in hand. The ally stays, and tells the others what hesitating earned.' : 'The Treasury Secretary sits on the carve-out. The President calls with nothing in hand.'; } },
     { label: 'Leave it to State', hint: s => 'Coalition ' + (P(s, 'sec').rel >= 15 ? '-5 (the Secretary of State is with you)' : '-10 (the Secretary of State is not putting in the hours for you)') + '.', fx: s => { s.coalition -= P(s, 'sec').rel >= 15 ? 5 : 10; return P(s, 'sec').rel >= 15 ? 'The Secretary of State flies out and limits the damage.' : 'A deputy assistant secretary delivers a démarche. The ally signs with Beijing.'; } },
     { label: 'Name the pressure in public', hint: 'Coalition -4; salience +3; Beijing temperature +5; trust -4.', fx: s => { s.coalition -= 4; s.salience += 3; s.tension += 5; s.cn.trust -= 4; return 'The National Security Advisor reads the terms from the podium. The ally is embarrassed into half a step back.'; } },
   ] });
