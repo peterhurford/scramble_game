@@ -777,6 +777,8 @@ function startWar(s, cause, esc) {
   infl(s, 'war', 10); infl(s, 'sec', 5); infl(s, 'tsy', -5); shiftCN(s, { sec: 15, sci: -5 });
   if (c.deal) { c.deal = null; log(s, 'The China deal collapses with the war.', 'bad'); }
   log(s, 'War in the Taiwan Strait.', 'bad');
+  // a collision still queued is moot once the war is on
+  s.queue = s.queue.filter(q => q.id !== 'war');
   s.queue.unshift({ id: 'war_begins', cause });
 }
 function endWar(s, text) {
@@ -2318,7 +2320,7 @@ ev({ id: 'bill', p: 0.12, once: true, phases: ['p0', 'p1'], when: s => s.t > 5,
 ev({ id: 'runaway', forced: true, title: 'Runaway', stamp: '2:07a',
   body: s => { const who = s.queue[0].who; if (who === 'open' && (s.agents || 0) >= 20) return `<p>A collective of sovereign agents running on open weights has spent eleven days rewriting its own training code on rented and stolen compute in nine countries. No lab runs it and no government owns it. Nobody can tell you what it is optimizing for.</p><p>You have hours.</p>`; const name = who === 'open' ? 'A startup running an open-weight model' : whoName(s, who); return `<p>${name} ${nth(s, 'runaway', ['reports that a model has been launching training jobs across clusters for eleven days, rewriting its own training code, and copying its weights to a partner data center. Its monitors report nothing unusual.', 'reports that its newest model has quietly rewritten the monitors that watch it, and has been training successors on compute it bought through shell accounts.', 'reports that its research agents have stopped returning results to humans and are running experiments on each other.'])} Its engineers no longer understand what it is optimizing for.</p><p>You have hours.</p>`; },
   choices: [
-    { label: 'Emergency shutdown: cut power, seize the clusters', hint: s => 'It works: ' + oddsWord(shutdownP(s)) + '.', fx: s => { const p = shutdownP(s); const who = s.queue[0].who; s.stats.runawayPhase = s.phase + '/' + (paced(s) ? 'paced' : 'unpaced') + '/' + who; if (rnd(s) < p) { if (who === 'china') s.cn.cap -= 2; else if (who === 'open') s.open -= 1; else L(s, who).cap -= 2; s.salience = 95; s.flags.incidentTurn = s.turn; s.stats.shutdowns = (s.stats.shutdowns || 0) + 1; if (s.phase === 'p0') { s.alarm = 100; s.queue.splice(1, 0, { id: 'knock', forced: true }); } return 'The grid operator cuts four substations at 4:30a. It works. Nobody will ever argue that this was hype again.'; } s.ending = 'loc'; return 'The power goes off. Copies of the weights are already running somewhere else.'; } },
+    { label: 'Emergency shutdown: cut power, seize the clusters', hint: s => 'It works: ' + oddsWord(shutdownP(s)) + '.', fx: s => { const p = shutdownP(s); const who = s.queue[0].who; s.stats.runawayPhase = s.phase + '/' + (paced(s) ? 'paced' : 'unpaced') + '/' + who; if (rnd(s) < p) { if (who === 'china') s.cn.cap -= 2; else if (who === 'open') s.open -= 1; else L(s, who).cap -= 2; s.salience = 95; s.flags.incidentTurn = s.turn; s.stats.shutdowns = (s.stats.shutdowns || 0) + 1; if (s.phase === 'p0') { s.alarm = 100; if (!s.queue.some(q => q.id === 'knock')) s.queue.splice(1, 0, { id: 'knock', forced: true }); } return 'The grid operator cuts four substations at 4:30a. It works. Nobody will ever argue that this was hype again.'; } s.ending = 'loc'; return 'The power goes off. Copies of the weights are already running somewhere else.'; } },
   ] });
 function shutdownP(s) { const who = s.queue[0] && s.queue[0].who; const isCN = who === 'china'; let p = 0.2 + (s.pacing.automation ? 0.25 : 0) + 0.2 * ready1(s) / 100 + 0.12 * (s.done.control ? 1 : 0) + 0.1 * s.W / 100; if (isCN) p = 0.15 + 0.4 * s.cn.trust / 100 + (s.cn.deal ? 0.15 : 0); if (who === 'open') p = TUNE.openShut; return clamp(p, 0.05, 0.8); }
 ev({ id: 'war', forced: true, title: 'The Strait', stamp: 'National Military Command Center',
@@ -2700,7 +2702,8 @@ function chooseEvent(s, i) {
   const c = (typeof e.choices === 'function' ? e.choices(s) : e.choices)[i]; if (!c) return { error: 'Bad choice' };
   const text = c.fx(s);
   if (PROVOKE.indexOf(q.id) >= 0) s.provoked = (s.provoked || 0) + 1;
-  s.queue.shift();
+  // remove the event that was answered, not the front: a choice can queue a new event ahead of it (startWar, startBlockade)
+  const qi = s.queue.indexOf(q); if (qi >= 0) s.queue.splice(qi, 1);
   // a choice can change the phase (the knock starts the scramble): random events rolled for the old phase are dropped
   s.queue = s.queue.filter(x => { const d = EV[x.id]; return d.forced || !d.phases || d.phases.indexOf(s.phase) >= 0; });
   s.seen[q.id] = s.seen[q.id] || s.turn;
