@@ -95,7 +95,7 @@ function hintChips(h) {
   return chipList(parts.map(p => {
     let t = /\+\d/.test(p) ? '+' : /(-|−)\d/.test(p) ? '-' : '~';
     // for these, going up is bad for you
-    if (/temperature|slower|court|runaway|risk \+|China compute|China distill|overhang/i.test(p) && t !== '~') t = t === '+' ? '-' : '+';
+    if (/temperature|slower|court|runaway|risk \+|China compute|China distill|China (gains )?[+-]\d|escalation|security faction|overhang/i.test(p) && !/instead of/.test(p) && t !== '~') t = t === '+' ? '-' : '+';
     if (/odds|chance|\d+%: /i.test(p)) t = '~';
     return t + wordify(p);
   }), true);
@@ -157,8 +157,9 @@ function renderTitle() {
     </div></div></div>`;
   let diff = 'advisor';
   app.querySelectorAll('[data-diff]').forEach(b => b.onclick = () => { diff = b.dataset.diff; app.querySelectorAll('[data-diff]').forEach(x => x.classList.toggle('on', x === b)); });
-  $('#newgame').onclick = () => { S = E.newGame({ difficulty: diff }); ui.sel = null; ui.prev = null; ui.pend = null; save(); renderGame(); afterChange(); };
-  if ($('#cont')) $('#cont').onclick = () => { S = saved; renderGame(); afterChange(); };
+  let armedNew = false;
+  $('#newgame').onclick = e => { if (saved && !saved.ending && !armedNew) { armedNew = true; const b = e.currentTarget; b.style.minWidth = b.offsetWidth + 'px'; b.textContent = 'Replace?'; b.closest('.row').insertAdjacentHTML('afterend', '<p style="margin:0;font-size:13px;color:var(--muted)">New game replaces your saved game. Click Replace? to confirm.</p>'); return; } S = E.newGame({ difficulty: diff }); ui.sel = null; ui.prev = null; ui.pend = null; ui.charter = null; save(); renderGame(); afterChange(); };
+  if ($('#cont')) $('#cont').onclick = () => { S = saved; ui.charter = null; renderGame(); if (S.flags.convening && !S.queue.length) openCharter(); else afterChange(); };
   $('#howto').onclick = showHelp;
 }
 
@@ -360,7 +361,7 @@ const theftWord = t => t < 0.005 ? 'very low' : t < 0.015 ? 'low' : t < 0.03 ? '
 const catchWord = p => p < 0.15 ? 'rarely' : p < 0.35 ? 'sometimes' : p < 0.6 ? 'often' : 'almost always';
 const stanceCol = st => st > 0.25 ? 'var(--good)' : st < -0.25 ? 'var(--bad)' : 'var(--faint)';
 // What saying yes to an ask does, beyond the ask itself.
-function grantTip(id, ask) { const n = E.recentFavors(S) * E.TUNE.favorCred; return `Do what they ask now: 1 action and ${ask.pc} capital${n ? `, and ${n} credibility (you granted another favor in the last four months)` : ''}. They warm to you a lot (relationship +25, influence +4); their rivals cool a little. Ignoring an ask for four months costs a little goodwill.`; }
+function grantTip(id, ask) { const n = E.recentFavors(S) * E.TUNE.favorCred; return `Do what they ask now: 1 action and ${ask.pc} capital${n ? `, and ${n} credibility (you granted another favor in your last four turns)` : ''}. They warm to you a lot (relationship +25, influence +4); their rivals cool a little. Ignoring an ask for four months costs a little goodwill.`; }
 function tierTip(id) { const fx = E.TIER_FX[id]; return `Ally (40+): ${fx[0]} An Ally shrugs off half of any loss. Hostile (-40 or less): ${fx[1]} Every three Allies give +1 capital a turn; each Hostile costs about 2 credibility a month. Every 10 points tilts their vote toward you.`; }
 function roomPanel(v) {
   const ps = S.principals.map(p => ({ p, d: E.PD(S, p.id), st: pStance(p.id) }));
@@ -539,7 +540,7 @@ function deskPanel(v) {
   const ahead = soon.length ? `<div class="agrp">Coming up</div>${soon.slice(0, 3).map(row).join('')}` : '';
   const more = rest.length ? `<details class="later" ${rest.some(a => a.id === ui.sel) ? 'open' : ''}><summary>${rest.length} more locked or done</summary>${rest.map(row).join('')}</details>` : '';
   return `<section class="panel">${objective(v)}
-    <div class="deskgrid"><div class="alist">${block ? `<div class="blockbar">${S.ending ? 'The game is over.' : `An event is waiting. <button class="btn sm" id="openev">Open it</button>`}</div>` : ''}${bar}${list || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${ahead}${more}<button class="more" hidden></button></div><div class="detail">${detailPane()}</div></div></section>`;
+    <div class="deskgrid"><div class="alist">${block ? `<div class="blockbar">${S.ending ? `The game is over. <button class="btn sm" id="openend">Front page</button>` : `An event is waiting. <button class="btn sm" id="openev">Open it</button>`}</div>` : ''}${bar}${list || '<div class="pb sub">Nothing you can do right now. End the turn.</div>'}${ahead}${more}<button class="more" hidden></button></div><div class="detail">${detailPane()}</div></div></section>`;
 }
 // "N more below" pill for open rows past the bottom of the screen or of the list's own scroll box.
 function updateMore() {
@@ -593,7 +594,8 @@ function whip(pos, compact) {
 /* ---------------- bindings ---------------- */
 function bindGame() {
   $('#endturn').onclick = endTurnClick;
-  if ($('#openev')) $('#openev').onclick = showEvent;
+  if ($('#openev')) $('#openev').onclick = () => showEvent();
+  if ($('#openend')) $('#openend').onclick = showEnding;
   $('#help').onclick = showHelp;
   $('#menu').onclick = showMenu;
   $('#c-doom').onclick = showDoom;
@@ -695,7 +697,8 @@ function pickEvent(i) {
   closeModal(); renderGame(); afterChange(out);
 }
 function endTurnClick() {
-  if (!S || S.ending) return;
+  if (!S) return;
+  if (S.ending) return showEnding();
   if (S.queue.length) { showEvent(); return; }
   if (S.ap > 0 && !endTurnClick.armed) { endTurnClick.armed = true; toast('You have ' + S.ap + ' action' + (S.ap > 1 ? 's' : '') + ' left. Press End turn again to proceed.'); setTimeout(() => { endTurnClick.armed = false; }, 3000); return; }
   endTurnClick.armed = false;
@@ -782,7 +785,7 @@ function openOffer() {
 }
 
 /* ---- ending: the front page ---- */
-const HEADLINES = { phase2: 'U.S., CHINA SIGN AI AGREEMENT', betrayed: 'DEFECTOR REVEALS SECRET CHINESE AI PROGRAM', uneasy: 'AI PAUSE HOLDS, BARELY', alone: 'U.S. PAUSES AI ALONE', race: 'AI RACE ROARS ON', overtaken: 'CHINA TAKES AI LEAD', loc: 'SYSTEMS DARK; ORIGIN UNKNOWN', war: 'NUCLEAR WEAPON USED OFF OKINAWA', wartime: 'TAIWAN WAR GRINDS ON', fired: 'AI ADVISER OUSTED' };
+const HEADLINES = { phase2: 'U.S., CHINA SIGN AI AGREEMENT', betrayed: 'DEFECTOR REVEALS SECRET CHINESE AI PROGRAM', uneasy: 'AI PAUSE HOLDS, BARELY', alone: 'U.S. PAUSES AI ALONE', race: 'AI RACE ROARS ON', overtaken: 'CHINA TAKES AI LEAD', loc: 'SYSTEMS DARK; ORIGIN UNKNOWN', war: 'NUCLEAR WEAPON USED OFF OKINAWA', wartime: 'TAIWAN WAR GRINDS ON', fired: 'AI ADVISER OUSTED', cnwins: 'CHINA WINS THE AI RACE' };
 function showEnding() {
   const en = E.ENDINGS[S.ending]; const sc = E.score(S);
   closeModal();
@@ -820,7 +823,7 @@ function showHelp() {
     <li>China’s speed depends on its compute (home, offshore, smuggled, legal) and on distilling US models. Your levers cut both, and Beijing gets angrier.</li>
     <li>Some of your moves slow US labs too. Slower US labs reach the danger zone later, but the lead shrinks, markets sag and the labs resent it. Security is the big one: SL4 slows them somewhat and SL5 a lot, in exchange for making stolen weights much rarer. A theft nearly erases the lead.</li></ul>
     <h4>Three phases</h4>
-    <ul><li><b>Phase 0</b> (monthly): prepare, win policies, cultivate the cabinet, watch the RSI bars. Ask for the emergency meeting when the evidence and your credibility can carry it.</li>
+    <ul><li><b>Phase 0</b> (two-month turns): prepare, win policies, cultivate the cabinet, watch the RSI bars. Ask for the emergency meeting when the evidence and your credibility can carry it.</li>
     <li><b>The scramble</b> (2-day turns, 14 days): choose a mechanism, threshold, automation limits and trigger; get the labs to sign; launch.</li>
     <li><b>Phase 1</b> (monthly): hold pacing support above 25 against fatigue, catch cheaters, make Beijing an offer, build verification, then call the Phase 2 summit.</li></ul>
     <h4>Legal authority</h4>
@@ -851,12 +854,12 @@ document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
   if (modalOpen()) {
-    if (e.key === 'Enter') { const b = $('#mclose'); if (b) { b.click(); e.preventDefault(); return; } }
+    if (e.key === 'Enter') { const b = $('#mclose'), f = document.activeElement; if (f && f !== b && $('#modal').contains(f) && /^(BUTTON|SUMMARY|A)$/.test(f.tagName)) return; if (b) { b.click(); e.preventDefault(); return; } }
     const n = +e.key; if (n >= 1 && n <= 4) { const b = $('#modal').querySelector(`[data-ch="${n - 1}"]`); if (b) { b.click(); e.preventDefault(); } }
-    if (e.key === 'Escape') { const ev = S && S.queue.length && $('#modal').querySelector('[data-ch]'); const end = S && S.ending; if (!ev && !end) { const b = $('#mclose'); if (b) b.click(); else { closeModal(); if (S) renderGame(); } } }
+    if (e.key === 'Escape' && !$('#cdone')) { const ev = S && S.queue.length && $('#modal').querySelector('[data-ch]'); const end = S && S.ending; if (!ev && !end) { const b = $('#mclose'); if (b) b.click(); else { closeModal(); if (S) renderGame(); } } }
     return;
   }
-  if ((e.key === 'e' || e.key === 'E') && S && !S.ending) { e.preventDefault(); endTurnClick(); }
+  if ((e.key === 'e' || e.key === 'E') && S) { e.preventDefault(); endTurnClick(); }
 });
 
 /* ---------------- boot ---------------- */
