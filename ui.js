@@ -371,11 +371,9 @@ function roomPanel(v) {
     <div class="split"><i style="width:${sF}%;background:var(--good)"></i><i style="width:${sO}%;background:var(--faint)"></i><i style="width:${sA}%;background:var(--bad)"></i></div>
     <div class="legend"><span><i style="background:var(--good)"></i>for</span><span><i style="background:var(--faint)"></i>open</span><span><i style="background:var(--bad)"></i>against</span></div></div>
     ${ps.map(({ p, d, st }) => {
-      const ask = E.currentAsk(S, p.id);
       return `<div class="pc"><button class="av" data-who="${p.id}" style="background:${stanceCol(st)}" title="${st > 0.25 ? 'For' : st < -0.25 ? 'Against' : 'Open on'} pacing · influence ${Math.round(p.infl)}. Click to meet.">${SEAT[p.id]}</button>
         <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · ${esc(d.bio)} Click to meet.">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="${esc(tierTip(p.id))}">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
-        ${d.moods ? `<div class="sub mood">${esc(d.moods[E.relTier(p.rel)])}</div>` : ''}
-        <div class="ask"><span>Asks you: ${esc(ask.text)}</span></div></div></div>`;
+        ${d.moods ? `<div class="sub mood">${esc(d.moods[E.relTier(p.rel)])}</div>` : ''}</div></div>`;
     }).join('')}`;
 }
 function chinaPanel(v) {
