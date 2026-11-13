@@ -360,8 +360,6 @@ const dragWord = d => d < 0.005 ? 'not at all' : d < 0.04 ? 'slightly' : d < 0.1
 const theftWord = t => t < 0.005 ? 'very low' : t < 0.015 ? 'low' : t < 0.03 ? 'moderate' : t < 0.06 ? 'high' : 'very high';
 const catchWord = p => p < 0.15 ? 'rarely' : p < 0.35 ? 'sometimes' : p < 0.6 ? 'often' : 'almost always';
 const stanceCol = st => st > 0.25 ? 'var(--good)' : st < -0.25 ? 'var(--bad)' : 'var(--faint)';
-// What saying yes to an ask does, beyond the ask itself.
-function grantTip(id, ask) { const n = E.recentFavors(S) * E.TUNE.favorCred; return `Do what they ask now: 1 action and ${ask.pc} capital${n ? `, and ${n} credibility (you granted another favor in your last four turns)` : ''}. They warm to you a lot (relationship +25, influence +4); their rivals cool a little. Ignoring an ask for four months costs a little goodwill.`; }
 function tierTip(id) { const fx = E.TIER_FX[id]; return `Ally (40+): ${fx[0]} An Ally shrugs off half of any loss. Hostile (-40 or less): ${fx[1]} Every three Allies give +1 capital a turn; each Hostile costs about 2 credibility a month. Every 10 points tilts their vote toward you.`; }
 function roomPanel(v) {
   const ps = S.principals.map(p => ({ p, d: E.PD(S, p.id), st: pStance(p.id) }));
@@ -373,11 +371,11 @@ function roomPanel(v) {
     <div class="split"><i style="width:${sF}%;background:var(--good)"></i><i style="width:${sO}%;background:var(--faint)"></i><i style="width:${sA}%;background:var(--bad)"></i></div>
     <div class="legend"><span><i style="background:var(--good)"></i>for</span><span><i style="background:var(--faint)"></i>open</span><span><i style="background:var(--bad)"></i>against</span></div></div>
     ${ps.map(({ p, d, st }) => {
-      const ask = E.currentAsk(S, p.id); const fav = E.availability(S, 'favor', { who: p.id }), favCred = E.recentFavors(S) * E.TUNE.favorCred;
+      const ask = E.currentAsk(S, p.id);
       return `<div class="pc"><button class="av" data-who="${p.id}" style="background:${stanceCol(st)}" title="${st > 0.25 ? 'For' : st < -0.25 ? 'Against' : 'Open on'} pacing · influence ${Math.round(p.infl)}. Click to meet.">${SEAT[p.id]}</button>
         <div class="pcb"><div class="nm"><button class="who" data-who="${p.id}" title="${esc(d.faction)} · ${esc(d.bio)} Click to meet.">${esc(d.name)}</button>${p.alt ? '<span class="pill muted">new</span>' : ''}<span class="tier ${E.relTier(p.rel)}" title="${esc(tierTip(p.id))}">${E.relTier(p.rel)}</span><span class="sp"></span><span class="rel ${p.rel >= 0 ? 'up' : 'dn'}" title="Relationship with you">${p.rel > 0 ? '+' : ''}${Math.round(p.rel)}</span></div>
         ${d.moods ? `<div class="sub mood">${esc(d.moods[E.relTier(p.rel)])}</div>` : ''}
-        <div class="ask"><span>Asks you: ${esc(ask.text)}</span><button class="ghost sm" data-favor="${p.id}" ${fav === true ? '' : 'disabled'} title="${esc(fav === true ? grantTip(p.id, ask) : fav)}">Say yes ${costHtml({ ap: 1, pc: ask.pc })}${favCred ? `<span class="dn">\u2212${favCred} cred</span>` : ''}</button></div>${fav === true ? '' : `<div class="sub">${esc(fav)}</div>`}</div></div>`;
+        <div class="ask"><span>Asks you: ${esc(ask.text)}</span></div></div></div>`;
     }).join('')}`;
 }
 function chinaPanel(v) {
@@ -605,7 +603,6 @@ function bindGame() {
   const al = app.querySelector('.alist'); if (al) al.onscroll = updateMore;
   updateMore();
   app.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { ui.sel = b.dataset.act; ui.params = defaultParams(ui.sel); renderDetail(); app.querySelectorAll('[data-act]').forEach(x => x.classList.toggle('on', x === b)); });
-  app.querySelectorAll('[data-favor]').forEach(b => b.onclick = () => { ui.sel = 'favor'; ui.params = { who: b.dataset.favor }; doAction(); });
   app.querySelectorAll('[data-who]').forEach(g => g.onclick = () => { ui.sel = 'meet'; ui.params = { who: g.dataset.who }; renderGame(); });
   bindDetail();
 }
