@@ -228,6 +228,8 @@ const TUNE = {
   favorCred: 2,
   senateFlip: 3,
   flipHill: 0.7,
+  flipAlways: 1, // the 2026 result: the opposition takes the Senate 56-44 and the House (0: the old logistic draw; the draw is rolled either way so seeds stay paired)
+  houseFlip: 1, // an opposition House: riders x(1 - 0.5 houseFlip) a turn, investigations 0.3 + 0.1 houseFlip a turn
   strait: 1,
   straitBase: 0.01,
   straitHot: 0.12,
@@ -1843,7 +1845,7 @@ function startScramble(s) {
 
 ev({ id: 'midterms', forced: true, title: 'Midterms', stamp: 'Election night, 3 Nov 2026',
   body: s => s.flags.senateFlipped
-    ? `<p>The opposition takes the Senate, 52 to 48. Its incoming committee chairs have promised hearings on frontier AI. Hearings raise salience and pull senators toward a treaty, but the White House sees them as an attack.</p>`
+    ? `<p>${TUNE.flipAlways ? 'The opposition takes the Senate, 56 to 44, and the House by more than 30 seats' : 'The opposition takes the Senate, 52 to 48'}. Its incoming committee chairs have promised hearings on frontier AI. Hearings raise salience and pull senators toward a treaty, but the White House sees them as an attack.</p>`
     : `<p>The President\u2019s party holds the Senate, 51 to 49. The Chief of Staff calls it a mandate. A mandate for what is up for grabs.</p>`,
   choices: s => s.flags.senateFlipped ? [
     { label: 'Quietly help the new chairs plan AI hearings', hint: 'Senate +6; salience +6; Chief of Staff -12 (the Chief controls your hiring).', fx: s => { s.salience += 6; s.senateLobby += 6; rel(s, 'cos', -12); return 'The hearing schedule for February has your fingerprints on it, and the Chief of Staff knows it.'; } },
@@ -1853,8 +1855,8 @@ ev({ id: 'midterms', forced: true, title: 'Midterms', stamp: 'Election night, 3 
     { label: 'Let the Chief of Staff take the win', hint: 'Chief of Staff +12 (the Chief controls your hiring); credibility +2.', fx: s => { rel(s, 'cos', 12); s.cred += 2; return 'The Chief of Staff is in a good mood for a week.'; } },
   ] });
 
-ev({ id: 'probe', p: 0.3, phases: ['p0', 'p1'], cooldown: 4, when: s => s.flags.senateFlipped,
-  title: 'A Senate investigation', stamp: 'Senate Commerce Committee',
+ev({ id: 'probe', p: () => 0.3 + 0.1 * TUNE.houseFlip, phases: ['p0', 'p1'], cooldown: 4, when: s => s.flags.senateFlipped,
+  title: 'A congressional investigation', stamp: s => TUNE.houseFlip && s.turn % 2 ? 'House Oversight Committee' : 'Senate Commerce Committee',
   body: () => `<p>The new opposition chair subpoenas both frontier labs for their internal safety evaluations and asks what the White House knew. The hearings will lead the news for a week.</p>`,
   choices: [
     { label: 'Send the committee what it asks for', hint: 'Salience +6; industry -4; Chief of Staff -6.', fx: s => { s.salience += 6; industry(s, -4); rel(s, 'cos', -6); return 'Your documents end up as exhibits. The Chief of Staff asks who approved that.'; } },
@@ -2188,7 +2190,7 @@ ev({ id: 'commerce_ex', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s
     { label: 'Fight it', hint: 'Commerce -15; Mindscale compliance +10.', fx: s => { rel(s, 'doc', -15); L(s, 'mindscale').comp += 10; return 'The exemption is withdrawn after a shouting match.'; } },
     { label: 'Let it stand', hint: 'Mindscale compliance -20.', fx: s => { L(s, 'mindscale').comp -= 20; return 'Mindscale has a license to train.'; } },
   ] });
-ev({ id: 'rider', p: 0.25, phases: ['p1'], cooldown: 4, when: s => paced(s) && senateVotes(s) < TUNE.riderBelow,
+ev({ id: 'rider', p: s => 0.25 * (s.flags.senateFlipped ? 1 - 0.5 * TUNE.houseFlip : 1), phases: ['p1'], cooldown: 4, when: s => paced(s) && senateVotes(s) < TUNE.riderBelow,
   title: 'A rider', stamp: 'House Appropriations',
   body: s => `<p>Appropriators attach a rider to the spending bill: no funds for pacing inspections at any site that has not been charged with a violation. Senate support for pacing is down to ${senateVotes(s)}, and the labs have been working the members for months.</p>`,
   choices: [
@@ -2885,7 +2887,7 @@ function tick(s) {
   }
 
   // --- midterms
-  if (!s.seen.midterms && s.t >= 0.75) { s.flags.senateFlipped = rnd(s) < logistic((3.4 - 0.4 * (s.markets - 100) - 0.1 * s.salience) / 3); s.queue.push({ id: 'midterms' }); s.seen.midterms = s.turn; }
+  if (!s.seen.midterms && s.t >= 0.75) { const flip = rnd(s) < logistic((3.4 - 0.4 * (s.markets - 100) - 0.1 * s.salience) / 3); s.flags.senateFlipped = TUNE.flipAlways ? true : flip; s.queue.push({ id: 'midterms' }); s.seen.midterms = s.turn; }
   if (!s.seen.uae && s.t >= 15.6) { s.queue.push({ id: 'uae' }); s.seen.uae = s.turn; }
 
   // --- the pacing bill comes to a vote
