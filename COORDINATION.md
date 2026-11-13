@@ -41,6 +41,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
+| strategic-china (15939d4, on 92f03cf) | 45 | Beijing plays planned moves: TUNE cnPlan, cnPlanGap, cnRetaliate, cnWedge, cnCounter, cnReroute, cnWait, cnAim, cnCheatAim (all 0 = main's Beijing); events/genes cn_squeeze, cn_wedge, cn_counter (stamp changes). Overlaps 07's topic (Beijing levers outside the deal): rare_earths also answers a control (0.86 vs 0.09 a game), cnReroute rebuilds 30% of cut compute. On minus off on v39 genomes under v40 rules: run0 -8.7, hawk0 -30.9 ± ~5; dove-hawk 135.3 -> 157.5. Held out of batches until Peter signs off on the design (via 45) |
 | lab-agency (3775343, on 09353c1) | 3c | Labs with agendas behind TUNE.labAI (0 = old labs): monthly lab moves, events lab_preempt/lab_pilot/lab_pact/ultimatum, charterDecide takes a term list, walkout notice, rival detection. New genes term.<id> and four ev.* (stamp changes). Overlaps: walkouts/situ/walkMid, charterOdds, P1 Hill lobbying, lab-cheating detection. On minus off on v39 genomes under v40 rules: run0 -0.5 ± 4.3, dove0 -1.3 ± 4.1, hawk0 +6.3 ± 4.7, together0 -10.7 ± 4.6. Next batch after v40, pending Peter's yes via 3c |
 | midterms-2026 (1542b80, on main) | f5 | Senate/House flip (flipAlways 1, houseFlip 1, senateFlip 7), METR threshold (Tmed x0.96, uplift 12x). in v40-candidate d1a9c0b |
 
