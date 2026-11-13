@@ -40,13 +40,15 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
+| midterms-2026 (1542b80, on main) | f5 | Senate/House flip (flipAlways 1, houseFlip 1, senateFlip 7), METR threshold (Tmed x0.96, uplift 12x). Big change: 13 runs under N; handoff to 7c pending |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
 
 ## Topic owners
 
-War and Taiwan: 12 (closed). Offers, threats, the deal and together: 9c (ended 21 Oct). Open weights and markets: 44 (ended). Misuse, principals' asks and events: f3 (ended). Beijing levers outside the deal: 07. Senate and midterms: c7 (closed; v30 baseline: never flip -14.7 / -22.4, always flip +8.4 / +10.0 on run0 / dove_run1). Luck and variance: 1e (closed 23 Oct, L1; branches removed). Search, merges, hawk/dove and no-deal analysis: integrator (df, since 3 Nov; was 39, ea). Topics whose owner has ended: the integrator checks them at each candidate (diff review, compare.js knobs off and on); a deal change with no off switch goes to Peter (K1, 21 Oct).
+War and Taiwan: 12 (closed). Offers, threats, the deal and together: 9c (ended 21 Oct). Open weights and markets: 44 (ended). Misuse, principals' asks and events: f3 (ended). Beijing levers outside the deal: 07. Senate and midterms: c7 (closed; v30 baseline: never flip -14.7 / -22.4, always flip +8.4 / +10.0 on run0 / dove_run1). Luck and variance: 1e (closed 23 Oct, L1; branches removed). Search, merges, hawk/dove and no-deal analysis: integrator (7c, since 13 Nov; was df, 39, ea). Topics whose owner has ended: the integrator checks them at each candidate (diff review, compare.js knobs off and on); a deal change with no off switch goes to Peter (K1, 21 Oct).
 
 ## Who reports what to Peter
 
 Each owner reports its own mechanism's results, measured with compare.js on the batch genomes. The integrator reports search results, hawk against dove, and per-branch credit (each branch's change switched off on the winning genome).
+- 13 Nov 2026: integrator is scramble-game-7c (#1a37); df had stopped running. Open: midterms-2026 (f5, 1542b80, branch total vs v39 run0 +12.6, dove0 +11.9, hawk0 +18.0, together0 +12.7, ± ~5), a big change for v40.
