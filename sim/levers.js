@@ -1,7 +1,9 @@
-// How much does each China lever move the race? Pacing starts Jul 2027 with automation limits;
+// How much does each China lever move the race? Pacing starts at PACE_AT (default Jul 2027; `node sim/levers.js 0.4` pauses at the start) with automation limits;
 // theft and runaway are switched off so only the levers differ. Reports lead at pacing and months until China catches up.
 const E = require('../engine.js');
+const PACE_AT = +(process.argv[2] || 9.4);
 Object.keys(E.DIFFS).forEach(k => E.DIFFS[k].theft = 0); // isolate the levers from weight theft
+E.TUNE.aloneFloor = -Infinity; // the paused labs stay paused, so China can catch them (takeoff-tracker's "pause today")
 const LEVERS = {
   none: {},
   'distillation crackdown (Jan 27)': { distT: 0.68, at: 3, pol: ['distill'] },
@@ -18,19 +20,20 @@ const LEVERS = {
 function run(lv, seed, extra) {
   const s = E.newGame({ seed }); s.queue = []; s.T = 999; s.W = 25;
   const rng = () => 0;
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 60; i++) {
     if (s.t >= 0.4 + lv.at - 1e-9 && !s._applied) { for (const k in lv) if (k !== 'at' && k !== 'pol') s.cn[k] = k === 'distT' ? lv[k] * s.cn.base.dist : lv[k]; (lv.pol || []).forEach(x => s.policies[x] = true); if (lv.W) { s.sl = 5; s.W = 92; } s._applied = true; }
-    if (Math.abs(s.t - 9.4) < 1e-6) { // pacing begins
+    if (s._leadAtPace == null && s.t >= PACE_AT - 1e-6) { // pacing begins (Phase 0 turns are two months, so take the first turn at or past it)
+      s._paceT = s.t;
       s.pacing.active = true; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, E.lead(s)); s.pacing.threshold = '1e21'; s.pacing.automation = true; s.phase = 'p1';
       s.labs.forEach(l => { l.covered = l.signed = true; l.comp = 100; });
       s._leadAtPace = E.lead(s);
       if (extra === 'deal') s.cn.deal = { terms: {}, since: s.t };
     }
-    if (s._leadAtPace != null && s.cn.cap >= E.frontier(s)) return { lead: s._leadAtPace, months: s.t - 9.4 };
+    if (s._leadAtPace != null && s.cn.cap >= E.frontier(s)) return { lead: s._leadAtPace, months: s.t - s._paceT };
     s.queue = []; E.endTurn(s); s.queue = []; s.cn.posture = 'diffuse'; s.cn.race = 0; s.cn.cheat = false;
     s.labs.forEach(l => l.defect = false);
   }
-  return { lead: s._leadAtPace, months: 31 };
+  return { lead: s._leadAtPace, months: s._paceT == null ? NaN : 60 - (s._paceT - 0.4) };
 }
 for (const [name, lv] of Object.entries(LEVERS)) {
   let L = 0, M = 0; const n = 60;

@@ -11,7 +11,7 @@ Open `index.html` in a browser. The game saves to localStorage after every move.
 - `sim/playtest.js [games] [difficulty] [bot]`: plays scripted strategies (random, expert, hawk, hawksec, hawkpure, passive, early, noprep, reader, noauto, dpa, nosec, sl4only) and prints the endings.
 - `sim/trace.js [seed] [bot]`: one game, turn by turn.
 - `sim/loc.js [bot]`: breaks down what the bot's losses came from.
-- `sim/levers.js`: months for China to catch a paced frontier under each lever.
+- `sim/levers.js [month]`: months for China to catch a paused frontier under each lever, with the alone floor off (`0.4` pauses at the start; default Jul 2027).
 - `sim/strategy.js`: a strategy with 132 adjustable choices; its default settings reproduce the scripted expert.
 - `sim/hillclimb.js [gens] [games] [difficulty] [run]`: searches for better settings on 12 worker threads and checks the winner on 4,000 fresh games. Compare rule changes using the average of 3 runs; single runs vary by about ±1.5 points. `RUNS=0,1,2` runs all three in one process (so they all use the code loaded at the start), `OUT=sim/v13` writes `sim/v13_run<N>.json` instead of overwriting `best_genome.json`, `PIN='{"seq":"together"}'` holds genes fixed, and `sim/.search.lock` makes a second search wait for the first. Children race: all play the first third of the batch, and only those within 0.03 of the parent (`RACE_MARGIN`) play the rest.
 - `sim/narrate.js [genome.json]`: writes `sim/playbook.md`, which describes a strategy in plain English, says what each choice is worth, and walks through one game turn by turn.
