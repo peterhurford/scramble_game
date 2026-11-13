@@ -1061,7 +1061,7 @@ def({ id: 'pledge', cat: 'diplo', name: 'Presidential pledge: we pause the day B
 def({ id: 'allies', cat: 'diplo', name: 'Build the allied coalition', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1,
   desc: 'Phase 2 is multilateral: it needs allies (London, Tokyo, The Hague, Seoul). Allies also make chip controls stick and win a few Senate votes.',
   effect: s => 'Coalition +' + (s.flags.g7 ? 12 : 8) + ', Senate +' + (s.senateLobby >= 18 ? 0 : 3) + '.',
-  apply(s) { s.coalition += s.flags.g7 ? 12 : 8; s.senateLobby = Math.min(18, s.senateLobby + 3); return pick(s, ['The Dutch agree in principle, pending their cabinet.', 'Tokyo wants to see the verification plan first, then agrees.', 'London offers inspectors.']); },
+  apply(s) { s.coalition += s.flags.g7 ? 12 : 8; s.senateLobby = Math.max(s.senateLobby, Math.min(18, s.senateLobby + 3)); return pick(s, ['The Dutch agree in principle, pending their cabinet.', 'Tokyo wants to see the verification plan first, then agrees.', 'London offers inspectors.']); },
 });
 def({ id: 'labmeet', cat: 'labs', name: 'Meet a lab CEO', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 0,
   params: { kind: 'lab' },
@@ -1098,7 +1098,7 @@ def({ id: 'methods', cat: 'policy', name: 'Stop the leak of US methods', phases:
 def({ id: 'smuggle', cat: 'policy', name: 'Chip smuggling enforcement surge', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 1, room: true, once: true,
   tags: { hawk: 1, commerce: 1, control: 0.5 },
   desc: 'BIS agents in Singapore and the Gulf, location verification on export licenses, prosecutions.',
-  effect: () => 'Smuggled compute falls by about half; chip accounting +8.' + ctrlGainText(),
+  effect: () => 'Smuggled compute falls by about half; chip accounting +4.' + ctrlGainText(),
   apply(s) { ctrlGain(s); s.cn.smuggleT = Math.max(0, s.cn.smuggleT - 0.5 * cnBase(s).smuggle); s.verify.inspect += 4; s.tension += 2 * TUNE.ctrlHeat; return 'Forty new enforcement agents deploy. The first indictment comes within weeks.'; },
 });
 def({ id: 'chips', cat: 'policy', name: 'End chip sales and tool servicing', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 3, room: true, once: true,
@@ -1114,13 +1114,6 @@ def({ id: 'sl4', cat: 'policy', name: 'Executive order: SL4 security for frontie
   desc: 'Mandatory security against well-resourced attackers, audited by the government. Labs start at SL3. Worth the most when Beijing\u2019s hackers push hard (the Beijing tab).',
   effect: () => 'Orders SL4. It takes effect after ' + TUNE.sl4Need + ' more action' + (TUNE.sl4Need > 1 ? 's' : '') + ' implementing it: then most theft attempts fail instead of most succeeding, and the overhead slows US labs noticeably. Labs -12, industry -4.',
   apply(s) { s.labs.forEach(l => l.rel -= 8 + 4 * TUNE.slCost); industry(s, -2 - 2 * TUNE.slCost); return 'The order is signed. The labs complain about cost; implementation starts.'; },
-});
-def({ id: 'probe', cat: 'politics', name: 'Ask a friendly chair for an investigation', phases: ['p0', 'scramble', 'p1'], ap: 0, pc: 1,
-  tags: { pause: 0.5, industry: -1 },
-  avail(s) { if (!s.seen.midterms || s.flags.senateFlipped) return 'Only while the President\u2019s party holds the Senate'; return (s.flags.cooldowns.probe || -9) > s.turn - 3 ? 'Too soon after the last one' : true; },
-  desc: 'A committee chair from the President\u2019s party opens an investigation into how the labs handle safety.',
-  effect: () => 'Salience +8; industry -6. Uses no action.',
-  apply(s) { s.flags.cooldowns.probe = s.turn; s.salience += 8; industry(s, -6); return pick(s, ['The Commerce chair subpoenas red-team reports from both labs.', 'The Intelligence chair asks why a lab\u2019s weights left a contractor\u2019s laptop.', 'Mindscale\u2019s general counsel spends a week preparing for a deposition.']); },
 });
 def({ id: 'speech', cat: 'policy', name: 'Presidential address on AI risk', phases: ['p0', 'scramble', 'p1'], ap: 1, pc: 2, room: true,
   tags: { pause: 1, industry: -1, markets: -0.5 },
@@ -1257,7 +1250,7 @@ def({ id: 'gofirst', cat: 'crisis', name: 'Go first after all', phases: ['p1'], 
   tags: SEQ.first.tags,
   avail(s) { if (!(s.pacing.armed && !s.pacing.active)) return 'Only while the pause is on standby'; const r = backingRefusal(s, 'gofirst'); return r ? r.short : true; },
   desc: s => { const r = s.pacing.armed && !s.pacing.active ? backingRefusal(s, 'gofirst') : null; return 'The labs are signed but still racing while you wait for Beijing. Start the pause now, without China.' + (r ? ' ' + r.quote : ''); },
-  effect: () => 'The pause starts today. Hawks -12, Beijing trust +10, science faction +6, markets -4.',
+  effect: s => 'The pause starts today. Hawks -12, Beijing trust +10, science faction +6, markets -' + (s && s.flags.marketPlan ? 8 : 12) + '.',
   apply(s) { s.pacing.seq = 'first'; activatePacing(s); seqEffects(s, 'first'); return 'The President announces that America will pause first. Beijing\u2019s foreign ministry calls it \u201ca serious step.\u201d The hawks call it something else.'; },
 });
 // Backing for a pause: pacing support as it would stand the moment Phase 1 starts, on a copy (the RNG lives on s, so the real game is untouched).
@@ -1327,6 +1320,7 @@ function launchPhase1(s) {
 }
 function activatePacing(s) {
   s.pacing.active = true; s.pacing.armed = false; s.pacing.since = s.t; s.pacing.gap0 = Math.max(0.5, lead(s)); s.pacing.low = 0; s.pacing.graced = false; s.pacing.grace = null;
+  if (s.pacing.mech === 'charter') s.labs.forEach(l => { if (l.signed && l.signedVoluntary) l.covered = true; }); // a lab that signed while the pause was on standby
   s.labs.forEach(l => { if (l.covered) l.comp = complianceBase(s, l); });
   s.markets -= s.flags.marketPlan ? 4 : 8;
   s.salience += 4;
@@ -1805,6 +1799,7 @@ function act(s, id, params) {
   }
   if (a.modal) res.modal = a.modal;
   normalize(s);
+  checkEnd(s);
   return res;
 }
 function optLabel(a, s, v) { const o = a.params.options(s).find(x => x.id === v); return o ? o.label : v; }
@@ -2240,7 +2235,11 @@ ev({ id: 'one_month', forced: true, title: 'One month', stamp: 'Oval Office',
 ev({ id: 'collapse', forced: true, title: 'The pause breaks', stamp: 'Oval Office',
   body: s => `<p>The President lifts the pacing orders. ${nth(s, 'collapse', ['\u201cWe gave it a shot. China isn\u2019t stopping, the markets hate it, and nobody can tell me when it ends.\u201d', '\u201cI\u2019m not doing this a second time and losing a second time.\u201d', '\u201cYou were right about the risk. You were wrong about the politics.\u201d'])} The labs restart their largest runs within hours.</p>`,
   choices: [{ label: 'Start over', hint: 'Back to Phase 0. You can try for another scramble.', fx: s => { endPacing(s); return 'You start rebuilding the case.'; } }] });
+// One collapse per tick, and it replaces a pending one-month warning.
+function queueCollapse(s) { s.queue = s.queue.filter(q => q.id !== 'one_month'); if (!s.queue.some(q => q.id === 'collapse')) s.queue.push({ id: 'collapse' }); }
+const P1_FORCED = ['court', 'deadline_up', 'walkout', 'wobble', 'one_month', 'collapse'];
 function endPacing(s) {
+  s.queue = s.queue.filter(q => P1_FORCED.indexOf(q.id) < 0); // Phase 1 crises queued alongside the collapse no longer apply
   s.pacing.active = false; s.pacing.collapsed++; s.phase = 'p0'; s.alarm = 45; s.cred -= 10;
   s.labs.forEach(l => { l.covered = false; l.defect = false; l.secret = false; });
   s.pacing.mech = null; s.pacing.threshold = null; s.pacing.automation = null; s.pacing.trigger = null; s.pacing.seq = null; s.pacing.armed = false; s.pacing.deadline = null; s.flags.extended = 0; s.flags.wentFirst = false; s.flags.verifyEnjoined = false;
@@ -2918,8 +2917,8 @@ function tick(s) {
     if (ps < 25) s.pacing.low++; else s.pacing.low = Math.max(0, s.pacing.low - 1);
     if (s.pacing.low === 1 && ps < 25) s.queue.push({ id: 'wobble' });
     // Under TUNE.supportBreak the pause breaks, except once per pause (TUNE.supportGrace): the President gives it one more month.
-    if (s.pacing.low >= 3) s.queue.push({ id: 'collapse' });
-    else if (ps < TUNE.supportBreak) { if (TUNE.supportGrace && !s.pacing.graced) { s.pacing.graced = true; s.pacing.grace = { turn: s.turn + 1, t: s.t + 1 }; s.stats.graced = (s.stats.graced || 0) + 1; s.queue.push({ id: 'one_month' }); } else s.queue.push({ id: 'collapse' }); }
+    if (s.pacing.low >= 3) queueCollapse(s);
+    else if (ps < TUNE.supportBreak) { if (TUNE.supportGrace && !s.pacing.graced) { s.pacing.graced = true; s.pacing.grace = { turn: s.turn + 1, t: s.t + 1 }; s.stats.graced = (s.stats.graced || 0) + 1; if (!s.queue.some(q => q.id === 'collapse')) s.queue.push({ id: 'one_month' }); } else queueCollapse(s); }
     if ((s.flags.courtNext || 0) <= s.turn && fuseHit(s, 'court', courtP(s))) { s.flags.courtNext = s.turn + 4; s.queue.push({ id: 'court' }); }
     if (s.flags.appeal === s.turn) { if (draw(s, 'court', s.flags.appealP ?? 0.5) < (s.flags.appealP ?? 0.5)) { s.labs.forEach(l => { if (l.signed) l.covered = true; }); s.flags.verifyEnjoined = false; log(s, 'The appeals court restores the orders.', 'good'); } else log(s, 'The appeal fails.' + (enjoined(s) ? ' The Charter\u2019s mandatory verification stays enjoined until Congress acts.' : ''), 'bad'); }
     if (s.pacing.seq === 'deadline' && !s.cn.deal && s.pacing.deadline && s.t >= s.pacing.deadline && !s.queue.some(q => q.id === 'deadline_up')) s.queue.push({ id: 'deadline_up' });
@@ -2934,7 +2933,7 @@ function tick(s) {
       if (fuseHit(s, 'walk', pw)) s.queue.push({ id: 'walkout', lab: l.id });
     });
     // China passes the paced frontier
-    if (s.cn.cap > frontier(s) + 0.5) { s.flags.overtaken = (s.flags.overtaken || 0) + 1; if (s.flags.overtaken >= 2) s.queue.push({ id: 'collapse' }); }
+    if (s.cn.cap > frontier(s) + 0.5) { s.flags.overtaken = (s.flags.overtaken || 0) + 1; if (s.flags.overtaken >= 2) queueCollapse(s); }
   }
   // labs bound without signing voluntarily lobby the Hill against the pause, the reckless ones hardest
   // and much harder while a pacing bill is moving, when voluntary signers join in at half strength
@@ -3016,12 +3015,12 @@ function score(s) {
 function lessons(s) {
   const out = [];
   if (s.ending === 'betrayed') out.push('Phase 2 was signed with intelligence quality ' + Math.round(s.intelQ) + '. Weak intelligence and thin verification let Beijing hide a program; the GEOINT baseline, verification funding and IC assessments are what make an agreement enforceable.');
-  if (s.stats.scrambleStart != null) out.push(s.flags.statute ? 'Congress made pacing law, so the courts could not take it away.' : 'The pause ran on executive authority alone, one injunction away from unraveling. A statute takes Hill work and two months, but ends the court risk.');
+  if (s.pacing.since != null) out.push(s.flags.statute ? 'Congress made pacing law, so the courts could not take it away.' : 'The pause ran on executive authority alone, one injunction away from unraveling. A statute takes Hill work and two months, but ends the court risk.');
   out.push(s.sl >= 4 ? 'Labs reached SL' + s.sl + '. Security cost speed, and a stolen frontier model would have collapsed the gap to about a month.' : 'Labs stayed at SL3. A stolen frontier model collapses the gap to about a month' + (s.stats.thefts ? ', and it happened ' + s.stats.thefts + ' time' + (s.stats.thefts > 1 ? 's' : '') + '.' : '.'));
   if (s.done.memo) out.push('The memo was ready before the knock on the door. Work done before the scramble matters most.');
   else if (s.stats.scrambleStart != null) out.push('Nobody had written the memo for the emergency meeting. It is one of the cheapest things to have ready.');
   if (s.done.zk) out.push('Proof-of-training is real work, but it did not count during Phase 1: the government does not trust novel tools on day one.');
-  if (s.pacing.automation === false || (s.stats.scrambleStart != null && !s.pacing.automation)) out.push('Without research-automation limits, paced labs kept advancing at 0.4 months per month using models they already had.');
+  if (s.pacing.since != null && !s.pacing.automation) out.push('Without research-automation limits, paced labs kept advancing at 0.4 months per month using models they already had.');
   if (s.stats.defectCaught + s.stats.defectMissed > 0) out.push('Labs defected ' + (s.stats.defectCaught + s.stats.defectMissed) + ' time' + (s.stats.defectCaught + s.stats.defectMissed > 1 ? 's' : '') + '; ' + s.stats.defectCaught + ' caught.');
   if (s.stats.briefFails) out.push('You asked for an emergency meeting too early ' + s.stats.briefFails + ' time' + (s.stats.briefFails > 1 ? 's' : '') + '.');
   if (s.stats.wars) {
@@ -3053,7 +3052,7 @@ function view(s) {
   const inZone = s.labs.filter(l => knownCap(l) >= zoneAt).map(l => LD(l.id).name).concat(PF - le.mid >= zoneAt ? ['China'] : []).concat(s.open != null && s.open >= zoneAt ? ['open-weight models'] : []);
   return {
     date: dateLabel(s.t), month: monthLabel(s.t), phase: s.phase,
-    phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + (1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)) + (s.war ? ' · At war' : s.blockade ? ' · Taiwan quarantined' : ''),
+    phaseLabel: s.phase === 'p0' ? (s.pacing.collapsed ? 'Aftermath' : 'Phase 0 · Getting in position') : s.phase === 'scramble' ? 'The Scramble · Day ' + Math.min(14, 1 + 2 * (s.scramble.turn - 1)) + ' of 14' : (s.pacing.armed && !s.pacing.active ? 'Phase 1 · Standby' : 'Phase 1 · Month ' + (s.flags.monthsInP1 + 1)) + (s.war ? ' · At war' : s.blockade ? ' · Taiwan quarantined' : ''),
     F: publicFrontier(s), leadEst: le, ic, crossover: crossoverMonths(s), cnRate: cnRate(s), usRate: frontierRate(s, true),
     coverage: coverage(s), ready1: ready1(s), ready2: r2, senate: senateVotes(s), support: pacingSupport(s),
     risk: monthlyRisk(s), hazards: hazards(s), theft: theftRisk(s, true), drag: usDrag(s), cnComp: cnComp(s), cnEst: cnEstimate(s), cnRead: cnReadout(s), detection: detection(s), cnVis: cnVisibility(s),

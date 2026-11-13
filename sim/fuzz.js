@@ -5,8 +5,6 @@ const E = require('../engine.js');
 const N = +(process.argv[2] || 3000), SEED0 = +(process.argv[3] || 500000);
 // Open engine issues the fuzz also reaches: counted and printed, not failed. Delete a line when its fix lands.
 const KNOWN = [
-  /^show:(court|deadline_up|walkout|wobble|one_month)-outside-p1$/, // forced Phase 1 events answered after a collapse
-  /^show:collapse-outside-p1$/, /^dupQueue:collapse$/, /^queue:collapse\+one_month$/, // two collapses, or one_month plus a collapse, in one tick
   /^range:\w+@offer$/, // makeOffer does not normalize
   /^score<0$/,
 ];

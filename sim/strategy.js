@@ -53,7 +53,6 @@ g('threatLead', 'real', 4, 15);
 g('fundFirst', 'bool');
 g('hwOver', 'real', 2, 10);
 g('speechSup', 'real', 15, 60);
-g('probeSup', 'real', 0, 60);
 g('alliesCoal', 'real', 30, 80);
 g('senateT', 'real', 55, 90);
 g('statute', 'bool');
@@ -191,7 +190,6 @@ function expertGenome() {
     fundFirst: true,
     hwOver: 5,
     speechSup: 35,
-    probeSup: 0,
     alliesCoal: 55,
     senateT: 70,
     surge: 'lowest',
@@ -351,7 +349,6 @@ function turn(s, G) {
       if (G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
       if (s.overhang > G.hwOver && tryAct(s, 'hardware', {}, G, 'overhang above ' + G.hwOver.toFixed(1) + ' months')) { step(); continue; }
       if (G.openP1 && tryAct(s, 'openrule', {}, G, 'open-weight release limits still missing')) { step(); continue; }
-      if (v.support < G.probeSup && tryAct(s, 'probe', {}, G, 'pacing support below ' + Math.round(G.probeSup) + ': a friendly chair investigates')) { step(); continue; }
       if (v.support < G.speechSup && tryAct(s, 'speech', {}, G, 'pacing support below ' + Math.round(G.speechSup))) { step(); continue; }
       if ((s.coalition < G.alliesCoal || v.senate < G.senateT) && tryAct(s, 'allies', {}, G, 'coalition below ' + Math.round(G.alliesCoal) + ' or Senate below ' + Math.round(G.senateT))) { step(); continue; }
       if (!G.fundFirst && s.warp < 2 && tryAct(s, 'fund', {}, G, 'verification not fully funded')) { step(); continue; }
