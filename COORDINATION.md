@@ -41,6 +41,7 @@ Measure against these with `node sim/compare.js <genome>` (4,000 games from seed
 
 | Branch | Session | Touches |
 |---|---|---|
+| lab-agency (3775343, on 09353c1) | 3c | Labs with agendas behind TUNE.labAI (0 = old labs): monthly lab moves, events lab_preempt/lab_pilot/lab_pact/ultimatum, charterDecide takes a term list, walkout notice, rival detection. New genes term.<id> and four ev.* (stamp changes). Overlaps: walkouts/situ/walkMid, charterOdds, P1 Hill lobbying, lab-cheating detection. On minus off on v39 genomes under v40 rules: run0 -0.5 ± 4.3, dove0 -1.3 ± 4.1, hawk0 +6.3 ± 4.7, together0 -10.7 ± 4.6. Next batch after v40, pending Peter's yes via 3c |
 | midterms-2026 (1542b80, on main) | f5 | Senate/House flip (flipAlways 1, houseFlip 1, senateFlip 7), METR threshold (Tmed x0.96, uplift 12x). in v40-candidate d1a9c0b |
 
 Shared mechanisms to watch: loss-of-control hazards (loosethr, flavor and openweights), theft attempts (leverage and the P2 cheatSteal term), Senate votes (institute-cost and senate-*).
