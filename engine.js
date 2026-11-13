@@ -226,7 +226,7 @@ const TUNE = {
   labLobby: 0.6,
   meetDecay: 0.6,
   favorCred: 2,
-  senateFlip: 3,
+  senateFlip: 7, // Senate votes from the opposition Senate's hearings: one a seat of swing from 51-49 to 56-44
   flipHill: 0.7,
   flipAlways: 1, // the 2026 result: the opposition takes the Senate 56-44 and the House (0: the old logistic draw; the draw is rolled either way so seeds stay paired)
   houseFlip: 1, // an opposition House: riders x(1 - 0.5 houseFlip) a turn, investigations 0.3 + 0.1 houseFlip a turn
