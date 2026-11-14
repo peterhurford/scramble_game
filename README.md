@@ -8,7 +8,7 @@ Open `index.html` in a browser. The game saves to localStorage after every move.
 
 - `engine.js`: the whole simulation (state, actions, events, China, labs, endings). No DOM; runs in node.
 - `ui.js`, `index.html`: rendering only.
-- `room/`: the Room Edition, a six-turn version for a group voting by show of hands in 30 minutes (open `room/index.html`; rules in `room/engine.js`). `node room/sim.js` prints how scripted rooms end.
+- `room/`: the Room Edition, a six-turn, 30-minute version for a room split into five cabinet groups, each with one choice a turn (open `room/index.html`; rules in `room/engine.js`). `node room/sim.js` prints how scripted cabinets end.
 - `sim/playtest.js [games] [difficulty] [bot]`: plays scripted strategies (random, expert, hawk, hawksec, hawkpure, passive, early, noprep, reader, noauto, dpa, nosec, sl4only) and prints the endings.
 - `sim/trace.js [seed] [bot]`: one game, turn by turn.
 - `sim/loc.js [bot]`: breaks down what the bot's losses came from.
