@@ -128,7 +128,7 @@ button{font:inherit;color:inherit}
 // The facilitator's screen for the free-response game; the ledger is world.js and the game master is gm.js (POST /gm).
 // Each table says its order and the facilitator types it. Send asks the game master; its answers can be edited before Go applies them.
 // G opens the facilitator's drawer (the ruling, the game master's note, the hidden facts). U undoes a turn.
-const TURN_SECS = 360, GAME_MINS = 30, SAVE = 'scramble-live-v1', IDS = Object.keys(World.TABLES);
+const TURN_SECS = 240, GAME_MINS = 35, SAVE = 'scramble-live-v2', IDS = Object.keys(World.TABLES);
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // screen: intro, orders, wait, answers, news, end. answer: the game master's reply for this turn. news: index of the bulletin on screen.
@@ -205,7 +205,7 @@ function topbar(g) {
 
 function draw() {
   const g = st.game; let h = '';
-  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">January 2027. The intelligence community warns that AI able to improve itself may be less than a year of progress away. Nobody knows exactly where. American labs are about six months ahead of China, and Beijing\'s hackers are trying to get into them. You have five turns, to the end of 2028. Each table says what it does.</p><button class="btn" id="b-start">Start</button></div>';
+  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">January 2027. The intelligence community warns that AI able to improve itself may be less than a year of progress away. Nobody knows exactly where. American labs are about six months ahead of China, and Beijing\'s hackers are trying to get into them. You have seven turns, to the end of 2028. Each table says what it does.</p><button class="btn" id="b-start">Start</button></div>';
   else {
     const v = World.view(g);
     h = topbar(g) + '<div class="panel">' + track(g, v, st.screen === 'end') + facts(g, v) + '</div>';
