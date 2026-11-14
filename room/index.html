@@ -80,6 +80,7 @@ button{font:inherit;color:inherit}
 .opt{all:unset;box-sizing:border-box;cursor:pointer;display:block;border:2px solid var(--rule);background:var(--sheet2);padding:6px 9px}
 .opt:hover{border-color:var(--accent)} .opt.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
 .opt[disabled]{opacity:.4;cursor:not-allowed;border-color:var(--rule)}
+.opt.cr{border-color:var(--warn)} .opt .new.crt{background:var(--warn)}
 .opt b{display:block;font-weight:900;line-height:1.2} .opt span{display:block;font-family:var(--f-body);font-size:.82em;line-height:1.3;color:var(--muted);margin-top:2px} .opt.on span{color:var(--ink)}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px} .tags span{font-size:.82em;border:1px solid var(--rule);background:var(--sheet);padding:3px 9px} .tags i{font-style:normal;font-weight:800;color:var(--accent);margin-right:6px}
 .go{display:flex;align-items:center;gap:16px;margin-top:14px} .go .hint{color:var(--muted);font-size:.85em}
@@ -103,7 +104,6 @@ button{font:inherit;color:inherit}
 .news.big{border:3px solid var(--bad);border-top-width:8px;animation:in .3s both,alarm 1.1s 3 both} .news.big h2{font-size:4em;text-transform:uppercase;letter-spacing:.01em}
 .news p.rule{margin-top:16px;font-style:normal;font-family:var(--f-mono);font-size:1.05em;line-height:1.4;padding:12px 14px;border-left:5px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
 .news.crisisn{border:3px solid var(--warn);border-top-width:8px}
-.news.tease{border-top-color:var(--accent)} .news.tease h2{font-size:2.8em} .news.tease p.rule{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:1.4em}
 .crisis{display:flex;align-items:baseline;gap:14px;margin:14px 0 0;padding:10px 14px;border:2px solid var(--warn);border-left-width:8px;background:color-mix(in srgb,var(--warn) 9%,transparent)} .crisis b{font-size:1.15em;font-weight:900;color:var(--warn);white-space:nowrap} .crisis span{font-size:1em}
 @media (prefers-reduced-motion:reduce){.news,.news.big{animation:none}}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -131,14 +131,13 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 // Each group's principal announces a choice and the facilitator clicks it (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 // TURN_SECS covers a whole round: the crisis, the decision and the news.
-const TURN_SECS = 240, NEWS_SECS = 60, GAME_MINS = 30, SAVE = 'scramble-room-v4';
+const TURN_SECS = 240, NEWS_SECS = 60, GAME_MINS = 30, SAVE = 'scramble-room-v5';
 const SHORT = { vp: 'President', dni: 'DNI', doc: 'Commerce', state: 'State', war: 'War' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
-// skipped: the bulletins were skipped with Esc, so the recap lists them.
-// news: index of the bulletin on screen (-1 none); shown: its result is revealed; brief: the turn's crisis is on screen.
-let st = { screen: 'intro', game: null, past: [], events: [], news: -1, shown: false, brief: false, picks: {}, t0: 0, turnT0: 0 };
+// news: index of the bulletin on screen (-1 none); brief: the turn's crisis is on screen.
+let st = { screen: 'intro', game: null, past: [], events: [], news: -1, brief: false, picks: {}, t0: 0, turnT0: 0 };
 
 function seedFromHash() { const m = /seed=([\w-]+)/.exec(location.hash); return m ? m[1] : String(Math.floor(Math.random() * 1e6)); }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(st)); } catch (e) {} }
@@ -153,12 +152,13 @@ function lockIn() {
   if (st.screen !== 'decide' || !ready()) return;
   st.past.push(JSON.stringify(st.game));
   st.events = Room.play(st.game, st.picks);
-  st.screen = 'resolve'; st.news = 0; st.shown = false; st.skipped = false; draw();
+  st.screen = 'resolve'; st.news = 0;
+  if (st.events.length) draw(); else next();
 }
 const inNews = () => st.screen === 'resolve' && st.news >= 0 && st.news < st.events.length;
 function nextNews(skip) {
-  if (!skip && st.events[st.news].tease && !st.shown) st.shown = true;
-  else { st.news = skip || st.news + 1 >= st.events.length ? -1 : st.news + 1; st.shown = false; st.skipped = !!skip; }
+  if (skip || st.news + 1 >= st.events.length) return next();   // no recap screen: the last bulletin leads to the next turn
+  else st.news++;
   draw();
 }
 function endBrief() { st.brief = false; draw(); }
@@ -184,8 +184,8 @@ function track(g, v, reveal) {
   return h;
 }
 function gauges(g, v) {
-  // On the resolve screen each gauge says what it read before the turn, so the room sees what moved.
-  const pv = st.screen === 'resolve' && st.past.length ? Room.view(JSON.parse(st.past[st.past.length - 1])) : null;
+  // On the decide screen each gauge says what it read before the turn, so the room sees what moved.
+  const pv = st.screen === 'decide' && st.past.length ? Room.view(JSON.parse(st.past[st.past.length - 1])) : null;
   const G = (lvl, lbl, big, sub, was) => { const ch = pv && was && was !== big; return '<div class="g ' + lvl + (ch ? ' chg' : '') + '"><div class="lbl">' + lbl + '</div><b>' + big + '</b>' + (ch ? '<span class="was">was ' + was.toLowerCase() + '</span>' : '') + '<div class="sub">' + sub + '</div></div>'; };
   const prevDeal = pv && JSON.parse(st.past[st.past.length - 1]).deal;
   const pills = Room.price(g, st.screen === 'decide' ? st.picks : {}).map(a => !a.known ? '<span class="pill unk">? unknown</span>' : '<span class="pill ' + (a.met ? 'ok' : 'no') + '" title="' + esc(a.want) + '">' + (a.met ? '✓ ' : '✗ ') + esc(a.short) + '</span>').join('');
@@ -224,28 +224,27 @@ function draw() {
 
 function intro() {
   return '<div class="intro"><div class="lbl">A 30-minute game for a room · you are the President and the cabinet</div><h1>The Scramble</h1>' +
-    '<p class="lede">It is January 2027. American labs are about six months ahead of China in the race to AI that can improve itself. You have seven turns, to the end of 2028, to get the world through it.</p>' +
-    '<div class="three"><div><h3>The weights can be stolen</h3><p>Beijing\'s hackers go for the frontier model again and again. Today they would probably get it, and one success erases the lead.</p></div>' +
-    '<div><h3>China is right behind</h3><p>Squeeze Beijing and you keep the lead but risk war over Taiwan. A mutual pause has a price: Beijing wants two things it has not told you, and your own labs have to agree to stop. Then Beijing has to keep it.</p></div>' +
-    '<div><h3>No one knows where runaway starts</h3><p>Somewhere roughly a year ahead, AI starts improving itself. Race past that point and every turn is a coin flip on losing control. That goes for China too.</p></div></div>' +
-    '<ol class="how"><li><b>Five groups, five seats:</b> the President (the labs), Director of National Intelligence, Commerce, State, War. Each group names its principal; the rest are the staff.</li>' +
-    '<li><b>Each turn every seat has three options,</b> and they change with the situation. Staff argue, the principal decides. Talk to the other groups: a deal with Beijing or the labs takes several seats at once.</li>' +
-    '<li><b>Then the world moves,</b> and the room finds out what Beijing, the hackers and the models did.</li>' +
-    '<li><b>Odds come in the IC\'s words,</b> and they mean what they say: "unlikely" things happen about one time in four, and over seven turns some of them will.</li>' +
-    '<li><b>From the second turn, each turn opens with a crisis.</b> It says what is at stake this turn and which seats can answer it.</li></ol>' +
+    '<p class="lede">January 2027. American labs are about six months ahead of China in the race to AI that improves itself. You have seven turns, to the end of 2028.</p>' +
+    '<div class="three"><div><h3>The weights can be stolen</h3><p>Beijing\'s hackers keep trying. One success erases the lead.</p></div>' +
+    '<div><h3>China is right behind</h3><p>Squeeze Beijing and risk war over Taiwan, or bargain for a mutual pause. Beijing has a price, and may cheat.</p></div>' +
+    '<div><h3>No one knows where runaway starts</h3><p>Roughly a year ahead, AI starts improving itself. Past that point, every turn risks losing control.</p></div></div>' +
+    '<ol class="how"><li><b>Five groups, five seats.</b> Each group names a principal; the rest are staff.</li>' +
+    '<li><b>Each turn, each seat picks one of three options.</b> Talk to the other groups: big moves take several seats.</li>' +
+    '<li><b>Then the world moves</b> and the room hears the news.</li>' +
+    '<li><b>Odds come in words.</b> "Unlikely" still happens one time in four.</li></ol>' +
     '<button class="btn" id="b-start">Start the clock</button>' +
-    '<p class="fine">Facilitator: four minutes a round, crisis and news included; the round clock runs through all of it, so lock the turn in with a minute left for the news. Ask each principal for a decision and click it; Enter locks the turn in, Space steps through the news and moves on, U undoes a turn (the dice for a turn stay the same if you replay it). Add #seed=123 to the address to rehearse a game and run the same one live.</p></div>';
+    '<p class="fine">Facilitator: four minutes a round, news included. Click each principal\'s choice; Enter locks in, Space steps through the news, U undoes a turn. Add #seed=123 to the address to rehearse the game you will run live.</p></div>';
 }
 
 function decide(g) {
   const c = Room.crisis(g);
-  let h = (c ? '<div class="crisis"><div class="lbl">This turn</div><b>' + esc(c.title) + '</b><span>' + esc(c.rule) + '</span></div>' : '') + '<div class="ask"><h2>The cabinet decides</h2><span>One choice per seat. All five take effect together.</span></div><div class="seats">';
+  let h = (c ? '<div class="crisis"><div class="lbl">This turn</div><b>' + esc(c.title) + '</b><span>' + esc(c.rule) + '</span></div>' : '') + '<div class="ask"><h2>The cabinet decides</h2></div><div class="seats">';
   // An option the seat did not have last turn is tagged New.
   const before = st.past.length ? Room.seats(JSON.parse(st.past[st.past.length - 1])) : null;
   const isNew = (s, o) => before && !o.off && !before.find(x => x.id === s.id).opts.some(x => x.title === o.title && !x.off);
   for (const s of Room.seats(g)) {
     h += '<div class="seat' + (st.picks[s.id] ? ' set' : '') + '"><div><h3>' + esc(s.who) + '</h3><div class="brief">' + esc(s.brief) + '</div></div>';
-    for (const o of s.opts) h += '<button class="opt' + (st.picks[s.id] === o.id ? ' on' : '') + '" data-seat="' + s.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '>' + (isNew(s, o) ? '<i class="new">New</i>' : '') + '<b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
+    for (const o of s.opts) h += '<button class="opt' + (st.picks[s.id] === o.id ? ' on' : '') + (o.crisis ? ' cr' : '') + '" data-seat="' + s.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '>' + (o.crisis ? '<i class="new crt">Crisis</i>' : isNew(s, o) ? '<i class="new">New</i>' : '') + '<b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
     h += '</div>';
   }
   const left = Room.seats(g).filter(s => !st.picks[s.id]).map(s => SHORT[s.id]);
@@ -266,23 +265,18 @@ function brief(g) {
     '<div class="mb"><h2>' + esc(c.title) + '</h2>' + body(c.text, c.src) + '<p class="rule">' + esc(c.rule) + '</p></div>' +
     '<div class="go"><button class="btn" id="b-brief">To the cabinet</button><span class="hint">Space or Enter</span></div></div></div>';
 }
-// The turn's events, one bulletin at a time, before the recap screen. A rolled event first asks its question.
+// The turn's events, one bulletin at a time, then the next turn.
 function news(g) {
   const e = st.events[st.news], n = st.events.length, last = st.news === n - 1;
-  if (e.tease && !st.shown) return '<div class="ov"><div class="news tease">' + head(g.votes[g.votes.length - 1].date, 'Developing') +
-    '<div class="mb"><h2>' + esc(e.tease) + '</h2><p class="rule">The IC\'s estimate: ' + esc(e.odds) + '.</p></div>' +
-    '<div class="go"><button class="btn" id="b-news">Reveal</button><span class="hint">Space or Enter</span></div></div></div>';
   let pips = ''; for (let i = 0; i < n; i++) pips += '<i class="' + (i <= st.news ? 'done' : '') + '"></i>';
   return '<div class="ov"><div class="news ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '">' + head(g.votes[g.votes.length - 1].date, e.big ? 'Flash' : 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns) +
     '<div class="mb"><h2>' + esc(e.title) + '</h2>' + body(e.text, e.src) + '</div>' +
-    '<div class="go"><button class="btn" id="b-news">' + (last ? 'Where that leaves us' : 'Next') + '</button><span class="hint">Space or Enter · Esc skips to the recap</span><div class="pips">' + pips + '</div></div></div></div>';
+    '<div class="go"><button class="btn" id="b-news">' + (last ? (g.over ? 'See how it ends' : 'Next turn') : 'Next') + '</button><span class="hint">Space or Enter · Esc skips the rest</span><div class="pips">' + pips + '</div></div></div></div>';
 }
+// Backdrop behind the bulletins.
 function resolve(g) {
   const last = g.votes[g.votes.length - 1];
-  let h = '<div class="ask"><h2>' + last.date + ' · the cabinet decided</h2></div>' + tags(last.picks) + '<div class="evs">';
-  // The bulletins are listed here only if the facilitator skipped them.
-  if (st.skipped) st.events.forEach((e, i) => { h += '<div class="ev ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '" style="animation-delay:' + (i * 0.06) + 's">' + '<b>' + esc(e.title) + '</b>' + body(e.text, e.src) + '</div>'; });
-  return h + '</div><div class="go"><button class="btn" id="b-next">' + (g.over ? 'See how it ends' : 'Next turn') + '</button><span class="hint">Space or Enter</span></div>';
+  return '<div class="ask"><h2>' + last.date + ' · the cabinet decided</h2></div>' + tags(last.picks);
 }
 
 function ending(g) {
@@ -315,7 +309,6 @@ document.addEventListener('keydown', e => {
   if (st.screen === 'decide' && st.brief) { if (k === 'enter' || k === ' ' || k === 'escape') { e.preventDefault(); endBrief(); } return; }
   if (st.screen === 'decide' && k === 'enter') { e.preventDefault(); lockIn(); }
   else if (inNews()) { if (k === 'enter' || k === ' ' || k === 'escape') { e.preventDefault(); nextNews(k === 'escape'); } return; }
-  else if (st.screen === 'resolve' && (k === 'enter' || k === ' ')) { e.preventDefault(); next(); }
   if (k === 'u' && st.screen !== 'intro') undo();
 });
 
