@@ -60,7 +60,7 @@ const CRISES = {
     rule: () => 'Any training this turn goes half again as far: a turn of racing is ' + months(TUNE.usRace * TUNE.breakthrough) + '.' },
   flash: { ok: s => s.tension < 70, title: 'Collision over the Strait', src: 'Wire flash, Taipei', hit: s => { s.tension = Math.min(100, s.tension + TUNE.flash); },
     text: '"A Chinese fighter has clipped a US patrol plane forty miles off Taiwan. One crew is in the water. Both navies are steaming toward the same patch of sea."',
-    rule: 'Strait tension has jumped. What State and War do this turn decides whether it comes back down.' },
+    rule: 'Strait tension has jumped. State can open the crisis hotline and War can stand down or reinforce; do nothing and war gets likelier.' },
   opening: { ok: s => !s.deal && s.turn >= 2 && s.snub !== s.turn - 1, title: 'Beijing opens a door', src: 'Message passed through Singapore',
     text: '"The General Secretary is prepared to hear a proposal. He is not prepared to hear it twice."',
     rule: 'A pause proposed this turn is much likelier to get a yes. Tighten chips, sabotage or expose Beijing this turn and the door slams.' },
@@ -70,15 +70,19 @@ const CRISES = {
   zeroday: { ok: s => !s.deal && s.sec < 2 && s.us - s.cn >= 1.5, title: 'A hole in every lab', src: 'NSA advisory, eyes only',
     text: '"There is a flaw in the firmware every frontier lab runs on. No patch for ninety days. We found it because we watched Beijing use it on a bank."',
     rule: 'Beijing goes for the weights this turn, for certain. Whatever security is in place by the end of the turn is all that stands in the way.' },
+  // Never drawn: set by drawCrisis the turn after a theft. quiet: the theft's own bulletin already announced it.
+  stolen: { ok: () => false, quiet: true, title: 'Beijing has the weights', src: '', text: '',
+    rule: 'This turn only: State can expose the theft, and War can try to burn the stolen copy before Beijing puts it to use.' },
 };
 function drawCrisis(s) {
   s.crisis = null;
+  if (s.fresh && !s.deal) { s.crisis = 'stolen'; return; }   // a theft is the turn's crisis; nothing else is piled on it
   const pool = Object.keys(CRISES).filter(k => !s.used.includes(k) && CRISES[k].ok(s));
   if (!pool.length) return;
   s.crisis = pool[Math.floor(hash01(s.seed, s.turn, 'crisis') * pool.length)]; s.used.push(s.crisis);
   if (CRISES[s.crisis].hit) CRISES[s.crisis].hit(s);
 }
-const crisis = s => { const c = CRISES[s.crisis]; return c ? { id: s.crisis, title: c.title, src: c.src, text: c.text, rule: typeof c.rule === 'function' ? c.rule(s) : c.rule } : null; };
+const crisis = s => { const c = CRISES[s.crisis]; return c ? { id: s.crisis, quiet: !!c.quiet, title: c.title, src: c.src, text: c.text, rule: typeof c.rule === 'function' ? c.rule(s) : c.rule } : null; };
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -143,7 +147,7 @@ const price = (s, picks) => s.asks.map((a, i) => s.known[i] ? { known: true, sho
 // The five cabinet groups and this turn's three options for each.
 function seats(s) {
   const o = (id, title, text, off) => ({ id, title, text, off: !!off });
-  const fresh = s.fresh && !s.deal, hot = s.tension >= 45;
+  const fresh = s.fresh && !s.deal, hot = s.tension >= 45 || s.crisis === 'flash';
   const known = s.asks.filter((a, i) => s.known[i]).map(a => ASKS[a].want);
   const ask = 'Beijing has two demands. ' + (known.length === 2 ? 'It will not sign unless ' + known.join('; and unless ') + '.' : known.length ? 'We know one: it will not sign unless ' + known[0] + '. The other we have not learned.' : 'We have not learned either.');
   const pay = s.sec === 0 ? ['Pay the labs to lock down', 'Federal money for security: from now on most theft attempts fail. The labs welcome it.']

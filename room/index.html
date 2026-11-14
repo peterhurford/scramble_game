@@ -165,7 +165,7 @@ function endBrief() { st.brief = false; draw(); }
 function next() {
   if (st.screen !== 'resolve') return;
   if (st.game.over) st.screen = 'end';
-  else { st.screen = 'decide'; st.picks = {}; st.turnT0 = Date.now(); st.brief = !!st.game.crisis; }
+  else { st.screen = 'decide'; st.picks = {}; st.turnT0 = Date.now(); const c = Room.crisis(st.game); st.brief = !!c && !c.quiet; }
   draw();
 }
 function undo() {
