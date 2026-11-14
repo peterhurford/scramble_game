@@ -4,3 +4,5 @@ sim/*.log
 sim/.search.lock
 room/node_modules
 room/package-lock.json
+room/replays/*.html
+room/replays/*.trace.json
