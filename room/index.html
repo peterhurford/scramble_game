@@ -140,7 +140,7 @@ function undo() {
 const X0 = -6, X1 = 22, pos = x => Math.max(0, Math.min(100, (x - X0) / (X1 - X0) * 100)) + '%';
 function track(g, v, reveal) {
   let h = '<div class="track"><div class="rail"></div>';
-  h += '<div class="band" style="left:' + pos(v.lo) + ';width:calc(' + pos(v.hi) + ' - ' + pos(v.lo) + ')"><span>The line is somewhere in here</span></div>';
+  h += '<div class="band" style="left:' + pos(v.lo) + ';width:calc(' + pos(v.hi) + ' - ' + pos(v.lo) + ')">' + (reveal ? '' : '<span>The line is somewhere in here</span>') + '</div>';
   for (let x = X0; x <= X1; x += 2) h += '<div class="tick" style="left:' + pos(x) + '"><span>' + (x === 0 ? 'today' : (x > 0 ? '+' : '') + x) + '</span></div>';
   if (reveal) h += '<div class="truth" style="left:' + pos(g.line) + '"><span>The line: ' + r1(g.line) + '</span></div>';
   h += '<div class="mk us" id="mk-us" style="left:' + pos(g.us) + '">US ' + r1(g.us) + '</div>';
