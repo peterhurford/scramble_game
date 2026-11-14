@@ -156,7 +156,7 @@ function start(seed) { st = { screen: 'orders', game: World.newGame(seed), past:
 async function ask() {
   keep();
   if (!IDS.some(k => (st.orders[k] || '').trim())) return;
-  st.screen = 'wait'; st.error = ''; st.waitT0 = Date.now(); live = { stage: '', miss: 0, at: 0 }; draw(); tick();
+  st.screen = 'wait'; st.error = ''; st.waitT0 = Date.now(); live = { step: '', frac: null, miss: 0, at: 0, left: 1e9 }; draw(); tick();
   try {
     const res = await fetch(GM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders }) }), out = await res.json();
     if (!res.ok) throw new Error(out.error || res.status);
@@ -295,24 +295,25 @@ document.addEventListener('keydown', e => {
 const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 // How long the game master should take: the mean of this game's earlier answers, or 55 s before the first.
 const expect = () => { const w = st.waits || []; return w.length ? w.reduce((x, y) => x + y, 0) / w.length : 55; };
-// The server says what it is doing (GET status): deciding what happens, then writing the officials' lines. Polled once a second while waiting.
-let live = { stage: '', miss: 0, at: 0 };
+// The server says which part of the answer is being written and how far along the whole wait is (GET status), polled once a second.
+const STEP = { '': 'Reading the orders', picture: 'Taking stock of where things stand', replies: 'Working out what each office does', ops: 'Checking on operations under way', facts: 'Checking on operations under way',
+  chances: 'Weighing the odds', updates: 'Hearing from Beijing and the labs', ruling: 'Settling what happens', note: 'Settling what happens', voice: 'Writing what each official says' };
+let live = { step: '', frac: null, miss: 0, at: 0, left: 1e9 };
 function poll() {
   if (Date.now() - live.at < 1000) return; live.at = Date.now();
-  fetch(GM.replace(/gm$/, 'status')).then(r => r.json()).then(j => { live.stage = j.stage; live.voiceSecs = j.voiceSecs || 0; live.miss = 0; }, () => { live.miss++; });
+  fetch(GM.replace(/gm$/, 'status')).then(r => r.json()).then(j => { if (j.stage !== 'idle') { live.step = j.step || ''; live.frac = j.frac; } live.miss = 0; }, () => { live.miss++; });
 }
 function eta() {
   const bar = $('eta-bar'); if (!bar) return;
   poll();
-  const el = (Date.now() - st.waitT0) / 1000, ex = expect(), V = 15, voice = live.stage === 'voice';
-  // the last stretch is the second writer: once the server says it has begun, time left is counted from there
-  const left = voice ? V - live.voiceSecs : Math.max(ex - el, 0) || 0, late = !voice && el > ex;
-  bar.style.width = (voice ? 80 + 19 * (1 - Math.exp(-live.voiceSecs / V * 2)) : el < ex ? 80 * el / ex : 80) + '%';
-  const secs = n => 'about ' + Math.ceil(n / 5) * 5 + ' seconds';
+  const el = (Date.now() - st.waitT0) / 1000, ex = expect();
+  // one estimate for the whole wait: from the server's progress once it has some, else from how long earlier answers took; the shown figure only counts down
+  const est = live.frac > 0.15 ? el * (1 - live.frac) / live.frac : ex - el;
+  live.left = Math.min(live.left, Math.max(est, 0));
+  bar.style.width = 100 * Math.min(el / (el + live.left + 1), 0.98) + '%';
+  const n = Math.ceil(live.left / 5) * 5;
   $('eta-txt').textContent = live.miss > 3 ? 'No word from the game master. Check that it is still running on the facilitator\'s laptop.'
-    : voice ? 'The decisions are made. Writing what each official says' + (left > 4 ? ', ' + secs(left) + ' more.' : ', any moment now.')
-    : late ? 'Still deciding what happens. This one is taking longer than usual; the game master is working.'
-    : 'Deciding what happens. Replies in ' + (left > 50 ? 'about a minute.' : left > 7 ? secs(left) + '.' : 'a moment.');
+    : STEP[live.step] + '. ' + (n > 55 ? 'About a minute to go.' : n > 5 ? 'About ' + n + ' seconds to go.' : el > ex * 1.5 && live.frac == null ? 'Taking longer than usual.' : 'Nearly there.');
   $('eta-el').textContent = mmss(el);
 }
 function tick() {

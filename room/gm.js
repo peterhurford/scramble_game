@@ -142,13 +142,25 @@ async function viaSdk(text) {
   if (res.stop_reason === 'refusal' || res.stop_reason === 'max_tokens') throw new Error('Claude stopped early (' + res.stop_reason + ')');
   return JSON.parse(res.content.filter(b => b.type === 'text').map(b => b.text).join(''));
 }
+// The CLI streams the answer as it is written; the top-level field being written is the step shown on the waiting screen.
+// No MCP servers, settings or hooks: they add seconds before the first word.
+const BARE = ['--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--setting-sources', ''];
+const STEPS = ['picture', 'replies', 'ops', 'facts', 'chances', 'updates', 'ruling', 'note'];
 function viaCli(text) {
   return new Promise((resolve, reject) => {
-    const p = spawn('claude', ['-p', '--model', MODEL || 'sonnet', '--effort', EFFORT, '--system-prompt', SYSTEM, '--json-schema', JSON.stringify(SCHEMA), '--output-format', 'json', '--tools', ''], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
-    let out = '', err = '';
-    p.stdout.on('data', d => out += d); p.stderr.on('data', d => err += d);
+    const p = spawn('claude', ['-p', '--model', MODEL || 'sonnet', '--effort', EFFORT, '--system-prompt', SYSTEM, '--json-schema', JSON.stringify(SCHEMA), '--output-format', 'stream-json', '--include-partial-messages', '--verbose', '--tools', '', ...BARE], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
+    let buf = '', err = '', partial = '', step = -1, result = null;
+    const line = l => { let j; try { j = JSON.parse(l); } catch (e) { return; }
+      if (j.type === 'result') result = j;
+      const d = j.type === 'stream_event' && j.event.type === 'content_block_delta' && j.event.delta.partial_json;
+      if (!d) return;
+      partial += d;
+      while (step + 1 < STEPS.length && partial.includes('"' + STEPS[step + 1] + '":')) step++;
+      if (NOW) { NOW.step = STEPS[step] || ''; NOW.chars = partial.length; } };
+    p.stdout.on('data', d => { buf += d; const ls = buf.split('\n'); buf = ls.pop(); ls.forEach(line); });
+    p.stderr.on('data', d => err += d);
     p.on('error', reject);
-    p.on('close', code => { try { const j = JSON.parse(out); resolve(j.structured_output || JSON.parse(j.result)); } catch (e) { reject(new Error('claude CLI: ' + (err || out).slice(0, 300) + ' (exit ' + code + ')')); } });
+    p.on('close', code => { if (buf) line(buf); try { CHARS.push(partial.length); resolve(result.structured_output || JSON.parse(result.result)); } catch (e) { reject(new Error('claude CLI: ' + (err || (result && result.result) || 'no answer').slice(0, 300) + ' (exit ' + code + ')')); } });
     p.stdin.end(text);
   });
 }
@@ -180,7 +192,7 @@ const mock = body => ({ replies: Object.keys(W.TABLES).filter(k => (body.orders[
 
 // The second writer. The game master decides what each speaker says; this model only makes it sound like that person. GM_VOICE=off skips it.
 const VOICE_MODEL = process.env.GM_VOICE || 'claude-fable-5-2';
-const VOICE_SYSTEM = `You write dialogue for a tabletop exercise about American AI policy in 2027 and 2028. Thirty people in a room play the US government. After each round they hear short spoken lines from fictional officials: senators, agency heads, lab chief executives, Chinese officials. Another writer has already decided what each person says. You are given, for each line, who is speaking, what the room ordered, a plain statement of what is now happening (shown on screen beside the line), and a draft of the line. Your job is voice only: rewrite each draft as that person would really say it out loud.
+const VOICE_SYSTEM = `You write dialogue for a tabletop exercise about American AI policy in 2027 and 2028. Thirty people in a room play the US government. After each round they hear short spoken lines from fictional officials: senators, agency heads, lab chief executives, Chinese officials. Another writer has already decided what each person says. You are given, for each line, who is speaking, what the room ordered, a draft of the plain statement of what is now happening (shown on screen above the line), and a draft of the line. You rewrite both: the statement so it is plain, and the line so it sounds like that person saying it out loud.
 
 The drafts are accurate but sound written: tidy, explicit, symmetrical. Real officials do not talk like that. Write what you would hear if you were on the call.
 
@@ -192,19 +204,20 @@ The drafts are accurate but sound written: tidy, explicit, symmetrical. Real off
 
 Hold to these:
 - Keep the substance. Every fact, condition, date and estimate of likelihood in the draft must still be there for an attentive listener, even if it is now said sideways. Add no fact, promise, threat or number that the draft does not have. If the draft refuses, the line refuses; if it agrees, the line agrees.
-- The plain statement on screen already says what happened in so many words, so the spoken line does not have to. It must not contradict it.
+- The statement on screen (did) is not speech. It is one or two flat sentences, 25 words at most, saying literally what the government has now done because of the order, what has not happened, and when to expect the rest if the draft says. Name who wants what in ordinary words: not "a bill needs a price" but "senators want hearings or tighter chip limits before they vote". No figures of speech, no semicolons, no advice. Keep every fact of its draft.
+- The statement already says what happened in so many words, so the spoken line does not have to. It must not contradict it.
 - It is heard once by people who are not specialists. Ordinary words. No acronyms beyond NSA, CIA and the like. No jargon the draft did not use.
 - Nothing that sounds like a slogan, a proverb, a movie or an essay. No commands to the room. No neat pairs or threes, no sentence built for effect, no dashes or semicolons.
-- No percentages. Time in months, seasons or dates. Never the words turn, round, level, dial, ruling, game.
+- No percentages. Time in months, seasons or dates. Never the words turn, round, period, level, dial, ruling, game.
 - Two to four sentences. 60 words is a hard limit for each line; count them, and cut detail before you go over.
-Return the lines in the order given, then the Beijing update and the labs update if there were any (empty strings if not).`;
-const VOICE_SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'beijing', 'labs'], properties: { replies: { type: 'array', items: { type: 'string' } }, beijing: { type: 'string' }, labs: { type: 'string' } } };
+Return, in the order given, each statement and its line, then the Beijing update and the labs update if there were any (empty strings if not).`;
+const VOICE_SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'beijing', 'labs'], properties: { replies: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['did', 'quote'], properties: { did: { type: 'string' }, quote: { type: 'string' } } } }, beijing: { type: 'string' }, labs: { type: 'string' } } };
 function voiceCall(text) {
   if (BACKEND === 'sdk') { const m = require('@anthropic-ai/sdk'), Anthropic = m.default || m;
     return new Anthropic().messages.create({ model: VOICE_MODEL, max_tokens: 4000, system: VOICE_SYSTEM, messages: [{ role: 'user', content: text }], output_config: { effort: 'low', format: { type: 'json_schema', schema: VOICE_SCHEMA } } })
       .then(res => { if (res.stop_reason !== 'end_turn') throw new Error('stopped (' + res.stop_reason + ')'); return JSON.parse(res.content.filter(b => b.type === 'text').map(b => b.text).join('')); }); }
   return new Promise((resolve, reject) => {
-    const p = spawn('claude', ['-p', '--model', VOICE_MODEL, '--effort', 'low', '--system-prompt', VOICE_SYSTEM, '--json-schema', JSON.stringify(VOICE_SCHEMA), '--output-format', 'json', '--tools', ''], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
+    const p = spawn('claude', ['-p', '--model', VOICE_MODEL, '--effort', 'low', '--system-prompt', VOICE_SYSTEM, '--json-schema', JSON.stringify(VOICE_SCHEMA), '--output-format', 'json', '--tools', '', ...BARE], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
     let out = ''; const t = setTimeout(() => { p.kill(); reject(new Error('timed out')); }, 60000);
     p.stdout.on('data', d => out += d); p.on('error', reject);
     p.on('close', () => { clearTimeout(t); try { const j = JSON.parse(out); resolve(j.structured_output || JSON.parse(j.result)); } catch (e) { reject(new Error(out.slice(0, 200) || 'no output')); } });
@@ -215,16 +228,16 @@ function voiceCall(text) {
 async function voice(out, body) {
   const up = out.updates || {}, R = out.replies || [];
   if (!R.length) return;
-  const text = R.map((r, i) => (i + 1) + '. Speaker: ' + r.by + '\n   The ' + W.TABLES[r.table] + ' ordered: ' + String(body.orders[r.table] || '').slice(0, 600) + '\n   On screen: ' + (r.did || '') + '\n   Draft: ' + r.quote).join('\n\n') +
+  const text = R.map((r, i) => (i + 1) + '. Speaker: ' + r.by + '\n   The ' + W.TABLES[r.table] + ' ordered: ' + String(body.orders[r.table] || '').slice(0, 600) + '\n   Draft statement: ' + (r.did || '') + '\n   Draft line: ' + r.quote).join('\n\n') +
     (up.beijing ? '\n\nBeijing update, public. Speaker: ' + up.beijing.by + '\n   Draft: ' + up.beijing.quote : '') + (up.labs ? '\n\nLabs update, a private note to the President. Speaker: ' + up.labs.by + '\n   Draft: ' + up.labs.quote : '');
   const t0 = Date.now();
   try {
     const v = await voiceCall(text), ok = q => typeof q === 'string' && q.trim().length > 20;
-    if (!Array.isArray(v.replies) || v.replies.length !== R.length || !v.replies.every(ok)) throw new Error('wrong shape');
-    R.forEach((r, i) => { r.draft = r.quote; r.quote = v.replies[i].trim(); });
+    if (!Array.isArray(v.replies) || v.replies.length !== R.length || !v.replies.every(x => x && ok(x.quote))) throw new Error('wrong shape');
+    R.forEach((r, i) => { r.draft = r.quote; r.quote = v.replies[i].quote.trim(); if (r.did && ok(v.replies[i].did)) { r.didDraft = r.did; r.did = v.replies[i].did.trim(); } });
     if (up.beijing && ok(v.beijing)) { up.beijing.draft = up.beijing.quote; up.beijing.quote = v.beijing.trim(); }
     if (up.labs && ok(v.labs)) { up.labs.draft = up.labs.quote; up.labs.quote = v.labs.trim(); }
-    out.voice = VOICE_MODEL + ' ' + Math.round((Date.now() - t0) / 100) / 10 + 's';
+    VSECS.push((Date.now() - t0) / 1000); out.voice = VOICE_MODEL + ' ' + Math.round((Date.now() - t0) / 100) / 10 + 's';
   } catch (e) { out.voice = 'voice pass failed, drafts kept: ' + e.message; console.error(out.voice); }
 }
 const WANT = process.env.GM || 'claude';
@@ -234,6 +247,14 @@ const ASK = { sdk: viaSdk, cli: viaCli, codex: viaCodex, openai: viaOpenai };
 
 // What the server is doing right now, for the page's waiting screen (GET /status).
 let NOW = null;
+const CHARS = [], VSECS = [], mean = (a, d) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : d;
+// Share of the whole wait that is behind us: the answer's length so far against earlier answers, then the second writer's time. null when the backend does not stream.
+function status() {
+  if (!NOW) return { stage: 'idle' };
+  const voiced = VOICE_MODEL !== 'off', cut = voiced ? 0.7 : 0.97;
+  const frac = NOW.stage === 'voice' ? cut + (0.98 - cut) * Math.min((Date.now() - NOW.t1) / 1000 / mean(VSECS, 16), 1) : NOW.chars ? 0.08 + (cut - 0.08) * Math.min(NOW.chars / mean(CHARS, 6500), 1) : null;
+  return { stage: NOW.stage, step: NOW.stage === 'voice' ? 'voice' : NOW.step || '', frac, secs: (Date.now() - NOW.t0) / 1000 };
+}
 async function gm(body) { NOW = { stage: 'ruling', t0: Date.now() }; try { return await gm1(body); } finally { NOW = null; } }
 async function gm1(body) {
   const t0 = Date.now(), out = BACKEND === 'mock' ? mock(body) : await ASK[BACKEND](prompt(body));
@@ -249,7 +270,7 @@ if (require.main === module) http.createServer((req, res) => {
   const site = /^https:\/\/([a-z0-9-]+\.)?thescramble\.pages\.dev$/.test(req.headers.origin || '') ? { 'Access-Control-Allow-Origin': req.headers.origin, 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Private-Network': 'true', Vary: 'Origin' } : {};
   const send = (code, type, data) => { res.writeHead(code, Object.assign({ 'Content-Type': type + '; charset=utf-8', 'Cache-Control': 'no-store' }, site)); res.end(data); };
   if (req.method === 'OPTIONS' && (req.url === '/gm' || req.url === '/status')) return send(204, 'text/plain', '');
-  if (req.method === 'GET' && req.url === '/status') return send(200, 'application/json', JSON.stringify(NOW ? { stage: NOW.stage, secs: (Date.now() - NOW.t0) / 1000, voiceSecs: NOW.t1 ? (Date.now() - NOW.t1) / 1000 : 0 } : { stage: 'idle' }));
+  if (req.method === 'GET' && req.url === '/status') return send(200, 'application/json', JSON.stringify(status()));
   if (req.method === 'POST' && req.url === '/gm') {
     let raw = '';
     req.on('data', d => { raw += d; if (raw.length > 2e5) req.destroy(); });
