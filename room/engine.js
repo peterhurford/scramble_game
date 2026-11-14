@@ -40,7 +40,7 @@ const SECURITY = ['ordinary corporate security', 'hardened against state hackers
 const ASKS = {
   chips: { short: 'chips', want: 'America eases chip controls this turn, or has none in force', met: (s, p) => p.doc === 'carrot' || s.controls <= 0 },
   pacific: { short: 'the fleet stood down', want: 'the Pacific fleet stands down this turn', met: (s, p) => p.war === 'reassure' },
-  face: { short: 'trust', want: 'it trusts us (Beijing at Working or better)', met: s => s.trust >= 40 },
+  face: { short: 'an end to hostility', want: 'the Party has stopped calling Washington an adversary', met: s => s.trust >= 40 },
   quiet: { short: 'no attacks on it', want: 'America has never sabotaged its data centers or named its hackers in public', met: s => !s.shamed },
 };
 
