@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* One projected screen: top bar, the race track, six gauges, then each table's two questions and the bold moves, or the turn's events. */
+/* One projected screen: top bar, the race track over one line of facts, then each table's moves under what it still owes a pause, and the bold moves, or the turn's events. */
 :root{
   --bg:#E3E8ED; --sheet:#F8F9FB; --sheet2:#EEF2F6; --ink:#15202B; --muted:#56626F; --faint:#9AA6B2; --rule:#C8D0D9;
   --accent:#1A4480; --accent-ink:#fff; --accent-soft:#DCE6F3;
@@ -56,17 +56,11 @@ button{font:inherit;color:inherit}
 .mk.cn{top:70px;background:var(--cn);color:var(--accent-ink)} .mk.cn::after{bottom:100%;border-bottom-color:var(--cn)}
 @media (prefers-reduced-motion:reduce){.mk,.band{transition:none}}
 
-.gauges{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px}
-.g{background:var(--sheet);border:1px solid var(--rule);padding:9px 13px;min-width:0}
-.g b{display:block;font-size:1.2em;font-weight:900;line-height:1.2;margin:2px 0}
-.g .sub{font-size:.82em;color:var(--muted)} .g .sub strong{color:var(--ink)}
-.g{border-top:4px solid var(--rule)} .g.good{border-top-color:var(--good)} .g.warn{border-top-color:var(--warn)} .g.bad{border-top-color:var(--bad)}
-.g.good b{color:var(--good)} .g.warn b{color:var(--warn)} .g.bad b,.g.bad .sub strong{color:var(--bad)}
-.g .was{display:block;font-size:.78em;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)} .g.chg{animation:chg 1.6s 1}
-@keyframes chg{0%{background:var(--accent-soft)}100%{background:var(--sheet)}}
+.facts{display:flex;flex-wrap:wrap;gap:6px 34px;margin-top:10px;font-size:1.05em;color:var(--muted)} .facts b{color:var(--ink)}
+.good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.seat .lock{font-size:.95em;font-weight:800;line-height:1.3} .seat .lock i{font-style:normal;font-weight:400;color:var(--muted)}
 .pill{display:inline-block;margin:3px 4px 0 0;padding:1px 7px;border:1px solid var(--rule);font-weight:700;color:var(--ink);white-space:nowrap}
 .pill.ok{border-color:var(--good);color:var(--good)} .pill.no{border-color:var(--bad);color:var(--bad)} .pill.unk{border-style:dashed;color:var(--muted)}
-@media (prefers-reduced-motion:reduce){.g.chg{animation:none}}
 .bar{height:7px;background:var(--sheet2);border:1px solid var(--rule);margin:5px 0 3px} .bar i{display:block;height:100%;background:var(--accent);transition:width .8s}
 .bar.t i{background:var(--bad)}
 
@@ -74,8 +68,8 @@ button{font:inherit;color:inherit}
 .seat{background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px;min-width:0}
 .seat.set{border-top-color:var(--good)}
 .seat h3{margin:0;font-size:.8em;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
-.seat .tag{float:right;font-style:normal;font-size:.6em;letter-spacing:.12em;text-transform:uppercase;background:var(--warn);color:var(--accent-ink);padding:2px 6px;margin-left:8px}
-.seat .q{margin:6px 0 0;font-size:1.15em;font-weight:900;line-height:1.2} .seat .q.cr{color:var(--warn)}
+.opt .tag{float:right;font-style:normal;font-family:var(--f-ui);font-size:.62em;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:var(--warn);color:var(--accent-ink);padding:2px 6px;margin-left:8px}
+.opt.cr{border-color:var(--warn)} .opt.cr b{color:var(--warn)}
 .seat .opt b{font-size:1.1em} .seat .opt span{font-size:.95em}
 .opt .who{display:block;font-style:normal;font-size:.68em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .opt{all:unset;box-sizing:border-box;cursor:pointer;display:block;border:2px solid var(--rule);background:var(--sheet2);padding:6px 9px}
@@ -116,7 +110,7 @@ button{font:inherit;color:inherit}
 .end h1{margin:0;font-size:2.6em;font-weight:900;letter-spacing:-.02em} .end p{margin:6px 0 0;font-family:var(--f-body);font-size:1.25em;max-width:40em}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px} .cols ul{margin:6px 0 0;padding-left:1.1em;font-family:var(--f-body)} .cols li{margin:4px 0}
 table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{padding:4px 10px 4px 0;border-bottom:1px solid var(--rule)} td:first-child{color:var(--muted);white-space:nowrap} th{text-align:left;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 10px 4px 0}
-@media (max-width:900px){.gauges{grid-template-columns:repeat(2,1fr)}.seats,.bolds,.cols,.evs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
+@media (max-width:900px){.seats,.bolds,.cols,.evs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
 </style>
 </head>
 <body>
@@ -125,10 +119,10 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 <script>
 'use strict';
 // Rendering and the facilitator's controls; all rules are in engine.js.
-// Each table announces its answer and the facilitator clicks it; a bold move is clicked on, or again to take it back (Enter locks in, Space moves on, U undoes a turn).
+// Each table announces its move and the facilitator clicks it; a bold move is clicked on, or again to take it back (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 // TURN_SECS covers a whole round: the crisis, the decision and the news.
-const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v7';
+const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v8';
 const SHORT = { wh: 'White House', state: 'State', pent: 'Pentagon', bold: 'Bold move' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -139,7 +133,7 @@ let st = { screen: 'intro', game: null, past: [], events: [], news: -1, brief: f
 function seedFromHash() { const m = /seed=([\w-]+)/.exec(location.hash); return m ? m[1] : String(Math.floor(Math.random() * 1e6)); }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(st)); } catch (e) {} }
 function load() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.game) st = s; } catch (e) {} }
-const ready = () => Room.turn(st.game).tables.every(tb => tb.qs.some(d => d.opts.some(o => o.id === st.picks[tb.id] && !o.off)));
+const ready = () => Room.turn(st.game).tables.every(tb => tb.opts.some(o => o.id === st.picks[tb.id] && !o.off));
 
 function start(seed) {
   st = { screen: 'decide', game: Room.newGame(seed), past: [], events: [], picks: {}, t0: Date.now(), turnT0: Date.now() };
@@ -182,23 +176,22 @@ function track(g, v, reveal) {
   h += '<div class="mk cn" style="left:' + pos(reveal ? g.cn : g.cnShown) + '">CHINA</div></div>';
   return h;
 }
-function gauges(g, v) {
-  // On the decide screen each gauge says what it read before the turn, so the room sees what moved.
-  const pv = st.screen === 'decide' && st.past.length ? Room.view(JSON.parse(st.past[st.past.length - 1])) : null;
-  const G = (lvl, lbl, big, sub, was) => { const ch = pv && was && was !== big; return '<div class="g ' + lvl + (ch ? ' chg' : '') + '"><div class="lbl">' + lbl + '</div><b>' + big + '</b>' + (ch ? '<span class="was">was ' + was.toLowerCase() + '</span>' : '') + '<div class="sub">' + sub + '</div></div>'; };
-  const prevDeal = pv && JSON.parse(st.past[st.past.length - 1]).deal;
-  const pills = Room.price(g).map(a => !a.known ? '<span class="pill unk">? unknown</span>' : '<span class="pill ' + (a.met ? 'ok' : 'no') + '" title="' + esc(a.want) + '">' + (a.met ? '✓ ' : '✗ ') + esc(a.short) + '</span>').join('');
-  const rsi = x => x.knownOver ? 'Past the danger point' : x.overNowP <= 0 ? 'Short of the range' : x.overNowP < 1 ? 'Inside the range' : 'Beyond the range';
-  const beijing = (x, deal, caught) => deal ? (caught ? 'Caught cheating' : 'Mutual pause') : x.trustText;
-  return '<div class="gauges">' +
-    G(g.deal ? '' : v.lead < 2 ? 'bad' : v.lead < 4 ? 'warn' : 'good', 'US lead', cap(v.leadText), g.deal ? 'By Beijing\'s account' : '', pv && cap(pv.leadText)) +
-    G(['bad', 'warn', 'good'][g.sec], 'The weights', cap(v.security), 'Theft this turn: <strong>' + v.theft + '</strong>', pv && cap(pv.security)) +
-    G(v.tensionText === 'Calm' ? 'good' : v.tensionText === 'Tense' ? 'warn' : 'bad', 'Taiwan Strait', v.tensionText, 'War this turn: <strong>' + v.war + '</strong>', pv && pv.tensionText) +
-    G(g.deal ? (g.caught ? 'bad' : 'good') : v.trustText === 'Hostile' ? 'bad' : v.trustText === 'Wary' ? 'warn' : 'good', 'Beijing', beijing(v, g.deal, g.caught),
-      g.deal ? 'Inspectors: <strong>' + (g.inspectors ? 'on the ground' : 'none') + '</strong> · trust: ' + v.trustText.toLowerCase() : 'Wants: ' + pills, pv && beijing(pv, prevDeal, false)) +
-    G(g.national ? '' : v.labsText === 'Defiant' ? 'bad' : v.willing ? 'good' : 'warn', 'The labs', v.labsText, g.national ? 'Nationalized' : v.willing ? 'Would pause' : 'Would not pause', pv && pv.labsText) +
-    G(v.knownOver || v.overNowP >= 1 ? 'bad' : v.overNowP > 0 ? 'warn' : 'good', 'Runaway RSI', rsi(v), v.knownOver ? '' : (v.overNowP > 0 ? 'Now: <strong>' + v.overNow + '</strong> · i' : 'I') + 'f we race: <strong>' + v.overIfRace + '</strong>', pv && rsi(pv)) +
-    '</div>';
+const lvl = (x, warn, bad) => x === bad ? 'bad' : x === warn ? 'warn' : 'good';
+function facts(g, v) {
+  return '<div class="facts"><span>US lead' + (g.deal && !g.caught ? ', by Beijing\'s account' : '') + ': <b>' + v.leadText.toLowerCase() + '</b></span>' +
+    '<span>The weights: <b class="' + ['bad', 'warn', 'good'][g.sec] + '">' + v.security + '</b>, theft this turn <b>' + v.theft + '</b></span>' +
+    '<span>Taiwan Strait: <b class="' + (v.tensionText === 'Calm' ? 'good' : v.tensionText === 'Tense' ? 'warn' : 'bad') + '">' + v.tensionText.toLowerCase() + '</b>, war this turn <b>' + v.war + '</b></span></div>';
+}
+// What each table still owes a pause, shown over its moves.
+function lock(g, v, id) {
+  const L = (c, txt, more) => '<div class="lock"><i>' + (g.deal ? 'The pause: ' : 'For a pause: ') + '</i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
+  if (id === 'wh') return L(v.willing ? 'good' : v.labsText === 'Would defy a stop' ? 'bad' : 'warn', 'the labs ' + v.labsText.toLowerCase().replace('nationalized', 'are nationalized'));
+  if (id === 'state') {
+    if (g.deal) return L(g.caught ? 'bad' : 'good', g.caught ? 'Beijing caught cheating' : 'Beijing has signed');
+    const pr = Room.price(g);
+    return L(pr.every(a => a.known && a.met) ? 'good' : 'warn', 'Beijing wants', ' ' + pr.map(a => !a.known ? '<span class="pill unk">?</span>' : '<span class="pill ' + (a.met ? 'ok' : 'no') + '" title="' + esc(a.want) + '">' + (a.met ? '✓ ' : '✗ ') + esc(a.short) + '</span>').join(''));
+  }
+  return g.inspectors ? L('good', 'inspectors are in') : L(g.eyes > 1 ? 'good' : g.eyes ? 'warn' : 'bad', g.eyes > 1 ? 'cheating would very likely be seen' : g.eyes ? 'cheating might be seen' : 'cheating would go unseen');
 }
 function topbar(g) {
   let pips = ''; for (let i = 0; i < Room.TUNE.turns; i++) pips += '<i class="' + (i < g.turn - (st.screen === 'resolve' && !g.over ? 1 : 0) ? 'done' : i === g.turn - (st.screen === 'resolve' ? 1 : 0) && !g.over ? 'now' : '') + '"></i>';
@@ -213,7 +206,7 @@ function draw() {
   if (st.screen === 'intro') h = intro();
   else {
     const v = Room.view(g), reveal = st.screen === 'end';
-    h = topbar(g) + '<div class="panel">' + track(g, v, reveal) + '</div>' + gauges(g, v);
+    h = topbar(g) + '<div class="panel">' + track(g, v, reveal) + facts(g, v) + '</div>';
     if (st.screen === 'decide') h += decide(g) + (st.brief ? brief(g) : '');
     if (st.screen === 'resolve' && inNews()) h += news(g);
     if (st.screen === 'end') h += ending(g);
@@ -223,7 +216,7 @@ function draw() {
 
 function intro() {
   return '<div class="intro"><h1>The Scramble</h1>' +
-    '<p class="lede">January 2027. American labs are about six months ahead of China in the race to AI that improves itself. You have seven turns, to the end of 2028.</p>' +
+    '<p class="lede">January 2027. The intelligence community warns that AI able to improve itself may be less than a year of progress away. Nobody knows exactly where. American labs are about six months ahead of China. You have seven turns, to the end of 2028.</p>' +
     '<button class="btn" id="b-start">Start</button></div>';
 }
 
@@ -231,11 +224,8 @@ function decide(g) {
   const c = Room.crisis(g), T = Room.turn(g);
   let h = (c && c.rule ? '<div class="crisis"><b>' + esc(c.title) + '</b><span>' + esc(c.rule) + '</span></div>' : '') + '<div class="seats">';
   for (const tb of T.tables) {
-    h += '<div class="seat' + (st.picks[tb.id] ? ' set' : '') + '"><h3>' + esc(tb.who) + '</h3>';
-    for (const d of tb.qs) {
-      h += '<p class="q' + (d.crisis ? ' cr' : '') + '">' + (d.crisis ? '<i class="tag">Crisis</i>' : '') + esc(d.q) + '</p>';
-      for (const o of d.opts) h += '<button class="opt' + (st.picks[tb.id] === o.id ? ' on' : '') + '" data-seat="' + tb.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '><b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
-    }
+    h += '<div class="seat' + (st.picks[tb.id] ? ' set' : '') + '"><h3>' + esc(tb.who) + '</h3>' + lock(g, Room.view(g), tb.id);
+    for (const o of tb.opts) h += '<button class="opt' + (o.crisis ? ' cr' : '') + (st.picks[tb.id] === o.id ? ' on' : '') + '" data-seat="' + tb.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '>' + (o.crisis ? '<i class="tag">Crisis</i>' : '') + '<b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
     h += '</div>';
   }
   h += '</div><div class="lbl bl">One bold move, if any</div><div class="bolds">';
@@ -271,7 +261,7 @@ function ending(g) {
   facts.push('China ended ' + gap(g.cn, 'past that point too.', 'short of it.') + (Math.abs(g.cn - g.cnShown) >= 1 ? ' That is ' + m(g.cn - g.cnShown) + ' further than anyone knew.' : ''));
   facts.push('Beijing\'s price for a pause was ' + g.asks.map(a => Room.ASKS[a].short).join(' and ') + '.' + (g.known.every(Boolean) ? '' : ' The room never learned all of it.'));
   if (g.deal) facts.push(g.hidden ? 'Beijing was running a hidden program under the deal.' : 'Beijing kept the deal.');
-  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + ', and ' + v.labsText.toLowerCase() + '.');
+  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + '.');
   facts.push('The Strait ended ' + v.tensionText.toLowerCase() + '; relations with Beijing, ' + v.trustText.toLowerCase() + '.');
   return '<div class="panel end"><div class="grade ' + o.grade + '">' + o.grade + '</div><div><div class="lbl">' + (g.turn >= Room.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.votes[g.votes.length - 1].date) + '</div><h1>' + esc(o.title) + '</h1><p>' + esc(o.text) + '</p></div></div>' +
     '<div class="cols"><div class="panel"><div class="lbl">What was hidden</div><ul>' + facts.map(f => '<li>' + f + '</li>').join('') + '</ul></div>' +
