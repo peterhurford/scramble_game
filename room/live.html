@@ -207,7 +207,7 @@ function topbar(g) {
 
 function draw() {
   const g = st.game; let h = '';
-  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">January 2027. The intelligence community warns that AI able to improve itself may be less than a year of progress away. Nobody knows exactly where. American labs are about six months ahead of China, and Beijing\'s hackers are trying to get into them. You have six turns, to the end of 2028. Each table says what it does.</p><button class="btn" id="b-start">Start</button></div>';
+  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">The lab CEOs are warning that runaway recursive self-improvement may be less than a year of progress away. The IC agrees.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><button class="btn" id="b-start">Start</button></div>';
   else {
     const v = World.view(g);
     h = topbar(g) + '<div class="panel">' + track(g, v, st.screen === 'end') + facts(g, v) + '</div>';
