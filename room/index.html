@@ -30,7 +30,6 @@ button{font:inherit;color:inherit}
 .wrap{max-width:1700px;margin:0 auto;padding:0 16px 20px}
 .top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px;padding:10px 0;border-bottom:3px double var(--rule)}
 .mark{font-weight:900;font-size:1.25em;letter-spacing:-.01em}
-.mark small{font-weight:700;font-size:.6em;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-left:8px}
 .pips{display:flex;gap:5px;align-items:center}
 .pips i{width:26px;height:10px;background:var(--rule)} .pips i.done{background:var(--accent)} .pips i.now{background:var(--accent);outline:2px solid var(--accent);outline-offset:2px}
 .date{font-weight:800;font-size:1.15em}
@@ -72,18 +71,16 @@ button{font:inherit;color:inherit}
 .bar{height:7px;background:var(--sheet2);border:1px solid var(--rule);margin:5px 0 3px} .bar i{display:block;height:100%;background:var(--accent);transition:width .8s}
 .bar.t i{background:var(--bad)}
 
-.ask{display:flex;align-items:baseline;gap:12px;margin:16px 0 6px} .ask h2{margin:0;font-size:1.05em;font-weight:900;letter-spacing:.02em} .ask span{color:var(--muted);font-size:.85em}
-.seats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.seats{margin-top:12px;display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
 .seat{background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px;min-width:0}
 .seat.set{border-top-color:var(--good)}
-.seat h3{margin:0;font-size:1.05em;font-weight:900;line-height:1.15} .seat .brief{font-size:.78em;color:var(--muted);margin-top:1px}
+.seat h3{margin:0;font-size:1.05em;font-weight:900;line-height:1.15}
 .opt{all:unset;box-sizing:border-box;cursor:pointer;display:block;border:2px solid var(--rule);background:var(--sheet2);padding:6px 9px}
 .opt:hover{border-color:var(--accent)} .opt.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
 .opt[disabled]{opacity:.4;cursor:not-allowed;border-color:var(--rule)}
 .digest{list-style:none;margin:10px 0 0;padding:0} .digest li{padding:8px 0;border-top:1px solid var(--rule);font-family:var(--f-body);line-height:1.35} .digest b{display:block;font-family:inherit;font-weight:900}
 .opt.cr{border-color:var(--warn)} .opt .new.crt{background:var(--warn)}
 .opt b{display:block;font-weight:900;line-height:1.2} .opt span{display:block;font-family:var(--f-body);font-size:.82em;line-height:1.3;color:var(--muted);margin-top:2px} .opt.on span{color:var(--ink)}
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px} .tags span{font-size:.82em;border:1px solid var(--rule);background:var(--sheet);padding:3px 9px} .tags i{font-style:normal;font-weight:800;color:var(--accent);margin-right:6px}
 .go{display:flex;align-items:center;gap:16px;margin-top:14px} .go .hint{color:var(--muted);font-size:.85em}
 
 .evs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
@@ -111,16 +108,13 @@ button{font:inherit;color:inherit}
 @media (prefers-reduced-motion:reduce){.ev,.ev.big{animation:none}}
 
 .intro{max-width:1100px;margin:3vh auto 0} .intro h1{font-size:3em;font-weight:900;letter-spacing:-.02em;margin:0 0 4px} .intro .lede{font-family:var(--f-body);font-size:1.3em;margin:8px 0 18px;max-width:38em}
-.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px} .three div{background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:12px 16px} .three h3{margin:0 0 4px;font-size:1.1em;font-weight:900} .three p{margin:0;font-family:var(--f-body)}
-.how{font-family:var(--f-body);font-size:1.08em;margin:18px 0} .how li{margin:5px 0}
-.fine{font-size:.8em;color:var(--muted);margin-top:14px}
 .end{display:grid;grid-template-columns:auto 1fr;gap:10px 28px;align-items:center}
 .grade{font-size:7em;font-weight:900;line-height:1;width:1.5em;height:1.5em;display:grid;place-items:center;border:6px solid currentColor}
 .grade.A,.grade.B{color:var(--good)} .grade.C{color:var(--warn)} .grade.D,.grade.F{color:var(--bad)}
 .end h1{margin:0;font-size:2.6em;font-weight:900;letter-spacing:-.02em} .end p{margin:6px 0 0;font-family:var(--f-body);font-size:1.25em;max-width:40em}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px} .cols ul{margin:6px 0 0;padding-left:1.1em;font-family:var(--f-body)} .cols li{margin:4px 0}
 table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{padding:4px 10px 4px 0;border-bottom:1px solid var(--rule)} td:first-child{color:var(--muted);white-space:nowrap} th{text-align:left;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 10px 4px 0}
-@media (max-width:900px){.gauges{grid-template-columns:repeat(2,1fr)}.seats,.three,.cols,.evs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
+@media (max-width:900px){.gauges{grid-template-columns:repeat(2,1fr)}.seats,.cols,.evs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
 </style>
 </head>
 <body>
@@ -132,7 +126,7 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 // Each group's principal announces a choice and the facilitator clicks it (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 // TURN_SECS covers a whole round: the crisis, the decision and the news.
-const TURN_SECS = 240, NEWS_SECS = 60, GAME_MINS = 30, SAVE = 'scramble-room-v5';
+const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v5';
 const SHORT = { vp: 'President', dni: 'DNI', doc: 'Commerce', state: 'State', war: 'War' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -195,21 +189,21 @@ function gauges(g, v) {
   const rsi = x => x.knownOver ? 'Past the danger point' : x.overNowP <= 0 ? 'Short of the range' : x.overNowP < 1 ? 'Inside the range' : 'Beyond the range';
   const beijing = (x, deal, caught) => deal ? (caught ? 'Caught cheating' : 'Mutual pause') : x.trustText;
   return '<div class="gauges">' +
-    G(g.deal ? '' : v.lead < 2 ? 'bad' : v.lead < 4 ? 'warn' : 'good', 'US lead', cap(v.leadText), g.deal ? 'By Beijing\'s own account' : v.lead >= 1 ? 'China is behind' : 'The lead is gone', pv && cap(pv.leadText)) +
-    G(['bad', 'warn', 'good'][g.sec], 'The weights', cap(v.security), 'Stolen this turn: <strong>' + v.theft + '</strong>' + (g.thefts ? ' · already stolen' + (g.thefts > 1 ? ' ' + g.thefts + ' times' : ' once') : ''), pv && cap(pv.security)) +
+    G(g.deal ? '' : v.lead < 2 ? 'bad' : v.lead < 4 ? 'warn' : 'good', 'US lead', cap(v.leadText), g.deal ? 'By Beijing\'s account' : '', pv && cap(pv.leadText)) +
+    G(['bad', 'warn', 'good'][g.sec], 'The weights', cap(v.security), 'Theft this turn: <strong>' + v.theft + '</strong>', pv && cap(pv.security)) +
     G(v.tensionText === 'Calm' ? 'good' : v.tensionText === 'Tense' ? 'warn' : 'bad', 'Taiwan Strait', v.tensionText, 'War this turn: <strong>' + v.war + '</strong>', pv && pv.tensionText) +
     G(g.deal ? (g.caught ? 'bad' : 'good') : v.trustText === 'Hostile' ? 'bad' : v.trustText === 'Wary' ? 'warn' : 'good', 'Beijing', beijing(v, g.deal, g.caught),
-      g.deal ? 'Inspectors: <strong>' + (g.inspectors ? 'on the ground' : 'none') + '</strong> · trust: ' + v.trustText.toLowerCase() : 'Its price for a pause' + (st.screen === 'decide' ? ', as picked so far' : '') + ':<br>' + pills, pv && beijing(pv, prevDeal, false)) +
-    G(g.national ? '' : v.labsText === 'Defiant' ? 'bad' : v.willing ? 'good' : 'warn', 'The labs', v.labsText, g.national ? 'They answer to the President' : v.willing ? 'Would accept a pause' : v.labsText === 'Defiant' ? 'Will not hold, even if ordered' : 'Would not accept a pause', pv && pv.labsText) +
-    G(v.knownOver || v.overNowP >= 1 ? 'bad' : v.overNowP > 0 ? 'warn' : 'good', 'Runaway RSI', rsi(v), v.knownOver ? 'The US frontier can improve itself' : (v.overNowP > 0 ? 'Possible now: <strong>' + v.overNow + '</strong> · a' : 'A') + 'fter a turn of racing: <strong>' + v.overIfRace + '</strong>', pv && rsi(pv)) +
+      g.deal ? 'Inspectors: <strong>' + (g.inspectors ? 'on the ground' : 'none') + '</strong> · trust: ' + v.trustText.toLowerCase() : 'Wants: ' + pills, pv && beijing(pv, prevDeal, false)) +
+    G(g.national ? '' : v.labsText === 'Defiant' ? 'bad' : v.willing ? 'good' : 'warn', 'The labs', v.labsText, g.national ? 'Nationalized' : v.willing ? 'Would pause' : 'Would not pause', pv && pv.labsText) +
+    G(v.knownOver || v.overNowP >= 1 ? 'bad' : v.overNowP > 0 ? 'warn' : 'good', 'Runaway RSI', rsi(v), v.knownOver ? '' : (v.overNowP > 0 ? 'Now: <strong>' + v.overNow + '</strong> · i' : 'I') + 'f we race: <strong>' + v.overIfRace + '</strong>', pv && rsi(pv)) +
     '</div>';
 }
 function topbar(g) {
   let pips = ''; for (let i = 0; i < Room.TUNE.turns; i++) pips += '<i class="' + (i < g.turn - (st.screen === 'resolve' && !g.over ? 1 : 0) ? 'done' : i === g.turn - (st.screen === 'resolve' ? 1 : 0) && !g.over ? 'now' : '') + '"></i>';
-  return '<div class="top"><div class="mark">The Scramble<small>Room Edition</small></div><div class="pips">' + pips + '</div>' +
-    '<div class="date">' + (st.screen === 'end' ? 'The end' : st.screen === 'resolve' ? 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns + ' · what happened' : 'Turn ' + (g.turn + 1) + ' of ' + Room.TUNE.turns + ' · ' + Room.DATES[g.turn]) + '</div><div class="sp"></div>' +
-    '<div class="clock"><div class="lbl">This round · lock in by ' + mmss(NEWS_SECS) + '</div><b id="ck-turn">-</b></div><div class="clock"><div class="lbl">Game</div><b id="ck-game">-</b></div>' +
-    '<button class="ghost" id="b-undo"' + (st.past.length ? '' : ' disabled') + '>Undo turn (U)</button><button class="ghost" id="b-new">Restart</button></div>';
+  return '<div class="top"><div class="mark">The Scramble</div><div class="pips">' + pips + '</div>' +
+    '<div class="date">' + (st.screen === 'end' ? 'The end' : st.screen === 'resolve' ? 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns : 'Turn ' + (g.turn + 1) + ' of ' + Room.TUNE.turns + ' · ' + Room.DATES[g.turn]) + '</div><div class="sp"></div>' +
+    '<div class="clock"><div class="lbl">Round</div><b id="ck-turn">-</b></div><div class="clock"><div class="lbl">Game</div><b id="ck-game">-</b></div>' +
+    '<button class="ghost" id="b-undo"' + (st.past.length ? '' : ' disabled') + '>Undo</button><button class="ghost" id="b-new">Restart</button></div>';
 }
 
 function draw() {
@@ -219,42 +213,33 @@ function draw() {
     const v = Room.view(g), reveal = st.screen === 'end';
     h = topbar(g) + '<div class="panel">' + track(g, v, reveal) + '</div>' + gauges(g, v);
     if (st.screen === 'decide') h += decide(g) + (st.brief ? brief(g) : '');
-    if (st.screen === 'resolve') h += resolve(g) + (inNews() ? news(g) : '');
+    if (st.screen === 'resolve' && inNews()) h += news(g);
     if (st.screen === 'end') h += ending(g);
   }
   $('app').innerHTML = h; wire(); tick(); save();
 }
 
 function intro() {
-  return '<div class="intro"><div class="lbl">A 30-minute game for a room · you are the President and the cabinet</div><h1>The Scramble</h1>' +
+  return '<div class="intro"><h1>The Scramble</h1>' +
     '<p class="lede">January 2027. American labs are about six months ahead of China in the race to AI that improves itself. You have seven turns, to the end of 2028.</p>' +
-    '<div class="three"><div><h3>The weights can be stolen</h3><p>Beijing\'s hackers keep trying. One success erases the lead.</p></div>' +
-    '<div><h3>China is right behind</h3><p>Squeeze Beijing and risk war over Taiwan, or bargain for a mutual pause. Beijing has a price, and may cheat.</p></div>' +
-    '<div><h3>No one knows where runaway starts</h3><p>Roughly a year ahead, AI starts improving itself. Past that point, every turn risks losing control.</p></div></div>' +
-    '<ol class="how"><li><b>Five groups, five seats.</b> Each group names a principal; the rest are staff.</li>' +
-    '<li><b>Each turn, each seat picks one of three options.</b> Talk to the other groups: big moves take several seats.</li>' +
-    '<li><b>Then the world moves</b> and the room hears the news.</li>' +
-    '<li><b>Odds come in words.</b> "Unlikely" still happens one time in four.</li></ol>' +
-    '<button class="btn" id="b-start">Start the clock</button>' +
-    '<p class="fine">Facilitator: four minutes a round, news included. Click each principal\'s choice; Enter locks in, Space steps through the news, U undoes a turn. Add #seed=123 to the address to rehearse the game you will run live.</p></div>';
+    '<button class="btn" id="b-start">Start</button></div>';
 }
 
 function decide(g) {
   const c = Room.crisis(g);
-  let h = (c ? '<div class="crisis"><div class="lbl">This turn</div><b>' + esc(c.title) + '</b><span>' + esc(c.rule) + '</span></div>' : '') + '<div class="ask"><h2>The cabinet decides</h2></div><div class="seats">';
+  let h = (c ? '<div class="crisis"><b>' + esc(c.title) + '</b><span>' + esc(c.rule) + '</span></div>' : '') + '<div class="seats">';
   // An option the seat did not have last turn is tagged New.
   const before = st.past.length ? Room.seats(JSON.parse(st.past[st.past.length - 1])) : null;
   const isNew = (s, o) => before && !o.off && !before.find(x => x.id === s.id).opts.some(x => x.title === o.title && !x.off);
   for (const s of Room.seats(g)) {
-    h += '<div class="seat' + (st.picks[s.id] ? ' set' : '') + '"><div><h3>' + esc(s.who) + '</h3><div class="brief">' + esc(s.brief) + '</div></div>';
+    h += '<div class="seat' + (st.picks[s.id] ? ' set' : '') + '"><h3>' + esc(s.who) + '</h3>';
     for (const o of s.opts) h += '<button class="opt' + (st.picks[s.id] === o.id ? ' on' : '') + (o.crisis ? ' cr' : '') + '" data-seat="' + s.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '>' + (o.crisis ? '<i class="new crt">Crisis</i>' : isNew(s, o) ? '<i class="new">New</i>' : '') + '<b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
     h += '</div>';
   }
   const left = Room.seats(g).filter(s => !st.picks[s.id]).map(s => SHORT[s.id]);
-  return h + '</div><div class="go"><button class="btn" id="b-lock"' + (ready() ? '' : ' disabled') + '>Lock in the turn</button><span class="hint">' + (left.length ? 'Waiting on: ' + left.join(', ') : 'Enter locks it in.') + '</span></div>';
+  return h + '</div><div class="go"><button class="btn" id="b-lock"' + (ready() ? '' : ' disabled') + '>Lock in the turn</button><span class="hint">' + (left.length ? 'Waiting on: ' + left.join(', ') : '') + '</span></div>';
 }
 
-function tags(picks) { return '<div class="tags">' + Object.keys(SHORT).map(k => '<span><i>' + SHORT[k] + '</i>' + esc(picks[k]) + '</span>').join('') + '</div>'; }
 // An event's text: a leading quote is set as a quotation with its byline straight after it, then any narration.
 function body(text, src) {
   const m = /^("[^"]*")\s*([\s\S]*)$/.exec(text), by = src ? '<div class="by">' + esc(src) + '</div>' : '';
@@ -266,22 +251,16 @@ function brief(g) {
   const c = Room.crisis(g);
   return '<div class="ov"><div class="news warn clip crisisn">' + head(Room.DATES[g.turn], 'Crisis') +
     '<div class="mb"><h2>' + esc(c.title) + '</h2>' + body(c.text, c.src) + '<p class="rule">' + esc(c.rule) + '</p></div>' +
-    '<div class="go"><button class="btn" id="b-brief">To the cabinet</button><span class="hint">Space or Enter</span></div></div></div>';
+    '<div class="go"><button class="btn" id="b-brief">To the cabinet</button></div></div></div>';
 }
 // The turn's events, one bulletin at a time, then the next turn.
 function news(g) {
   const e = st.events[st.news], n = st.events.length, last = st.news === n - 1;
   let pips = ''; for (let i = 0; i < n; i++) pips += '<i class="' + (i <= st.news ? 'done' : '') + '"></i>';
-  return '<div class="ov"><div class="news ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '">' + head(g.votes[g.votes.length - 1].date, e.big ? 'Flash' : 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns) +
+  return '<div class="ov"><div class="news ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '">' + head(g.votes[g.votes.length - 1].date, e.big ? 'Flash' : '') +
     '<div class="mb"><h2>' + esc(e.title) + '</h2>' + (e.list ? '<ul class="digest">' + e.list.map(x => '<li><b>' + esc(x.title) + '</b>' + esc(x.text) + '</li>').join('') + '</ul>' : body(e.text, e.src)) + '</div>' +
-    '<div class="go"><button class="btn" id="b-news">' + (last ? (g.over ? 'See how it ends' : 'Next turn') : 'Next') + '</button><span class="hint">Space or Enter · Esc skips the rest</span><div class="pips">' + pips + '</div></div></div></div>';
+    '<div class="go"><button class="btn" id="b-news">' + (last ? (g.over ? 'See how it ends' : 'Next turn') : 'Next') + '</button><div class="pips">' + pips + '</div></div></div></div>';
 }
-// Backdrop behind the bulletins.
-function resolve(g) {
-  const last = g.votes[g.votes.length - 1];
-  return '<div class="ask"><h2>' + last.date + ' · the cabinet decided</h2></div>' + tags(last.picks);
-}
-
 function ending(g) {
   const o = g.over, v = Room.view(g), facts = [], m = Room.months, gap = (x, past, short) => x > g.line ? past : m(g.line - x) + ' ' + short;
   facts.push('Runaway RSI became possible <b>' + m(g.line) + '</b> past the January 2027 frontier. The US ended ' + gap(g.us, 'past that point.', 'short of it.'));
@@ -294,7 +273,7 @@ function ending(g) {
     '<div class="cols"><div class="panel"><div class="lbl">What was hidden</div><ul>' + facts.map(f => '<li>' + f + '</li>').join('') + '</ul></div>' +
     '<div class="panel"><div class="lbl">What the cabinet did</div><table><tr><th></th>' + Object.values(SHORT).map(x => '<th>' + x + '</th>').join('') + '</tr>' +
     g.votes.map(x => '<tr><td>' + x.date + '</td>' + Object.keys(SHORT).map(k => '<td>' + esc(x.picks[k]) + '</td>').join('') + '</tr>').join('') + '</table></div></div>' +
-    '<div class="go"><button class="btn" id="b-again">New game</button><button class="ghost" id="b-same">Replay this game (seed ' + esc(g.seed) + ')</button></div>';
+    '<div class="go"><button class="btn" id="b-again">New game</button><button class="ghost" id="b-same">Replay (seed ' + esc(g.seed) + ')</button></div>';
 }
 
 function wire() {
