@@ -80,6 +80,7 @@ button{font:inherit;color:inherit}
 .opt{all:unset;box-sizing:border-box;cursor:pointer;display:block;border:2px solid var(--rule);background:var(--sheet2);padding:6px 9px}
 .opt:hover{border-color:var(--accent)} .opt.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
 .opt[disabled]{opacity:.4;cursor:not-allowed;border-color:var(--rule)}
+.digest{list-style:none;margin:10px 0 0;padding:0} .digest li{padding:8px 0;border-top:1px solid var(--rule);font-family:var(--f-body);line-height:1.35} .digest b{display:block;font-family:inherit;font-weight:900}
 .opt.cr{border-color:var(--warn)} .opt .new.crt{background:var(--warn)}
 .opt b{display:block;font-weight:900;line-height:1.2} .opt span{display:block;font-family:var(--f-body);font-size:.82em;line-height:1.3;color:var(--muted);margin-top:2px} .opt.on span{color:var(--ink)}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px} .tags span{font-size:.82em;border:1px solid var(--rule);background:var(--sheet);padding:3px 9px} .tags i{font-style:normal;font-weight:800;color:var(--accent);margin-right:6px}
@@ -151,7 +152,9 @@ function start(seed) {
 function lockIn() {
   if (st.screen !== 'decide' || !ready()) return;
   st.past.push(JSON.stringify(st.game));
-  st.events = Room.play(st.game, st.picks);
+  // Routine results are read out as one bulletin, ahead of the surprises.
+  const ev = Room.play(st.game, st.picks), r = ev.filter(e => e.routine);
+  st.events = r.length > 1 ? [{ tone: 'info', title: 'What the cabinet did', list: r }].concat(ev.filter(e => !e.routine)) : ev;
   st.screen = 'resolve'; st.news = 0;
   if (st.events.length) draw(); else next();
 }
@@ -270,7 +273,7 @@ function news(g) {
   const e = st.events[st.news], n = st.events.length, last = st.news === n - 1;
   let pips = ''; for (let i = 0; i < n; i++) pips += '<i class="' + (i <= st.news ? 'done' : '') + '"></i>';
   return '<div class="ov"><div class="news ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '">' + head(g.votes[g.votes.length - 1].date, e.big ? 'Flash' : 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns) +
-    '<div class="mb"><h2>' + esc(e.title) + '</h2>' + body(e.text, e.src) + '</div>' +
+    '<div class="mb"><h2>' + esc(e.title) + '</h2>' + (e.list ? '<ul class="digest">' + e.list.map(x => '<li><b>' + esc(x.title) + '</b>' + esc(x.text) + '</li>').join('') + '</ul>' : body(e.text, e.src)) + '</div>' +
     '<div class="go"><button class="btn" id="b-news">' + (last ? (g.over ? 'See how it ends' : 'Next turn') : 'Next') + '</button><span class="hint">Space or Enter · Esc skips the rest</span><div class="pips">' + pips + '</div></div></div></div>';
 }
 // Backdrop behind the bulletins.
