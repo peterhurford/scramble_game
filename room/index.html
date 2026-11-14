@@ -103,10 +103,10 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 <script>
 'use strict';
 // Rendering and the facilitator's controls; all rules are in engine.js.
-// Each cabinet group's secretary announces a choice and the facilitator clicks it (Enter locks in, Space moves on, U undoes a turn).
+// Each group's principal announces a choice and the facilitator clicks it (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 const TURN_SECS = 150, GAME_MINS = 30, SAVE = 'scramble-room-v2';
-const SHORT = { vp: 'VP', dni: 'DNI', doc: 'Commerce', state: 'State', war: 'War' };
+const SHORT = { vp: 'President', dni: 'DNI', doc: 'Commerce', state: 'State', war: 'War' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
@@ -180,17 +180,17 @@ function draw() {
 }
 
 function intro() {
-  return '<div class="intro"><div class="lbl">A 30-minute game for a room · you are the President\'s cabinet</div><h1>The Scramble</h1>' +
+  return '<div class="intro"><div class="lbl">A 30-minute game for a room · you are the President and the cabinet</div><h1>The Scramble</h1>' +
     '<p class="lede">It is January 2027. American labs are about six months ahead of China in the race to AI that can improve itself. You have six turns, to the end of 2028, to get the world through it.</p>' +
     '<div class="three"><div><h3>The weights can be stolen</h3><p>Beijing\'s hackers go for the frontier model again and again. Today they would probably get it, and one success erases the lead.</p></div>' +
     '<div><h3>China is right behind</h3><p>Squeeze Beijing and you keep the lead but risk war over Taiwan. Talk and you might get a deal, if you have leverage and if Beijing keeps it.</p></div>' +
     '<div><h3>No one knows where runaway starts</h3><p>Somewhere roughly a year ahead, AI starts improving itself. Race past that point and every turn is a coin flip on losing control. That goes for China too.</p></div></div>' +
-    '<ol class="how"><li><b>Five groups, five seats:</b> Vice President (the labs), Director of National Intelligence, Commerce, State, War. Each group names a secretary; the rest are the staff.</li>' +
-    '<li><b>Each turn every seat has three options.</b> Staff argue, the secretary decides. Talk to the other groups: your choices only work together.</li>' +
+    '<ol class="how"><li><b>Five groups, five seats:</b> the President (the labs), Director of National Intelligence, Commerce, State, War. Each group names its principal; the rest are the staff.</li>' +
+    '<li><b>Each turn every seat has three options.</b> Staff argue, the principal decides. Talk to the other groups: your choices only work together.</li>' +
     '<li><b>Then the world moves,</b> and the room finds out what Beijing, the hackers and the models did.</li>' +
     '<li><b>Odds come in the IC\'s words,</b> and they mean what they say: "unlikely" things happen about one time in four, and over six turns some of them will.</li></ol>' +
     '<button class="btn" id="b-start">Start the clock</button>' +
-    '<p class="fine">Facilitator: about 2.5 minutes a turn. Ask each secretary for a decision and click it; Enter locks the turn in, Space moves on, U undoes a turn (the dice for a turn stay the same if you replay it). Add #seed=123 to the address to rehearse a game and run the same one live.</p></div>';
+    '<p class="fine">Facilitator: about 2.5 minutes a turn. Ask each principal for a decision and click it; Enter locks the turn in, Space moves on, U undoes a turn (the dice for a turn stay the same if you replay it). Add #seed=123 to the address to rehearse a game and run the same one live.</p></div>';
 }
 
 function decide(g) {

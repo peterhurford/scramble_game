@@ -1,6 +1,6 @@
 // The Scramble: Room Edition. A six-turn game for a room split into five cabinet groups, on the main game's
 // three problems: weight theft, the US-China balance, and the hidden point where AI starts improving itself.
-// Each turn every group's secretary picks one of three options; all five apply, then the world moves.
+// Each turn every group's lead (the President, the DNI, three secretaries) picks one of three options; all five apply, then the world moves.
 // No DOM; runs in node (room/sim.js) and the browser (room/index.html).
 // Every roll is hash01(seed, turn, name), so a replayed turn rolls the same dice whatever was chosen.
 (function (root) {
@@ -81,7 +81,7 @@ function seats(s) {
     : o('fortify', 'Go slow', s.deal ? 'Nothing left to build.' : 'Half speed this turn.', s.deal);
   const tight = ['Close the chip loopholes', 'Cut off cloud and copying', 'Full tech embargo'][s.controls];
   return [
-    { id: 'vp', who: 'Vice President', brief: 'Runs the labs: how fast, how safe', opts: [
+    { id: 'vp', who: 'President', brief: 'Sets the labs\' pace: how fast, how safe', opts: [
       s.deal ? o('race', 'Break out', 'Tear up the deal and race. The frontier moves about four months.') : o('race', 'Race', 'Full speed. The frontier moves about four months.'),
       fort,
       o('hold', 'Hold', s.deal ? 'Keep the deal: frontier training stays paused.' : 'Pause frontier training. China keeps coming and copies its way up to our heels.') ] },
@@ -149,7 +149,7 @@ function play(s, picks) {
       add('good', 'Beijing says yes', 'A yes was ' + odds(p) + '. Both frontiers hold. Now: is Beijing keeping its word?');
     } else { s.trust += 5; add('bad', 'Beijing says no', 'A yes was ' + odds(p) + '. "Come back when you are serious."'); }
   }
-  // Vice President
+  // President
   if (vp === 'race') breakDeal('America breaks out of the pause and races.');
   if (vp === 'fortify') {
     if (s.sec < 2) { s.sec++; add('good', s.sec === 1 ? 'The labs are hardened' : 'The labs are a vault', s.sec === 1 ? 'Most theft attempts will now fail.' : 'Stealing the weights now takes a miracle.'); }
