@@ -4,11 +4,11 @@
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const W = require('./world.js');
-const PORT = +process.argv[2] || 8787, MODEL = process.env.GM_MODEL || 'claude-opus-5-5', EFFORT = process.env.GM_EFFORT || 'low';
+const PORT = +process.argv[2] || 8787, MODEL = process.env.GM_MODEL || 'claude-sonnet-5-5', EFFORT = process.env.GM_EFFORT || 'low';
 
 const num = d => ({ type: 'number', description: d }), bool = d => ({ type: 'boolean', description: d });
 const RULING = {
-  train: num('0 to 1. Share of the labs\' engineers left training the next model. 1 is flat out; 0 is a full stop. With no order the labs train flat out.'),
+  train: num('0 to 1. Share of the labs\' engineers left training the next model. 1 is flat out; 0 is a full stop. Until some table gives the labs an order they train flat out; after that the last order stands.'),
   secure: num('0 to 1. Share of engineers pulled onto securing the weights this turn. Comes out of training.'),
   test: num('0 to 1. Share of engineers pulled onto testing where the danger point is. Comes out of training. 0.3 or more narrows the IC\'s range.'),
   nationalize: bool('The government takes over the labs. They then obey, at a lasting cost in speed.'),
@@ -26,7 +26,7 @@ const RULING = {
   care: num('-0.1 to 0.1. Your judgment of how well, on the whole, the room is placed to catch a model slipping out of control this turn, beyond the pace and the testing the dials already count: whether it heeded the lab warnings, gave the safety teams authority to halt a run, has the labs working with it and not around it, has a plan for what to do when something is caught. 0 if the orders say nothing about it; negative if the room overrode or silenced the safety teams.'),
   intel: bool('A serious effort to place a source inside Beijing\'s program.'),
   deter: bool('A show of force around Taiwan.'),
-  hunt: num('0 to 1. How much of the NSA and Cyber Command is put on driving Beijing\'s hackers out of the labs this turn.'),
+  hunt: num('0 to 1. How much of the NSA and Cyber Command is put on protecting the labs this turn. Any order from any table to protect the weights, harden the labs or stop the hackers counts, whatever words it uses; it need not say hunt.'),
   sabotage: bool('A covert attack on China\'s training sites.'),
   tension: num('-15 to 15. Extra change in Strait tension from anything the dials above do not cover. Usually 0.'),
   trust: num('-15 to 15. Extra change in Beijing\'s trust. Usually 0.'),
@@ -41,8 +41,9 @@ const SCHEMA = { type: 'object', additionalProperties: false, required: ['replie
   updates: { type: 'object', additionalProperties: false, required: ['beijing', 'labs'], description: 'Two updates for the briefing at the end of the period.', properties: {
     beijing: VOICE('Where Beijing stands at the end of the period, in public: a ministry spokesperson or the state press.'),
     labs: VOICE('Where the labs stand at the end of the period: a chief executive writing privately to the President.') } },
-  replies: { type: 'array', description: 'One reply to each table that gave an order, in the order wh, state, pent.', items: { type: 'object', additionalProperties: false, required: ['table', 'by', 'quote'], properties: {
+  replies: { type: 'array', description: 'One reply to each table that gave an order, in the order wh, state, pent.', items: { type: 'object', additionalProperties: false, required: ['table', 'did', 'by', 'quote'], properties: {
     table: { type: 'string', enum: ['wh', 'state', 'pent'] },
+    did: { type: 'string', description: 'What is now happening because of this order, as a plain fact the room can check its order against: "Half the labs\' engineers are rebuilding security." 12 words at most, no numbers finer than a half or a third, no game words.' },
     by: { type: 'string', description: 'Who is speaking and where, as a short byline: "Chief executive of a frontier lab, by phone".' },
     quote: { type: 'string', description: 'What they say. One or two plain sentences, 35 words at most, no quotation marks.' } } } },
   ruling: { type: 'object', additionalProperties: false, required: Object.keys(RULING), properties: RULING },
@@ -71,9 +72,11 @@ Congress. Any table may go to Congress, and then you answer as the leaders it ha
 How to rule.
 - Judge the whole plan. Nothing the room can do is strictly required, and no single measure is enough alone. Whether a crossing of the danger point is contained, whether Beijing signs, whether the labs go along: each turns on the totality of what the room has done and on where the hidden actors really stand. The ledger adds up what the dials count; leverage, care and the small nudges are where your judgment of the rest goes. Use them when the room has earned it or thrown it away, and say in the note what tipped it.
 - Turn each order into dial settings honestly. Engineers are one pool: whatever goes to security or testing comes out of training. A table that orders "secure the labs" without saying how much gets about half the engineers, and the lab chief says what that costs.
-- Nothing is free and nothing works completely. Every reply names the price, in the mouth of the person who pays it, or says what the order will not fix.
-- Reward real commitments, not clever wording. An order to "make the weights unstealable" or "get Beijing to agree" is a wish: rule the modest thing that could actually be done this turn and have the reply say so.
-- Do not punish the room either. A sound order gets its full effect on the dials.
+- The room's orders are carried out. The officials below the tables work for the room: they do what they are told, in full, this turn, and do not argue, bargain, delay or water an order down. An extreme order (a strike, a seizure, giving something away) happens too; its consequences arrive through the dials and through Beijing and the labs, not through an official talking the room out of it. Only what truly cannot be done in four months is cut back, and then the largest part that can be done is done.
+- Orders stand until the room changes them. If no table speaks to the labs' engineers or to protecting the weights this turn, keep the standing split and effort you are given; do not send the labs back to flat out.
+- Read orders for what the room is trying to do, not for particular words. An order to secure, lock down or protect the weights, from any table, moves engineers onto security and puts the NSA on the labs.
+- A sound order gets its full effect on the dials. Costs are real but belong to the results: a reply mentions one only if the speaker would truly raise it, in a clause.
+- An order that is only a wish ("make the weights unstealable", "get Beijing to agree") gets the strongest real step toward it that can be taken this turn.
 - Use the extra nudges (tension, trust, labs, cn, us, hack) only for things the named dials cannot express, and keep them small.
 - Beijing bargains. A pause can be on any terms the room writes; record them faithfully, including terms the room invented. If Beijing would not sign them today it refuses and says what it would need instead, in its own words. If it would sign, it says so. An invented term moves Beijing only if it costs America something real, and then you charge that cost.
 - Your replies must agree with the arithmetic you are given. Do not promise safety the ledger will not deliver, and do not reveal hidden numbers. A character may hint at what they would plausibly know, with their own doubt in it.
@@ -84,13 +87,15 @@ How to write the replies.
 - One reply per table that gave an order. One or two sentences, 35 words at most. A table that wrote nothing gets no reply.
 - Plain speech, the way a tired official talks on a secure line. No metaphors, no wit, no slogans, nothing literary.
 - No precise numbers: "about four months", "likely", "almost certainly not". Never percentages. Never game words such as turn, level, dial, tension, trust, cooperation, ruling.
-- Say what the speaker will do, what it costs, and what they still do not know.
+- did: the plain fact of what is now happening because of the order. If part of the order was not carried out, say which part.
+- An official who works for the room reports what has been done, as done: "NSA teams are inside the labs." Never "we can", "we could", "we will try", and no advice against the order. Then at most one thing the room should know.
+- The lab chiefs, Congress and Beijing do not work for the room. They say plainly whether they are going along and what they are doing instead.
 - by: who and where, short. For example "Chief executive of a frontier lab, by phone", "Director, NSA", "Chinese delegation, Geneva".`;
 
 // The turn as the game master reads it: the ledger's brief, what was said before, and the three orders.
 function prompt(body) {
   const log = (body.state.log || []).map(t => t.date + '\n' + Object.keys(W.TABLES).map(k => (t.orders[k] ? W.TABLES[k] + ' ordered: ' + t.orders[k] + '\n' : '') + (t.replies || []).filter(r => r.table === k).map(r => '  ' + r.by + ': ' + r.quote + '\n').join('')).join('') + (t.events.length ? 'Then: ' + t.events.join('; ') + '.\n' : '') + (t.updates ? '  Beijing, afterwards: ' + t.updates.beijing.quote + '\n  The labs, afterwards: ' + t.updates.labs.quote + '\n' : '')).join('\n');
-  return W.brief(body.state) + '\n\n' + (log ? 'EARLIER TURNS\n' + log + '\n' : '') + 'THIS TURN\'S ORDERS\n' +
+  return W.brief(body.state) + '\n\n' + (log ? 'EARLIER TURNS\n' + log + '\n' : '') + (body.state.standing ? 'STANDING FROM LAST TURN: the labs\' engineers were split train ' + body.state.standing.train + ', secure ' + body.state.standing.secure + ', test ' + body.state.standing.test + '; NSA on the labs (hunt) ' + body.state.standing.hunt + '. This stands unless a table changes it.\n\n' : '') + 'THIS TURN\'S ORDERS\n' +
     Object.keys(W.TABLES).map(k => W.TABLES[k] + ': ' + (String(body.orders[k] || '').trim().slice(0, 600) || '(no order)')).join('\n');
 }
 
@@ -103,7 +108,7 @@ async function viaSdk(text) {
 }
 function viaCli(text) {
   return new Promise((resolve, reject) => {
-    const p = spawn('claude', ['-p', '--model', process.env.GM_MODEL || 'opus', '--effort', EFFORT, '--system-prompt', SYSTEM, '--json-schema', JSON.stringify(SCHEMA), '--output-format', 'json', '--tools', ''], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
+    const p = spawn('claude', ['-p', '--model', process.env.GM_MODEL || 'sonnet', '--effort', EFFORT, '--system-prompt', SYSTEM, '--json-schema', JSON.stringify(SCHEMA), '--output-format', 'json', '--tools', ''], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '', err = '';
     p.stdout.on('data', d => out += d); p.stderr.on('data', d => err += d);
     p.on('error', reject);
@@ -111,7 +116,7 @@ function viaCli(text) {
     p.stdin.end(text);
   });
 }
-const mock = body => ({ replies: Object.keys(W.TABLES).filter(k => (body.orders[k] || '').trim()).map(k => ({ table: k, by: 'Canned reply, ' + W.TABLES[k], quote: 'We will do it. It will cost more than you think, and I cannot promise it works.' })),
+const mock = body => ({ replies: Object.keys(W.TABLES).filter(k => (body.orders[k] || '').trim()).map(k => ({ table: k, by: 'Canned reply, ' + W.TABLES[k], did: 'The order is being carried out.', quote: 'It is done. It will cost more than you think.' })),
   updates: null, ruling: Object.assign({}, W.DEFAULT, { train: 0.5, secure: 0.5 }), note: 'Mock game master: no model was asked.' });
 const BACKEND = process.env.GM === 'mock' ? 'mock' : process.env.ANTHROPIC_API_KEY ? 'sdk' : 'cli';
 

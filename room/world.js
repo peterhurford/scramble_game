@@ -12,7 +12,7 @@ const TUNE = {
   cnStart: -6, cnFog: 2,
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: [6.2, 12.2], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
-  hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58,   // hackers: noticed at 1, weights gone at 2
+  hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
   secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
   labs0: 45, labRace: -7, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
@@ -142,7 +142,7 @@ function play(s, r0) {
     else add('info', 'What Beijing would accept', '"' + ['Xi told the Politburo he would accept inspectors in China if that is what a pause takes.', 'Xi told the Politburo he would accept inspectors in China only if America gives something up in return.', 'Xi told the Politburo he will never accept foreign inspectors in China.'][s.floor] + ' On Taiwan, he said ' + (s.bluff ? 'he would not fire on American ships.' : 'he would fire on American ships that tried to break a blockade.') + '"', 'CIA source close to the Politburo');
   }
   if (r.deter) { s.deter++; s.trust -= 5; }
-  s.hack = Math.max(0, s.hack - T.hunt * r.hunt);
+  s.hack = Math.max(0, s.hack - T.hunt * Math.max(r.hunt, Math.min(1, 2 * secure)));   // engineers rebuilding security also drive intruders out
   if (r.sabotage) {
     s.sabotaged = true; s.cn -= T.sabotage; s.cnShown -= T.sabotage; s.tension += 30; s.trust -= 20; s.offer = null; s.us -= T.revenge;
     add('bad', 'Beijing answers in kind', '"The fire at the Ohio data center was not an accident. We have lost months of training."', 'FBI briefing to the President');
@@ -221,6 +221,7 @@ function play(s, r0) {
   // theft: Beijing's hackers work on any lead worth stealing; security slows them and never stops them
   if ((!s.deal || s.hidden) && s.us - s.cn >= T.hackLead) {
     s.hack += s.hackRate * T.secMul[lvl] * (1 + T.hackCtl * Math.max(0, s.controls));
+    if (!s.seenHack) s.hack = Math.min(s.hack, T.hackWarn);   // no theft the room was not warned of a turn ahead, with room left to stop it
     if (s.hack >= 2) {
       const gain = Math.max(0, s.us - 1 - s.cn); s.cn += gain; s.thefts++; s.hack = lvl >= 3 ? 0 : 0.6; s.seenHack = true;
       if (s.deal) add('bad', 'A break-in at the lab', '"Someone had access to the model weights for eleven hours. We cannot tell what was taken."', 'Security incident report, a frontier lab');
@@ -329,7 +330,7 @@ function brief(s) {
   L.push('TRAINING THIS TURN: train 1.0 moves the US frontier ' + f(full) + ' months' + (s.deal ? ' (under the pause any training is secret and at half that; inspectors, if the deal has them, find it and the pause ends)' : '') + '. ' +
     (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless the crossing is contained; then it is a near miss that proves the danger to everyone. Containment is judged on the whole: a score of 0.8 x (1 - train) + 0.2 x (test / 0.4, at most 1) + ' + f2(0.075 * narrowed(s)) + ' for how well the point is located so far (0.075 more if a test narrows the range this turn) + ' + f2(0.15 * (obey(s) ? 1 : s.labs / 100)) + ' for the labs\' good will + your care (-0.1 to 0.1), against a hidden bar of ' + f2(bar(s)) + ' in this world. train above ' + T.flatOut + ' is never contained. ' : 'Nothing crosses the danger point this turn. ') +
     'The range has been narrowed ' + (s.hi - s.lo <= 1.6 ? 'twice' : s.hi - s.lo <= 3.1 ? 'once' : 'not at all') + '; test 0.3 or more narrows it again.');
-  L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). hunt 1.0 takes ' + T.hunt + ' off their progress this turn. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
+  L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). Driving them out takes up to ' + T.hunt + ' off their progress this turn: in full at hunt 1.0 or at secure 0.5, whichever is larger, in proportion below that. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
   const n = k => ['none', 'one', 'two', 'all three'][k];
   L.push('HIDDEN, BEIJING: a pause can be on any terms America writes. Beijing counts three concessions: America lifts the chip controls (chips), no inspectors (inspectors false), and China stops only once it has caught up (parity). ' +
     'To sign today it needs ' + n(want(s)) + ' of them' + (s.floor === 2 ? ', and one more if the deal has inspectors, which this Beijing deeply resists' : '') + '. leverage (-2 to 2) is your judgment of everything else and comes straight off that count: each +1 is worth one concession, each -1 costs one. Nothing is a veto. ' +
