@@ -16,8 +16,12 @@ const RULING = {
   controls: { type: 'integer', enum: [-1, 0, 1], description: '+1 tightens chip controls a level, -1 eases them a level, 0 leaves them.' },
   backdown: bool('During a blockade only: America lifts its chip controls to end it.'),
   run: bool('During a blockade only: the Navy escorts a convoy through.'),
-  propose: { type: 'integer', enum: [-1, 0, 1, 2, 3], description: 'The pause terms America puts to Beijing this turn, as the nearest level: 0 verified pause, 1 pause for chips, 2 pause on trust, 3 pause at parity. -1 if it proposes none.' },
-  leverage: { type: 'integer', enum: [-1, 0, 1], description: 'Whether what the room offered or threatened this turn, beyond the dials, would move Beijing one level. +1 only for a real concession or a credible threat that costs America something; -1 for an insult or an empty threat. Usually 0.' },
+  propose: bool('America puts a pause to Beijing this turn, on the terms in the next four fields.'),
+  inspectors: bool('The proposed pause has inspectors in both countries.'),
+  chips: bool('Under the proposed pause America lifts its chip controls.'),
+  parity: bool('Under the proposed pause America stops now and China stops only once it has caught up.'),
+  extra: { type: 'string', description: 'Any other term the room wrote into the proposed pause, as a short plain phrase the screen can show: "A joint safety lab in Singapore". Empty if none.' },
+  leverage: { type: 'integer', enum: [-1, 0, 1], description: 'Whether what the room offered or threatened this turn, beyond chips, inspectors and parity, is worth one concession to Beijing. +1 only for a real extra term or a credible threat that costs America something; -1 for an insult or an empty threat. Usually 0.' },
   intel: bool('A serious effort to place a source inside Beijing\'s program.'),
   deter: bool('A show of force around Taiwan.'),
   hunt: num('0 to 1. How much of the NSA and Cyber Command is put on driving Beijing\'s hackers out of the labs this turn.'),
@@ -53,7 +57,7 @@ How to rule.
 - Reward real commitments, not clever wording. An order to "make the weights unstealable" or "get Beijing to agree" is a wish: rule the modest thing that could actually be done this turn and have the reply say so.
 - Do not punish the room either. A sound order gets its full effect on the dials.
 - Use the extra nudges (tension, trust, labs, cn, us, hack) only for things the named dials cannot express, and keep them small.
-- Beijing bargains. If the room proposes terms better for America than Beijing would sign today, Beijing refuses and says what it would need instead, without naming levels. If the terms are ones it would sign, it says it can sign.
+- Beijing bargains. A pause can be on any terms the room writes; record them faithfully, including terms the room invented. If Beijing would not sign them today it refuses and says what it would need instead, in its own words. If it would sign, it says so. An invented term moves Beijing only if it costs America something real, and then you charge that cost.
 - Your replies must agree with the arithmetic you are given. Do not promise safety the ledger will not deliver, and do not reveal hidden numbers. A character may hint at what they would plausibly know, with their own doubt in it.
 
 How to write the replies.
