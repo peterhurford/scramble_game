@@ -1,4 +1,4 @@
-// The Scramble: Room Edition, free response. Six turns; each table (Executive Office of the President, State and Commerce, Pentagon/NSA/IC) writes what it does in a sentence.
+// The Scramble: Room Edition, free response. Six turns; each table (Executive Office of the President, State and Commerce, Department of War/Pentagon/NSA/IC) writes what it does in a sentence.
 // A game master (room/gm.js) reads the orders, answers in character and returns a ruling: numbers on the dials below.
 // This file is the ledger. It clamps every ruling, makes effort finite (training + security + testing share one pool of engineers),
 // and owns what follows: frontier movement, theft, the danger point, the Strait, whether a pause holds.
@@ -21,7 +21,7 @@ const TUNE = {
   nudge: { tension: 15, trust: 15, labs: 20, cn: [-1, 0.5], us: [-1, 0], hack: [-0.7, 0.5] },   // how far a ruling may move a dial the ledger does not otherwise own
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
-const TABLES = { wh: 'Executive Office of the President', state: 'State and Commerce Departments', pent: 'Pentagon/NSA/IC' };
+const TABLES = { wh: 'Executive Office of the President', state: 'State and Commerce Departments', pent: 'Department of War/Pentagon/NSA/IC' };
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
 // extra is anything else State wrote into the deal; the game master weighs it through leverage.
