@@ -28,6 +28,8 @@ function team(s, o) {
     doc: s.turn < o.squeeze ? 'tighten' : 'pay',
     state: has(s, 'state', 'hotline') ? 'hotline' : 'talk', war: has(s, 'war', 'burn') ? 'burn' : calm(s) };
 }
+// A team cabinet answers the turn's crisis.
+const react = (s, p) => { const c = s.crisis; if (c === 'ultimatum') p.doc = 'carrot'; if (c === 'exodus') p.doc = 'pay'; if (c === 'defector') p.dni = 'beijing'; if (c === 'hardliners') p.state = 'talk'; if (c === 'zeroday' && has(s, 'dni', 'lock')) p.dni = 'lock'; return p; };
 const BOTS = {
   random: (s, i) => { const p = {}; for (const seat of R.seats(s)) { const o = seat.opts.filter(x => !x.off); p[seat.id] = o[Math.floor(R.hash01(i, s.turn, seat.id) * o.length)].id; } return p; },
   racer: s => ({ vp: 'race', dni: 'lock', doc: 'tighten', state: 'allies', war: 'deter' }),
@@ -36,10 +38,10 @@ const BOTS = {
   hawk: s => ({ vp: has(s, 'vp', 'national') ? 'national' : pace(s, 0), dni: 'lock', doc: s.controls < 3 ? 'tighten' : 'pay', state: 'allies', war: has(s, 'war', 'burn') ? 'burn' : 'deter' }),
   saboteur: s => ({ vp: pace(s, 0), dni: 'lock', doc: s.controls < 3 ? 'tighten' : 'pay', state: 'allies', war: s.turn % 2 ? 'sabotage' : 'deter' }),
   gambler: s => ({ vp: pace(s, 0.5), dni: 'labs', doc: 'pay', state: 'allies', war: 'deter' }),
-  team: s => team(s, { sec: 1, risk: 0.2, squeeze: 0 }),
-  teamVault: s => team(s, { sec: 2, risk: 0.2, squeeze: 0 }),
-  teamLever: s => team(s, { sec: 1, risk: 0.2, squeeze: 1 }),
-  teamTrust: s => team(s, { sec: 1, risk: 0.2, squeeze: 0, verify: false }),
+  team: s => react(s, team(s, { sec: 1, risk: 0.2, squeeze: 0 })),
+  teamVault: s => react(s, team(s, { sec: 2, risk: 0.2, squeeze: 0 })),
+  teamLever: s => react(s, team(s, { sec: 1, risk: 0.2, squeeze: 1 })),
+  teamTrust: s => react(s, team(s, { sec: 1, risk: 0.2, squeeze: 0, verify: false })),
   split: s => ({ vp: s.deal ? 'hold' : pace(s, 0.5), dni: 'labs', doc: 'tighten', state: s.deal ? 'inspect' : s.turn % 2 ? 'summit' : 'talk', war: 'deter' }),   // each seat does its own thing
 };
 

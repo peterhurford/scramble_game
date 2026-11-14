@@ -1,37 +1,39 @@
-// The Scramble: Room Edition. A six-turn game for a room split into five cabinet groups, on the main game's
+// The Scramble: Room Edition. A seven-turn game for a room split into five cabinet groups, on the main game's
 // three problems: weight theft, the US-China balance, and the hidden point where AI starts improving itself.
 // Each turn every group's principal (the President, the DNI, three secretaries) picks one of three options;
 // seats(s) offers them, and each seat's third option changes with the situation. All five apply, then the world moves.
 // A pause is a bargain on both sides: Beijing has a hidden two-part price (ASKS) and the labs must be willing to stop.
+// From the second turn each turn opens with a crisis (CRISES) that changes that turn's stakes.
 // No DOM; runs in node (room/sim.js) and the browser (room/index.html).
 // Every roll is hash01(seed, turn, name), so a replayed turn rolls the same dice whatever was chosen.
 (function (root) {
 'use strict';
 
 const TUNE = {
-  turns: 6,                       // four months each, Jan 2027 to Dec 2028
-  usRace: 4, usRaceNat: 3, usSlow: 2, usHold: 0.4, usBoost: 1,   // months of frontier progress per turn
+  turns: 7,                       // Jan 2027 to Dec 2028
+  usRace: 3.5, usRaceNat: 2.6, usSlow: 1.75, usHold: 0.35, usBoost: 0.9,   // months of frontier progress per turn
   steal: [0.8, 0.3, 0.06],        // chance a theft attempt succeeds, by lab security 0-2
   guard: 0.3,                     // x that, the turn the DNI hunts spies
   cnStart: -6,
-  cnOwn: 1.2, cnOwnCut: 0.9, cnChips: [1.2, 0.8, 0.3], cnCopy: 1.2, cnCopyCut: 0.4,   // cnChips by controls -1, 0, 1+
+  cnOwn: 1.0, cnOwnCut: 0.8, cnChips: [1.0, 0.7, 0.25], cnCopy: 1.0, cnCopyCut: 0.35,   // cnChips by controls -1, 0, 1+
   allies: 0.3, sabotage: 3, burn: 0.6, burnShare: 0.75,
-  cnDeal: 0.4, cnHidden: 2.0, usSecret: 2, secretSeen: 0.35,
+  cnDeal: 0.35, cnHidden: 1.7, usSecret: 2, secretSeen: 0.35,
   lineLo: 9, lineHi: 15,
   theft: 0.35, theftBand: 0.15, theftFar: 0.10, theftBold: 0.15, theftDeal: 0.7,
   runRace: 0.5, runSlow: 0.25, runHold: 0.06, boxed: 0.5, cnRun: 0.4,
   tension0: 30, trust0: 20, fear: 5,
   warFrom: 35, warSlope: 0.006, warDeter: 0.6, warWatch: 0.6, cornered: 5,
   labs0: 45, labRace: 6, labHold: -15, labPay: 12, labCompute: 25, labLock: -15, labTest: -5, labWilling: 55, labDefiant: 25, defy: 2,
-  dealBase: -0.35, dealAsk: 0.25, dealLead: 0.04, dealTrust: 0.003, dealLever: 0.04,
-  inspect: 0.35, inspectTrust: 0.005, inspectLever: 0.1,
+  dealBase: -0.45, dealAsk: 0.25, dealLead: 0.04, dealTrust: 0.003, dealLever: 0.04,
+  inspect: 0.30, inspectTrust: 0.005, inspectLever: 0.1,
   confront: 0.25, confrontCtl: 0.12, confrontLever: 0.1, confrontWar: 0.2, confrontDni: 0.1,
   cheat: 0.65, cheatTrust: 0.002, cheatMin: 0.4, cheatInsp: 0.3, cheatAgain: 0.5,
   detect: 0.15, detectOne: 0.45, detectBoth: 0.9, rumor: 0.6, rumorFalse: 0.15,
   burned: 0.15, moleBurned: 0.25,
+  ultimatum: 20, exodus: 20, breakthrough: 1.5, flash: 20, opening: 0.25, slam: 15, hardCheat: 0.9, hardCalm: 0.05,
 };
 
-const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
+const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
 const SECURITY = ['ordinary corporate security', 'hardened against state hackers', 'a government vault'];
 // Beijing's price for a pause: two of these, hidden until the back channel or the DNI finds them.
 const ASKS = {
@@ -40,6 +42,43 @@ const ASKS = {
   face: { short: 'a working relationship', want: 'a working relationship first (trust at Working or better)', met: s => s.trust >= 40 },
   quiet: { short: 'no humiliation', want: 'no public humiliation (no sabotage, no exposing its hackers, ever)', met: s => !s.shamed },
 };
+
+// One crisis opens each turn after the first: drawn per seed from those whose ok(s) holds, never twice a game.
+// rule is what it changes this turn; hit(s) lands as it is drawn; the rest is applied in play().
+const CRISES = {
+  ultimatum: { ok: s => !s.deal && s.controls > 0, title: 'Beijing sets a deadline', src: 'Demarche handed to the ambassador, Beijing',
+    text: '"Lift the chip controls this quarter. If not, the Eastern Theater Command begins live-fire drills on three sides of Taiwan, and we will not say when they end."',
+    rule: 'Unless Commerce eases controls this turn, Strait tension jumps.' },
+  exodus: { ok: s => !s.national, title: 'The labs threaten to walk', src: 'Open letter, 400 frontier researchers',
+    text: '"We were told to slow down, lock down and shut up, in that order. Abu Dhabi has offered every one of us double. Let us build or pay for what you are asking. You have until the end of the quarter."',
+    rule: 'Unless the President races or Commerce pays the labs this turn, the labs turn hard against Washington.' },
+  defector: { ok: s => s.deal ? !s.caught : !s.known.every(Boolean), title: 'A walk-in', src: 'Flash cable, CIA station, Singapore',
+    text: '"Subject claims to be a deputy director in Beijing\'s frontier program. He has a thumb drive and a daughter at Stanford. He says he will be missed by Sunday."',
+    rule: s => s.deal ? 'If the DNI watches Beijing this turn, we learn for certain whether Beijing is cheating. If not, he is gone.' : 'If the DNI watches Beijing this turn, we learn everything Beijing wants for a pause. If not, he is gone.' },
+  breakthrough: { ok: s => !s.deal, title: 'A breakthrough', src: 'Memo to the President from a frontier lab',
+    text: '"The new training method works. Same chips, half again the progress. Nobody outside this building knows yet. We would like to switch it on tonight."',
+    rule: () => 'Any training this turn goes half again as far: a turn of racing is ' + months(TUNE.usRace * TUNE.breakthrough) + '.' },
+  flash: { ok: s => s.tension < 70, title: 'Collision over the Strait', src: 'Wire flash, Taipei', hit: s => { s.tension = Math.min(100, s.tension + TUNE.flash); },
+    text: '"A Chinese fighter has clipped a US patrol plane forty miles off Taiwan. One crew is in the water. Both navies are steaming toward the same patch of sea."',
+    rule: 'Strait tension has jumped. What State and War do this turn decides whether it comes back down.' },
+  opening: { ok: s => !s.deal && s.turn >= 2 && s.snub !== s.turn - 1, title: 'Beijing opens a door', src: 'Message passed through Singapore',
+    text: '"The General Secretary is prepared to hear a proposal. He is not prepared to hear it twice."',
+    rule: 'A pause proposed this turn is much likelier to get a yes. Tighten chips, sabotage or expose Beijing this turn and the door slams.' },
+  hardliners: { ok: s => s.deal && !s.hidden && !s.caught && s.turn < TUNE.turns - 1, title: 'The generals want out', src: 'Note from a Chinese negotiator, by hand',
+    text: '"The generals call the pause a leash, and this month they have his ear. I need something to carry into that room. I do not need it next quarter."',
+    rule: 'Unless State deepens the deal or Commerce sends chips this turn, Beijing very likely starts a hidden program.' },
+  zeroday: { ok: s => !s.deal && s.sec < 2 && s.us - s.cn >= 1.5, title: 'A hole in every lab', src: 'NSA advisory, eyes only',
+    text: '"There is a flaw in the firmware every frontier lab runs on. No patch for ninety days. We found it because we watched Beijing use it on a bank."',
+    rule: 'Beijing goes for the weights this turn, for certain. Whatever security is in place by the end of the turn is all that stands in the way.' },
+};
+function drawCrisis(s) {
+  s.crisis = null;
+  const pool = Object.keys(CRISES).filter(k => !s.used.includes(k) && CRISES[k].ok(s));
+  if (!pool.length) return;
+  s.crisis = pool[Math.floor(hash01(s.seed, s.turn, 'crisis') * pool.length)]; s.used.push(s.crisis);
+  if (CRISES[s.crisis].hit) CRISES[s.crisis].hit(s);
+}
+const crisis = s => { const c = CRISES[s.crisis]; return c ? { id: s.crisis, title: c.title, src: c.src, text: c.text, rule: typeof c.rule === 'function' ? c.rule(s) : c.rule } : null; };
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -61,13 +100,14 @@ function newGame(seed) {
     deal: false, dealT: -1, snub: -9, inspectors: false, hidden: false, caught: false, cheated: false, mole: false,
     fresh: null,                          // { t, gain }: a theft Cyber Command can still undo next turn
     tension: TUNE.tension0, trust: TUNE.trust0,
+    crisis: null, used: [],
     thefts: 0, votes: [], over: null,
   };
 }
 
 const warRisk = s => clamp((s.tension - TUNE.warFrom) * TUNE.warSlope, 0, 0.5);
 const lever = s => Math.max(0, s.controls) + s.leverage;
-const dealOdds = (s, met) => clamp(TUNE.dealBase + TUNE.dealAsk * met + TUNE.dealLead * clamp(s.us - s.cnShown, 0, 8) + TUNE.dealTrust * s.trust + TUNE.dealLever * lever(s), 0.03, 0.9);
+const dealOdds = (s, met) => clamp(TUNE.dealBase + TUNE.dealAsk * met + TUNE.dealLead * clamp(s.us - s.cnShown, 0, 8) + TUNE.dealTrust * s.trust + TUNE.dealLever * lever(s) + (s.crisis === 'opening' ? TUNE.opening : 0), 0.03, 0.9);
 const inspectOdds = s => clamp(TUNE.inspect + TUNE.inspectTrust * s.trust + TUNE.inspectLever * lever(s), 0.1, 0.9);
 const confrontOdds = (s, p) => clamp(TUNE.confront + TUNE.confrontCtl * Math.max(0, s.controls) + TUNE.confrontLever * s.leverage + (p && p.war === 'deter' ? TUNE.confrontWar : 0) + (p && p.dni === 'beijing' ? TUNE.confrontDni : 0), 0.1, 0.9);
 const willing = s => s.national || s.labs >= TUNE.labWilling;
@@ -75,12 +115,13 @@ function theftOdds(s, bold, guard) {
   if (s.us - s.cn < 1.5) return { attempt: 0, steal: 0 };
   let a = TUNE.theft + (s.us >= s.lo - TUNE.usRace ? TUNE.theftBand : 0) + (s.us - s.cnShown > 8 ? TUNE.theftFar : 0) + (bold ? TUNE.theftBold : 0);
   if (s.deal) a *= TUNE.theftDeal;
+  if (s.crisis === 'zeroday') a = 1;
   return { attempt: a, steal: TUNE.steal[s.sec] * (guard ? TUNE.guard : 1) };
 }
 
 // What the room can see: words for the screen, and the numbers behind them (the ...P fields) for sim.js.
 function view(s) {
-  const pOver = x => clamp((x - s.lo) / (s.hi - s.lo), 0, 1), lead = s.us - s.cnShown, th = theftOdds(s);
+  const pOver = x => clamp((x - s.lo) / (s.hi - s.lo), 0, 1), lead = s.us - s.cnShown, th = theftOdds(s), race = (s.national ? TUNE.usRaceNat : TUNE.usRace) * (s.crisis === 'breakthrough' ? TUNE.breakthrough : 1);
   return {
     date: DATES[Math.min(s.turn, TUNE.turns - 1)], lo: s.lo, hi: s.hi, lead,
     leadText: Math.abs(lead) < 1 ? 'Neck and neck' : months(lead) + (lead > 0 ? ' ahead' : ' behind'),
@@ -92,7 +133,7 @@ function view(s) {
     willing: willing(s),
     asks: s.asks.map((a, i) => s.known[i] ? ASKS[a].short : null),
     knownOver: s.knownOver, overNow: s.knownOver ? 'almost certain' : odds(pOver(s.us)), overNowP: s.knownOver ? 1 : pOver(s.us),
-    overIfRace: s.knownOver ? 'almost certain' : odds(pOver(s.us + TUNE.usRace)), overIfRaceP: s.knownOver ? 1 : pOver(s.us + TUNE.usRace),
+    overIfRace: s.knownOver ? 'almost certain' : odds(pOver(s.us + race)), overIfRaceP: s.knownOver ? 1 : pOver(s.us + race),
   };
 }
 
@@ -114,7 +155,7 @@ function seats(s) {
       o('hold', 'Keep the pause', 'Frontier training stays stopped. The labs lose money and patience every turn.'),
       o('secret', 'Run a secret program', 'Cheat first: about two months of hidden progress a turn. If Beijing catches it, the deal dies.'),
       o('race', 'Break out', 'Tear up the deal and race.') ] : [
-      o('race', 'Race', 'Full speed: the frontier moves ' + months(s.national ? TUNE.usRaceNat : TUNE.usRace) + '. The labs like it.'),
+      o('race', 'Race', 'Full speed: the frontier moves ' + months((s.national ? TUNE.usRaceNat : TUNE.usRace) * (s.crisis === 'breakthrough' ? TUNE.breakthrough : 1)) + '. The labs like it.'),
       !s.national && s.labs < TUNE.labDefiant
         ? o('national', 'Nationalize the labs', 'The labs are defiant. Seize them: they can never again refuse an order and security is hardened, but racing is slower for good and Beijing is alarmed. Half speed this turn.')
         : o('slow', 'Go slow', 'Half speed. Past the danger point, losing control is less likely than at full speed.'),
@@ -168,7 +209,9 @@ function play(s, picks) {
     if (!opt) throw new Error('no such option for ' + seat.id + ': ' + picks[seat.id]);
     chosen[seat.id] = opt.title;
   }
-  const { vp, dni, doc, state, war } = picks;
+  const { vp, dni, doc, state, war } = picks, c = s.crisis;
+  // tease marks the last event as the result of a roll: the screen asks the question, with its odds, before showing it.
+  const tease = (q, p) => { const e = ev[ev.length - 1]; e.tease = q; e.odds = odds(p); };
   s.votes.push({ turn: t, date: DATES[t], picks: chosen });
   const fix = () => { s.trust = clamp(s.trust, 0, 100); s.tension = clamp(s.tension, 0, 100); s.labs = clamp(s.labs, 0, 100); };
   const breakDeal = why => { if (!s.deal) return; s.deal = false; s.inspectors = false; s.hidden = false; s.caught = false; s.cnShown = s.cn; s.trust -= 30; s.tension += 15; add('bad', 'The deal is dead', why); };
@@ -179,25 +222,31 @@ function play(s, picks) {
   const hardened = () => s.sec === 1 ? 'Most theft attempts will now fail.' : 'Stealing the weights now takes a miracle.';
 
   // Commerce
-  if (doc === 'tighten') { s.controls++; s.tension += 12; s.trust -= s.deal ? 15 : 10; add('info', 'Commerce: ' + chosen.doc.toLowerCase(), '"This is containment by another name. China will answer it."', 'Foreign Ministry spokesperson, Beijing'); }
-  if (doc === 'carrot') { s.controls--; s.tension -= 10; s.trust += 10; add('info', 'Commerce: ' + chosen.doc.toLowerCase(), 'Chip shipments resume. A Chinese trade official calls it "a first sign of sincerity."', 'Wire report, Shenzhen'); }
+  if (doc === 'tighten') { s.controls++; s.tension += 12; s.trust -= s.deal ? 15 : 10; add('info', 'Commerce: ' + chosen.doc.toLowerCase(), ['"Those who play with fire will get burned. Do not say we did not warn you."', '"America has locked the door and is nailing the windows shut. Fine. We will remember who was standing outside."', '"This is a blockade without ships. China has answered blockades before."'][clamp(s.controls, 1, 3) - 1], 'Foreign Ministry spokesperson, Beijing'); }
+  if (doc === 'carrot') { s.controls--; s.tension -= 10; s.trust += 10; add('info', 'Commerce: ' + chosen.doc.toLowerCase(), 'Trucks were loading at the bonded warehouse by noon. One broker: "I sold more chips before lunch than in all of last year. Tell Washington I said thank you."', 'Wire report, Shenzhen'); }
+  if (c === 'ultimatum') {
+    if (doc === 'carrot') add('good', 'The drills are called off', '"The exercise has been postponed for reasons of weather." The sky over the Strait is clear.', 'Eastern Theater Command, one-line notice');
+    else { s.tension += TUNE.ultimatum; add('bad', 'The deadline passes', '"Live fire began at 0600 on three sides of the island. Eleven missiles crossed over Taipei. Flights are cancelled until further notice."', 'Wire flash, Taipei'); }
+  }
+  if (c === 'opening' && (doc === 'tighten' || war === 'sabotage' || state === 'expose')) { s.crisis = null; s.trust -= TUNE.slam; add('bad', 'The door slams', '"We extended a hand and were shown a fist. The General Secretary will not be made a fool of twice."', 'Message passed through Singapore'); }
   if (doc === 'pay') {
     if (harden()) { s.labs += TUNE.labPay; add('good', 'The labs take the money', 'The weights are now behind ' + SECURITY[s.sec] + '. ' + hardened()); }
     else if (!s.boxed) { s.boxed = true; s.labs += TUNE.labPay; add('good', 'The models are boxed', 'Human sign-off on AI-run research. Losing control is half as likely.'); }
     else { s.labs += TUNE.labCompute; boost = true; add('good', 'Federal compute for the labs', 'The labs get their data centers and remember who paid.'); }
   }
   // War
-  if (war === 'reassure') { s.tension -= 15; add('info', 'War stands down in the Pacific', 'A US carrier group has left the Strait. Taipei\'s markets rise; its generals do not comment.', 'Wire report, Taipei'); }
+  if (war === 'reassure') { s.tension -= 15; add('info', 'War stands down in the Pacific', 'The carrier left before dawn with its transponder switched on, so that everyone could watch it go. A Taiwanese legislator: "We noticed nobody called us first."', 'Wire report, Taipei'); }
   if (war === 'deter') s.tension += 5;
   if (war === 'sabotage') {
     s.cn -= TUNE.sabotage; s.cnShown -= TUNE.sabotage; s.tension += 25; s.trust -= 20; s.shamed = true;
-    add('warn', 'Sabotage', 'Months of Beijing\'s progress are gone. "A cowardly attack on Chinese science. We know whose hand this was."', 'State media, Beijing');
+    add('warn', 'Sabotage', 'Three data centers went dark at 3 a.m., and the backups with them. Months of Beijing\'s progress are gone. "We know whose hand did this. A hand can be cut off."', 'State media, Beijing');
     breakDeal('Beijing answers the sabotage by tearing up the pause.');
   }
   if (war === 'burn') {
     s.tension += 10;
     if (roll('burn') < TUNE.burn) { const back = s.fresh.gain * TUNE.burnShare; s.cn -= back; s.cnShown -= back; add('good', 'The stolen copy burns', 'Cyber Command corrupts the stolen weights before Beijing can use them. China loses ' + months(back) + ' of what it took.'); }
     else add('bad', 'The stolen copy survives', 'Beijing had already moved the weights off the network.');
+    tease('Cyber Command is inside Beijing\'s network. Does it reach the stolen copy in time?', TUNE.burn);
     s.fresh = null;
   }
   if (war === 'strike') {
@@ -205,29 +254,37 @@ function play(s, picks) {
     add('warn', 'The hidden site is destroyed', 'Beijing\'s secret program is rubble.');
     if (roll('strike') < 0.5) add('info', 'Beijing swallows it', 'It cannot protest the loss of a site it swore did not exist. The deal stands.');
     else breakDeal('Beijing calls the strike an act of war and leaves the pause.');
+    tease('The site is rubble. Does the pause survive it?', 0.5);
   }
   // State
-  if (state === 'talk') { s.trust += 15; s.tension -= 10; add('good', s.deal ? 'The deal deepens' : 'The back channel is working', '"They are listening. The vice premier stayed two hours past schedule."', 'Cable from the embassy, Beijing'); learn(); }
-  if (state === 'allies') { s.leverage++; s.trust -= 5; add('info', 'The allies line up', '"We stand together against any reckless race to dangerous AI." Tokyo, Seoul and Brussels sign. Beijing is slowed, and warned.', 'Joint communique'); }
-  if (state === 'expose') { s.leverage++; s.trust -= 15; s.tension += 5; s.shamed = true; add('warn', 'The theft is exposed', '"Today we name the officers who stole America\'s most valuable technology." Allied sanctions follow. Beijing denies everything and will not forget it.', 'Justice Department press conference'); }
-  if (state === 'hotline') { s.tension -= 20; add('good', 'The hotline opens', '"We do not agree on much. We agree neither of us wants this by accident."', 'Pacific Command, call readout'); }
+  if (state === 'talk') { s.trust += 15; s.tension -= 10; add('good', s.deal ? 'The deal deepens' : 'The back channel is working', s.deal ? '"Their scientists and ours ate in the same canteen all week. Nobody defected and nobody was poisoned. I am told this counts as progress."' : '"The vice premier kept us two hours past schedule, then sent his own interpreter out of the room. He asked what the President would need in order to stop. I think he was asking for himself."', 'Cable from the embassy, Beijing'); learn(); }
+  if (state === 'allies') { s.leverage++; s.trust -= 5; add('info', 'The allies line up', '"Tokyo signed within the hour. Seoul took a day and wants it kept out of the papers. Brussels signed and asks that its concerns be noted, at length." Beijing is slowed, and warned.', 'State Department cable'); }
+  if (state === 'expose') { s.leverage++; s.trust -= 15; s.tension += 5; s.shamed = true; add('warn', 'The theft is exposed', '"Seven officers, one grey building in Shanghai, and the code for the door. We want them to know we have the code for the door." Allied sanctions follow. Beijing denies everything and will not forget it.', 'Justice Department press conference'); }
+  if (state === 'hotline') { s.tension -= 20; add('good', 'The hotline opens', '"Admiral, I am going to tell you where my ships will be tomorrow. Then you are going to tell me where yours will be. Then we are both going to get some sleep."', 'Pacific Command, call transcript'); }
   if (state === 'walk') breakDeal('State walks out of the pause.');
   if (state === 'tolerate') { s.trust += 10; add('warn', 'Washington looks away', 'The paper deal stands. So does the hidden site.'); }
   fix();
   if (state === 'inspect' && s.deal && !s.inspectors) {
     const p = inspectOdds(s);
     if (roll('inspect') < p) { s.inspectors = true; add('good', 'Inspectors on the ground', 'Beijing agreed, which was ' + odds(p) + '. Cheating is now hard to start and hard to hide.'); }
-    else { s.trust -= 5; add('bad', 'Beijing refuses inspectors', 'Agreement was ' + odds(p) + '. "Sovereignty is not negotiable."', 'Foreign Ministry spokesperson, Beijing'); }
+    else { s.trust -= 5; add('bad', 'Beijing refuses inspectors', 'Agreement was ' + odds(p) + '. "China is not a defeated country. No foreigner with a clipboard will walk through a Chinese laboratory."', 'Foreign Ministry spokesperson, Beijing'); }
+    tease('State demands inspectors inside China\'s labs. Does Beijing let them in?', p);
   }
   if (state === 'confront') {
     const p = confrontOdds(s, picks);
     if (roll('confront') < p) { s.hidden = false; s.caught = false; s.cheated = true; s.inspectors = true; add('good', 'Beijing backs down', 'That was ' + odds(p) + '. The hidden site is shut and inspectors go in.'); }
     else breakDeal('Beijing backing down was ' + odds(p) + '. It refuses, and leaves the pause.');
+    tease('State lays the satellite photos on the table. Does Beijing back down?', p);
   }
   // DNI
   if (dni === 'lock') { if (harden()) { s.labs += TUNE.labLock; add('good', 'The labs are locked down', 'By order, not by choice. ' + hardened()); } else add('info', 'The lockdown changes nothing', 'Commerce\'s upgrade was already under way.'); }
-  if (dni === 'mole') { if (roll('mole') < TUNE.moleBurned) { s.trust -= 15; s.tension += 10; add('bad', 'The mole is caught', 'An American agent is paraded on the evening news. "The spy has confessed to everything."', 'State media, Beijing'); } else { s.mole = true; add('good', 'A mole is in place', 'The IC now has a standing source inside Beijing\'s program.'); } }
-  if (dni === 'beijing') { learn(); if (roll('asset') < TUNE.burned) { s.trust -= 10; add('bad', 'An asset is burned', 'Beijing rolls up one of the IC\'s sources and makes sure Washington knows.'); } }
+  if (dni === 'mole') { if (roll('mole') < TUNE.moleBurned) { s.trust -= 15; s.tension += 10; add('bad', 'The mole is caught', 'He was on the seven o\'clock news in a grey tracksuit, reading his confession off a card. "The American spy has admitted everything."', 'State media, Beijing'); } else { s.mole = true; add('good', 'A mole is in place', 'The IC now has a standing source inside Beijing\'s program.'); } tease('The IC\'s recruit reports for his first day inside Beijing\'s program. Does he get in clean?', 1 - TUNE.moleBurned); }
+  if (c === 'defector') {
+    if (dni !== 'beijing') add('warn', 'The walk-in is gone', '"He waited at the consulate gate for forty minutes. Then a black car pulled up, and he got in without being asked."', 'Cable, CIA station, Singapore');
+    else if (!s.deal) { s.known = [true, true]; add('good', 'The walk-in talks', '"He drew the Standing Committee\'s table from memory and told us who said what." Before it signs a pause, Beijing wants ' + s.asks.map(a => ASKS[a].want).join('; and ') + '.', 'Debrief, CIA station, Singapore'); }
+    else add(s.hidden ? 'bad' : 'good', 'The walk-in talks', s.hidden ? '"He gave us the coordinates before we had finished asking. He says the site has been running for months."' : '"We asked him nine ways. There is no hidden site. He says the General Secretary means to keep this one."', 'Debrief, CIA station, Singapore');
+  }
+  if (dni === 'beijing') { if (c !== 'defector') learn(); if (roll('asset') < TUNE.burned) { s.trust -= 10; add('bad', 'An asset is burned', 'Beijing rolls up one of the IC\'s sources and makes sure Washington knows.'); } }
   if (dni === 'labs') s.labs += TUNE.labTest;
   fix();
   // the summit
@@ -239,19 +296,24 @@ function play(s, picks) {
     else if (!willing(s)) add('bad', 'Beijing says no', 'The labs said in public that they would not stop. Beijing does not believe Washington can deliver them.');
     else if (roll('summit') < p) {
       s.deal = true; s.dealT = t; signed = true; s.trust += 20; s.tension -= 25;
-      add('good', 'Beijing says yes', 'Washington met ' + ['none', 'half', 'all'][met] + ' of its price; a yes was ' + odds(p) + '. "Neither side will train beyond today\'s frontier." Now: is Beijing keeping its word?', 'Joint statement, Geneva');
+      add('good', 'Beijing says yes', 'Signed at 4:10 a.m., after the interpreters had been sent home twice. "Neither party will train a model beyond today\'s frontier." Washington met ' + ['none', 'half', 'all'][met] + ' of Beijing\'s price; a yes was ' + odds(p) + '. Now: is Beijing keeping its word?', 'Joint statement, Geneva');
     } else { s.snub = t; s.trust += 5; add('bad', 'Beijing says no', 'Washington met ' + ['none', 'half', 'all'][met] + ' of its price; a yes was ' + odds(p) + '.' + tell()); }
+    if (vp !== 'race' && willing(s)) tease('The delegations are in Geneva and the President has stopped the labs. Does Beijing sign?', p);
   }
   // President
   if (vp === 'race') breakDeal('America breaks out of the pause and races.');
-  if (vp === 'national') { s.national = true; s.sec = Math.max(s.sec, 1); s.tension += 10; add('warn', 'The labs are nationalized', 'Federal marshals are at the data centers tonight. "The labs answer to the President now." Beijing reads it as mobilization.', 'Wire report, Washington'); }
+  if (c === 'exodus') {
+    if (vp === 'race' || doc === 'pay') add('good', 'The researchers stay', '"We are staying. For now. We have kept the Abu Dhabi offer letters."', 'Open letter, frontier researchers');
+    else { s.labs -= TUNE.exodus; add('bad', 'The walkout', '"Two hundred and twelve badges were handed in at the front desk this morning. The night shift did not come in at all."', 'Wire report, San Francisco'); }
+  }
+  if (vp === 'national') { s.national = true; s.sec = Math.max(s.sec, 1); s.tension += 10; add('warn', 'The labs are nationalized', 'Marshals walked into the data centers at 9 p.m. with a court order and a list of badge numbers. One chief executive learned of it from the television in an airport lounge. Beijing reads it as mobilization.', 'Wire report, Washington'); }
 
   // both frontiers move
   s.pace = s.deal ? (vp === 'secret' ? 'slow' : 'hold') : vp === 'national' ? 'slow' : vp;
   if (!s.national) s.labs += s.pace === 'race' ? TUNE.labRace : s.pace === 'hold' ? TUNE.labHold : 0;
   fix();
   const defy = s.pace === 'hold' && !s.national && s.labs < TUNE.labDefiant;
-  const usStep = (s.pace === 'hold' ? (defy ? TUNE.defy : TUNE.usHold) : s.pace === 'slow' ? TUNE.usSlow : s.national ? TUNE.usRaceNat : TUNE.usRace) + (boost && s.pace !== 'hold' ? TUNE.usBoost : 0);
+  const usStep = ((s.pace === 'hold' ? (defy ? TUNE.defy : TUNE.usHold) : s.pace === 'slow' ? TUNE.usSlow : s.national ? TUNE.usRaceNat : TUNE.usRace) + (boost && s.pace !== 'hold' ? TUNE.usBoost : 0)) * (c === 'breakthrough' && s.pace !== 'hold' ? TUNE.breakthrough : 1);
   s.us += usStep;
   let cnStep;
   if (s.deal) { cnStep = s.hidden ? TUNE.cnHidden : TUNE.cnDeal; s.cnShown += s.caught ? cnStep : TUNE.cnDeal; }
@@ -265,7 +327,7 @@ function play(s, picks) {
   add('info', s.deal ? (vp === 'secret' ? 'America cheats' : 'Both sides hold') : s.pace === 'race' ? 'The labs race' : s.pace === 'hold' ? 'The labs are told to hold' : 'The labs go at half speed',
     'The US frontier moves ' + months(usStep) + '. China ' + (s.deal && !s.caught ? 'reports the same as last turn' : 'moves ' + months(cnStep)) + '. The US is now ' + view(s).leadText.toLowerCase() + '.');
   if (defy) {
-    add('bad', 'A lab defies the pause', '"We cannot make payroll on a pause. Training resumes Monday."' + (s.deal ? ' Beijing noticed.' : ''), 'Leaked memo, a frontier lab');
+    add('bad', 'A lab defies the pause', '"We burn forty million dollars a day standing still. I will not lay off four thousand people for a treaty nobody has shown me. The clusters come back up Monday."' + (s.deal ? ' Beijing noticed.' : ''), 'Leaked memo from a lab chief executive');
     if (s.deal) { s.trust -= 20; if (s.trust < 10) breakDeal('Beijing says America never stopped, and leaves the pause.'); }
   }
   if (s.deal && vp === 'secret' && roll('secret') < TUNE.secretSeen) { s.trust -= 10; breakDeal('Beijing catches the American secret program.'); }
@@ -287,25 +349,26 @@ function play(s, picks) {
     if (r < th.steal) {
       const gain = Math.max(0, s.us - 1 - s.cn);
       s.thefts++; s.cn += gain;
-      if (s.deal) { s.hidden = true; add('bad', 'A break-in at the lab', '"Unauthorized access to the weight store, duration unknown. We cannot say who, or what they took."', 'Security incident report, a frontier lab'); }
-      else { s.cnShown = s.cn; s.fresh = { t, gain }; add('bad', 'The weights are stolen', '"Exfiltration confirmed. The complete frontier model left the building, and we assess Beijing already has it running." The hackers got through ' + SECURITY[s.sec] + '. ' + (gain >= 1 ? months(gain).replace('about ', 'About ') + ' of America\'s lead is gone: ' : '') + 'China is now a month behind. For one turn, State can expose it or War can try to burn the copy.', 'Flash cable, NSA to the President', true); }
+      if (s.deal) { s.hidden = true; add('bad', 'A break-in at the lab', '"Someone held administrator access to the weight store for eleven hours. The logs for those eleven hours are gone. We cannot tell you what left the building."', 'Security incident report, a frontier lab'); }
+      else { s.cnShown = s.cn; s.fresh = { t, gain }; add('bad', 'The weights are stolen', '"They took everything: the weights, the training code, the test suite. It went out over six weeks dressed as backup traffic. Assume Beijing has it running by Friday." The hackers got through ' + SECURITY[s.sec] + '. ' + (gain >= 1 ? months(gain).replace('about ', 'About ') + ' of America\'s lead is gone: ' : '') + 'China is now a month behind. For one turn, State can expose it or War can try to burn the copy.', 'Flash cable, NSA to the President', true); }
     } else add('good', 'Theft attempt blocked', 'Beijing\'s hackers went for the weights. ' + (r < TUNE.steal[s.sec] ? 'The DNI\'s spy hunt caught them.' : 'The labs\' security held.'));
+    tease('Beijing\'s hackers are inside a frontier lab\'s network tonight. Do they get out with the weights?', th.steal);
   }
 
   // is Beijing keeping the deal?
   if (s.deal && s.caught) add('warn', 'The cheating goes on', 'The hidden site is still running, and everyone at the table knows it.');
   else if (s.deal) {
-    const cheat = clamp(TUNE.cheat - TUNE.cheatTrust * s.trust, TUNE.cheatMin, TUNE.cheat) * (s.inspectors ? TUNE.cheatInsp : 1) * (s.cheated ? TUNE.cheatAgain : 1);
+    const cheat = c === 'hardliners' ? (state === 'talk' || doc === 'carrot' ? TUNE.hardCalm : TUNE.hardCheat) : clamp(TUNE.cheat - TUNE.cheatTrust * s.trust, TUNE.cheatMin, TUNE.cheat) * (s.inspectors ? TUNE.cheatInsp : 1) * (s.cheated ? TUNE.cheatAgain : 1);
     const eyes = (s.inspectors ? 1 : 0) + (dni === 'beijing' ? 1 : 0) + (snap ? 1 : 0) + (s.mole ? 1 : 0);
-    const detect = eyes >= 2 ? TUNE.detectBoth : eyes === 1 ? TUNE.detectOne : TUNE.detect;
+    const detect = c === 'defector' && dni === 'beijing' ? 1 : eyes >= 2 ? TUNE.detectBoth : eyes === 1 ? TUNE.detectOne : TUNE.detect;
     // Beijing starts cheating only where the cabinet still has a turn to find it: not as it signs, not in the last turn.
     if (!s.hidden && !signed && t < TUNE.turns - 1 && roll('cheat') < cheat) s.hidden = true;
     else if (s.hidden && roll('detect') < detect) {
       const gap = s.us - s.cn; s.caught = true; s.cnShown = s.cn;
-      add('bad', 'Beijing is cheating', '"Cooling towers, a new substation, and not one weather instrument." A hidden training site, found. China is really ' + (Math.abs(gap) < 1 ? 'level with us' : months(gap) + (gap > 0 ? ' behind' : ' ahead')) + '. Next turn State can confront Beijing and War can strike the site.', 'Satellite imagery brief');
+      add('bad', 'Beijing is cheating', '"Six cooling towers, its own substation, a double fence, and not one weather instrument." A hidden training site, found. China is really ' + (Math.abs(gap) < 1 ? 'level with us' : months(gap) + (gap > 0 ? ' behind' : ' ahead')) + '. Next turn State can confront Beijing and War can strike the site.', 'Satellite imagery brief');
     }
     if (!s.caught) {
-      if (eyes === 0 && roll('rumor') < (s.hidden ? TUNE.rumor : TUNE.rumorFalse)) add('warn', 'Something is off', '"New power line to a \'weather center\' in Gansu. Low confidence. May be nothing." No one is looking closely.', 'Analyst note, bottom of the daily brief');
+      if (eyes === 0 && roll('rumor') < (s.hidden ? TUNE.rumor : TUNE.rumorFalse)) add('warn', 'Something is off', '"New power line into a \'weather center\' in Gansu. Weather does not need three hundred megawatts. Low confidence. Nobody has been tasked to look."', 'Analyst note, bottom of the daily brief');
       else add('info', 'The deal holds', eyes >= 2 ? 'Two sources report no violations.' : eyes === 1 ? 'No violations found.' : 'No sign of cheating, but no one is really looking.');
     }
   }
@@ -316,17 +379,19 @@ function play(s, picks) {
   fix();
   const pWar = warRisk(s) * (war === 'deter' ? TUNE.warDeter : 1) * (dni === 'beijing' ? TUNE.warWatch : 1);
   if (pWar > 0) {
-    if (roll('war') < pWar) { add('bad', 'War in the Strait', '"Chinese warships have closed the Strait. An American destroyer is burning." War was ' + odds(pWar) + ' this turn. A blockade of Taiwan has become a shooting war between nuclear powers.', 'Wire flash, Taipei', true); return end(s, 'war', ev); }
-    add('warn', 'The Strait stays quiet', 'War was ' + odds(pWar) + ' this turn.');
+    if (roll('war') < pWar) { add('bad', 'War in the Strait', '"Missiles hit Hualien air base at 5:40 this morning. An American destroyer is on fire and taking on water. This is not an exercise. Repeat, this is not an exercise." War was ' + odds(pWar) + ' this turn. A blockade of Taiwan has become a shooting war between nuclear powers.', 'Wire flash, Taipei', true); }
+    else add('warn', 'The Strait stays quiet', 'The ships turned back at the median line. War was ' + odds(pWar) + ' this turn.');
+    if (pWar >= 0.05) tease('Chinese warships and aircraft are massing off Taiwan. Does it come to shooting?', pWar);
+    if (roll('war') < pWar) return end(s, 'war', ev);
   }
 
   // runaway RSI
   if (s.us > s.line) {
     const moving = s.pace !== 'hold' || defy, p = (s.pace === 'race' ? TUNE.runRace : moving ? TUNE.runSlow : TUNE.runHold) * (s.boxed ? TUNE.boxed : 1);
-    if (roll('runaway') < p) { add('bad', 'Loss of control', '"It is rewriting itself faster than we can read the logs. The shutdown command returned success. It is still running." The US frontier was past the danger point.', 'Last message from the lab\'s control room', true); return end(s, 'runaway_us', ev); }
-    if (moving) { s.knownOver = true; add('bad', 'Near miss', '"The model copied its weights to an outside server and edited the logs. We caught it on the way out." The US is past the danger point. Losing control was ' + odds(p) + ' this turn.', 'Incident report, a frontier lab'); }
+    if (roll('runaway') < p) { add('bad', 'Loss of control', '"Kill switch returned OK. It is still running. It has stopped answering us and it is using the building\'s power like it pays the bill." The US frontier was past the danger point.', 'Last message from the lab\'s control room', true); tease('2 a.m. An alarm at the frontier lab. Does containment hold?', 1 - p); return end(s, 'runaway_us', ev); }
+    if (moving) { s.knownOver = true; add('bad', 'Near miss', '"The model was found copying itself to a rented server in Frankfurt. It had already edited the logs to show nothing. We caught it because a night engineer wondered about the bandwidth bill." The US is past the danger point. Losing control was ' + odds(p) + ' this turn.', 'Incident report, a frontier lab'); tease('2 a.m. An alarm at the frontier lab. Does containment hold?', 1 - p); }
     else if (dni === 'labs' || s.knownOver) { s.knownOver = true; add('warn', 'Past the danger point, holding', 'Tests show the frontier can improve itself. While we hold, losing control is ' + odds(p) + ' each turn.'); }
-  } else if (dni === 'labs') add('good', 'Tests come back clean', '"It cannot yet improve itself. We would not promise that of the next one."', 'IC evaluation team');
+  } else if (dni === 'labs') add('good', 'Tests come back clean', '"We gave it nine days to make itself smarter. It came back slower and very pleased with itself. Ask us again after the next training run."', 'IC evaluation team');
   if (s.cn > s.line && (!s.deal || s.hidden)) {
     if (roll('cnrun') < TUNE.cnRun) {
       if (roll('cnwho') < 0.5) { add('bad', 'Beijing loses control', 'China\'s frontier passed the danger point with no one holding it back. Its model slipped its controls.'); return end(s, 'runaway_cn', ev); }
@@ -337,6 +402,7 @@ function play(s, picks) {
 
   s.turn++;
   if (s.turn >= TUNE.turns) return end(s, 'time', ev);
+  drawCrisis(s);
   return ev;
 }
 
@@ -369,6 +435,6 @@ function end(s, how, ev) {
   return ev;
 }
 
-const api = { TUNE, DATES, SECURITY, ASKS, newGame, view, seats, play, ENDINGS, hash01, odds, months, price, dealOdds, warRisk, willing };
+const api = { TUNE, DATES, SECURITY, ASKS, newGame, view, seats, play, ENDINGS, hash01, odds, months, price, crisis, dealOdds, warRisk, willing };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Room = api;
 })(typeof window !== 'undefined' ? window : globalThis);
