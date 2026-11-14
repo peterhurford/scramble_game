@@ -79,6 +79,7 @@ g('ctrlLate', 'bool');
 g('reassure', 'bool');
 g('reassureLead', 'real', 0, 10);
 g('leverEarly', 'bool');
+g('keepHold', 'real', 0, 5);
 EVENTS.forEach(e => g('ev.' + e, 'int', 0, 3));
 // Genes that only pay when they change together: a policy or project with its reading gate (SL4 is both), and settings that act as one plan.
 // The search resamples a whole group at once, switching a gated item on with a random priority and gate.
@@ -223,6 +224,7 @@ function expertGenome() {
     ctrlLate: false,
     reassure: false,
     reassureLead: 4,
+    keepHold: 2.5,
     leverEarly: false,
   });
   PEOPLE.forEach(p => G['fav.' + p] = false);
@@ -290,7 +292,7 @@ function mechFor(s, G) {
   return m;
 }
 const CONF = ['low', 'moderate', 'high'];
-function chooser(G) { return (s, ev) => { if (ev.id === 'cn_cheat' && G.cheatDismiss !== 'never' && CONF.indexOf(s.queue[0].conf) <= CONF.indexOf(G.cheatDismiss)) return 3; const k = G['ev.' + ev.id]; return k == null ? 0 : k % ev.choices.length; }; }
+function chooser(G) { return (s, ev) => { if (ev.id === 'cn_cheat' && G.cheatDismiss !== 'never' && CONF.indexOf(s.queue[0].conf) <= CONF.indexOf(G.cheatDismiss)) return 3; if (ev.id === 'keep_pace' && G.keepHold != null && E.seenLead(s) > G.keepHold) return 1; const k = G['ev.' + ev.id]; return k == null ? 0 : k % ev.choices.length; }; }
 function resolve(s, G) { let n = 0; const ch = chooser(G); while (s.queue.length && !s.ending && n++ < 25) { const ev = E.currentEvent(s); const i = ch(s, ev); note(s, 'event', ev.title + ' \u2192 ' + ev.choices[i].label, 'event gene ev.' + ev.id + '=' + G['ev.' + ev.id]); E.chooseEvent(s, i); } }
 
 function turn(s, G) {
