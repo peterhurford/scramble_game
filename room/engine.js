@@ -381,7 +381,7 @@ function play(s, picks) {
   const pWar = warRisk(s) * (war === 'deter' ? TUNE.warDeter : 1) * (dni === 'beijing' ? TUNE.warWatch : 1);
   if (pWar > 0) {
     if (roll('war') < pWar) { add('bad', 'War in the Strait', '"Missiles hit Hualien air base at 5:40 this morning. An American destroyer is on fire and taking on water. This is not an exercise. Repeat, this is not an exercise." War was ' + odds(pWar) + ' this turn. A blockade of Taiwan has become a shooting war between nuclear powers.', 'Wire flash, Taipei', true); }
-    else add('warn', 'The Strait stays quiet', 'The ships turned back at the median line. War was ' + odds(pWar) + ' this turn.');
+    else add('warn', 'The Strait stays quiet', (pWar >= 0.05 ? 'The ships turned back at the median line. ' : 'Patrols on both sides kept their distance. ') + 'War was ' + odds(pWar) + ' this turn.');
     if (pWar >= 0.05) tease('Chinese warships and aircraft are massing off Taiwan. Does it come to shooting?', pWar);
     if (roll('war') < pWar) return end(s, 'war', ev);
   }
