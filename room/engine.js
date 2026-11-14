@@ -183,7 +183,7 @@ function seats(s) {
       o('walk', 'Walk away', 'End the deal. Both sides are free to race.') ]) : [
       o('talk', 'Work the back channel', 'Trust rises, tension falls, and we learn one of Beijing\'s demands.'),
       s.snub === s.turn - 1 ? o('summit', 'Propose a mutual pause', 'Beijing said no last turn and will not come back to the table yet.', true)
-        : !willing(s) ? o('summit', 'Propose a mutual pause', 'Not possible yet: our own labs will not agree to stop, so Beijing would not believe the offer. Win the labs over first; Commerce can pay them.', true)
+        : !willing(s) ? o('summit', 'Propose a mutual pause', 'Our own labs will not agree to stop, so Beijing will not believe the offer: it will say no, and will not come back to the table next turn. Win the labs over first; Commerce can pay them. ' + ask)
         : o('summit', 'Propose a mutual pause', 'Both sides stop frontier training. ' + ask + ' Chance of a yes if we meet both: ' + odds(dealOdds(s, 2)) + '. One: ' + odds(dealOdds(s, 1)) + '. Neither: ' + odds(dealOdds(s, 0)) + '. Fails if the President races this turn.'),
       fresh ? o('expose', 'Expose the theft', 'Name Beijing\'s hackers before the world. Allies sanction China: lasting leverage. Trust drops; Beijing is humiliated.')
         : hot ? o('hotline', 'Open the crisis hotline', 'Generals talk to generals: tension drops sharply. Buys no trust.')
