@@ -7,20 +7,20 @@
 'use strict';
 
 const TUNE = {
-  turns: 7,                       // Jan 2027 to Dec 2028
-  full: 3.0, natMul: 0.8, siegeMul: 0.5,   // months of US frontier progress in a turn of all-out training, and what scales it
+  turns: 6,                       // Jan 2027 to Dec 2028
+  full: 3.5, natMul: 0.8, siegeMul: 0.5,   // months of US frontier progress in a turn of all-out training, and what scales it
   cnStart: -6, cnFog: 2,
-  cnOwn: 0.85, cnChips: [1.0, 0.65, 0.35, 0.18], cnCopy: 0.57, cnHidden: 1.4, crashAt: 7, crash: 0.5,   // cnChips by controls -1, 0, 1, 2+
+  cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: [10, 16],
-  hack0: [0.3, 1.0], hack: [0.5, 0.8], hackLead: 2, hackCtl: 0.15, hunt: 0.5,   // hackers: noticed at 1, weights gone at 2
-  secAt: [0.55, 1.7, 3.1], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
-  tension0: 30, trust0: 32, fear: 3.6, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
-  labs0: 45, labRace: -6, labIdle: -7, labTest: 9, labWilling: 60, labInspect: 50, labDefiant: 25,
+  hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58,   // hackers: noticed at 1, weights gone at 2
+  secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
+  tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
+  labs0: 45, labRace: -7, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
   floor: [0.35, 0.75], leadFor: 4, leadShort: 2, ctlFor: 2, cold: 20, hot: 60, cheatLead: 3,
   sabotage: 2.5, revenge: 2, decisive: 5, ahead: 4,
   nudge: { tension: 15, trust: 15, labs: 20, cn: [-1, 0.5], us: [-1, 0], hack: [-0.7, 0.5] },   // how far a ruling may move a dial the ledger does not otherwise own
 };
-const DATES = ['Jan-Mar 2027', 'Apr-Jul 2027', 'Aug-Oct 2027', 'Nov 2027-Feb 2028', 'Mar-Jun 2028', 'Jul-Sep 2028', 'Oct-Dec 2028'];
+const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
 const TABLES = { wh: 'White House', state: 'State', pent: 'Pentagon' };
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
