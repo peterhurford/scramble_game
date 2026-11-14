@@ -123,7 +123,10 @@ async function gm(body) {
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 if (require.main === module) http.createServer((req, res) => {
-  const send = (code, type, data) => { res.writeHead(code, { 'Content-Type': type + '; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(data); };
+  // The public page (thescramble.pages.dev/situationroom) calls this server on the facilitator's laptop, so that origin may read /gm.
+  const site = /^https:\/\/([a-z0-9-]+\.)?thescramble\.pages\.dev$/.test(req.headers.origin || '') ? { 'Access-Control-Allow-Origin': req.headers.origin, 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Private-Network': 'true', Vary: 'Origin' } : {};
+  const send = (code, type, data) => { res.writeHead(code, Object.assign({ 'Content-Type': type + '; charset=utf-8', 'Cache-Control': 'no-store' }, site)); res.end(data); };
+  if (req.method === 'OPTIONS' && req.url === '/gm') return send(204, 'text/plain', '');
   if (req.method === 'POST' && req.url === '/gm') {
     let raw = '';
     req.on('data', d => { raw += d; if (raw.length > 2e5) req.destroy(); });

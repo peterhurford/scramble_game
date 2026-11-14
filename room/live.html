@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Scramble: Room Edition, free response</title>
+<title>The Scramble: Situation Room</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -129,6 +129,8 @@ button{font:inherit;color:inherit}
 // Each table says its order and the facilitator types it. Send asks the game master; its answers can be edited before Go applies them.
 // G opens the facilitator's drawer (the ruling, the game master's note, the hidden facts). U undoes a turn.
 const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-live-v3', IDS = Object.keys(World.TABLES);
+// Served by gm.js, the game master is next door; on the public site it is the server on the facilitator's laptop.
+const GM = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'gm' : 'http://localhost:8787/gm';
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 // screen: intro, orders, wait, answers, news, end. answer: the game master's reply for this turn. news: index of the bulletin on screen.
@@ -145,10 +147,10 @@ async function ask() {
   if (!IDS.some(k => (st.orders[k] || '').trim())) return;
   st.screen = 'wait'; st.error = ''; draw();
   try {
-    const res = await fetch('gm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders }) }), out = await res.json();
+    const res = await fetch(GM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders }) }), out = await res.json();
     if (!res.ok) throw new Error(out.error || res.status);
     st.answer = out; st.rulingText = JSON.stringify(out.ruling, null, 1); st.screen = 'answers';
-  } catch (e) { st.screen = 'orders'; st.error = 'The game master did not answer (' + e.message + '). Is `node room/gm.js` running?'; }
+  } catch (e) { st.screen = 'orders'; st.error = 'The game master did not answer (' + e.message + '). It runs on the facilitator\'s laptop: `node room/gm.js` from the game\'s repository.'; }
   draw();
 }
 function go() {

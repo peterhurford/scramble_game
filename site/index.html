@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Scramble</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Front page: the two games, side by side; colors and type match both. */
+:root{
+  --bg:#E3E8ED; --sheet:#F8F9FB; --ink:#15202B; --muted:#56626F; --rule:#C8D0D9; --accent:#1A4480; --accent-ink:#fff; --cn:#B8323A;
+  --f-ui:"Public Sans","Helvetica Neue",Arial,sans-serif; --f-body:"Source Serif 4",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D131A; --sheet:#151E28; --ink:#E3E9EF; --muted:#9AA7B4; --rule:#2A3746; --accent:#8FB4EC; --accent-ink:#0D131A; --cn:#F0828A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D131A; --sheet:#151E28; --ink:#E3E9EF; --muted:#9AA7B4; --rule:#2A3746; --accent:#8FB4EC; --accent-ink:#0D131A; --cn:#F0828A; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:clamp(15px,1.15vw,19px);line-height:1.4}
+main{max-width:1100px;margin:0 auto;padding:7vh 16px 40px}
+h1{font-size:clamp(2.4em,6vw,4em);font-weight:900;letter-spacing:-.02em;line-height:1;margin:0;padding-bottom:14px;border-bottom:3px double var(--rule)}
+.lede{font-family:var(--f-body);font-size:1.3em;max-width:36em;margin:16px 0 28px}
+.games{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.game{display:flex;flex-direction:column;gap:10px;background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:18px 20px 20px;color:inherit;text-decoration:none}
+.game.room{border-top-color:var(--cn)}
+.game:hover,.game:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lbl{font-size:.72em;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+h2{font-size:1.9em;font-weight:900;letter-spacing:-.01em;margin:0}
+.game p{font-family:var(--f-body);font-size:1.1em;margin:0;flex:1}
+.go{align-self:flex-start;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);padding:12px 22px;margin-top:6px}
+@media (max-width:760px){.games{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>The Scramble</h1>
+  <p class="lede">AI that can improve itself is close, and nobody knows how close. America leads China by months. Two games about what the government does next.</p>
+  <div class="games">
+    <a class="game" href="/aiczar">
+      <span class="lbl">One player</span>
+      <h2>AI Czar</h2>
+      <p>You advise the President, month by month. Win over the labs, the cabinet and Congress, deal with Beijing, and decide when America slows down.</p>
+      <span class="go">Play</span>
+    </a>
+    <a class="game room" href="/situationroom">
+      <span class="lbl">A room of up to 30 &middot; 30 minutes</span>
+      <h2>Situation Room</h2>
+      <p>Three tables run the government and each writes one order a turn. The labs, Congress and Beijing answer back. Needs a facilitator running the game master.</p>
+      <span class="go">Open</span>
+    </a>
+  </div>
+</main>
+</body>
+</html>

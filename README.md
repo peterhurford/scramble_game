@@ -8,7 +8,8 @@ Open `index.html` in a browser. The game saves to localStorage after every move.
 
 - `engine.js`: the whole simulation (state, actions, events, China, labs, endings). No DOM; runs in node.
 - `ui.js`, `index.html`: rendering only.
-- `room/`: the Room Edition, a seven-turn, 30-minute version for a room split into three tables (White House, State, Pentagon), each picking one of three standing moves a turn, plus one bold move for the room. Nothing is rolled after the start: the hidden facts are fixed, and Beijing answers what the room does (its pause offer, theft, a blockade). Open `room/index.html`; rules in `room/engine.js`. `node room/sim.js` prints how scripted rooms end.
+- `room/`: the Situation Room, a six-turn, 30-minute version for a room split into three tables (Executive Office of the President; State and Commerce; Department of War/Pentagon/NSA/IC). Each table writes one sentence a turn; Claude plays the labs, Congress and Beijing and returns a bounded ruling that the ledger (`room/world.js`) applies. Nothing is rolled after the start. Run `node room/gm.js` and open localhost:8787 (`room/live.html`); the game master uses `ANTHROPIC_API_KEY` if set, else the logged-in `claude` CLI. `room/index.html`, `room/engine.js` and `room/sim.js` are the earlier menu version.
+- `site/index.html`: the public front page. The site (thescramble.pages.dev) is `site/index.html` as `index.html`, the main game's `index.html` as `aiczar.html` beside `engine.js` and `ui.js`, and `room/live.html` as `situationroom.html` beside `room/world.js`; the Situation Room page there calls the game master on the facilitator's laptop.
 - `sim/playtest.js [games] [difficulty] [bot]`: plays scripted strategies (random, expert, hawk, hawksec, hawkpure, passive, early, noprep, reader, noauto, dpa, nosec, sl4only) and prints the endings.
 - `sim/trace.js [seed] [bot]`: one game, turn by turn.
 - `sim/loc.js [bot]`: breaks down what the bot's losses came from.
