@@ -10,13 +10,13 @@
 
 const TUNE = {
   turns: 7,                       // Jan 2027 to Dec 2028
-  usRace: 3, slow: 0.5, secMul: [1, 0.8, 0.7], natMul: 0.8, siegeMul: 0.5, defy: 2,   // months of frontier progress per turn, and what scales it
+  usRace: 3, slow: 0.5, secMul: [1, 0.67, 0.45], natMul: 0.8, siegeMul: 0.5, defy: 2,   // months of frontier progress per turn, and what scales it
   cnStart: -6, cnFog: 2,          // China's distance as the IC reports it, and how far the truth may be either side
-  cnOwn: 1.1, cnOwnCut: 0.9, cnChips: [1.2, 0.7, 0.4], cnCopy: 1.0, cnCopyCut: 0.5,   // cnChips by controls -1, 0, 1+
+  cnOwn: 1.1, cnOwnCut: 0.9, cnChips: [1.2, 0.7, 0.4], cnCopy: 1.0, cnCopyCut: 0.5, cnCopySec: [1, 0.5, 0],   // cnChips by controls -1, 0, 1+
   crashAt: 7, crash: 0.5,         // a US lead this long sends Beijing into a crash program
   cnHidden: 1.7, sabotage: 2.5, revenge: 2,
-  lineLo: 10, lineHi: 16,
-  hack: [0.7, 1.2], hackSec: [1, 0.3, 0], hackLead: 2, hackCtl: 0.15, guard: 0.7,   // hackers' progress per turn (hidden, in this range) by lab security; at 1 they are noticed, at 2 they have the weights
+  lineLo: 8, lineHi: 14,
+  hack: [0.7, 1.2], hackSec: [1, 0.3, 0], hackLead: 2, hackCtl: 0.15, guard: 1.0,   // hackers' progress per turn (hidden, in this range) by lab security; at 1 they are noticed, at 2 they have the weights
   tension0: 30, trust0: 20, fear: 5,
   red: [52, 76], squeeze: 14, warn: 12, deter: 6, bluff: 0.4,          // Beijing blockades at its red line (hidden), warns this far short of it; each show of force moves the line
   labs0: 45, labRace: -6, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
@@ -106,7 +106,7 @@ const fast = (s, x) => 'The frontier moves ' + months(raceStep(s) * (x || 1)) + 
 // Locking down stops the labs rather than let them drift into the danger range untested.
 const careful = s => s.knownOver || pOver(s, s.us + raceStep(s) * TUNE.slow) > 0 ? ['hold', 'Training stops this turn.'] : ['slow', 'Half speed this turn.'];
 const secureOpt = (s, c) => s.sec >= 2 ? o('secure', 'Build a vault', 'The weights are already in a vault.', [], true)
-  : o('secure', s.sec === 0 ? 'Lock down the weights' : 'Build a vault', (s.sec === 0 ? 'Much harder to steal. ' : 'Nearly impossible to steal. ') + 'Racing is slower for good.' + (c ? ' ' + c[1] : ''), c ? [c[0], 'secure'] : ['secure']);
+  : o('secure', s.sec === 0 ? 'Lock down the weights' : 'Build a vault', (s.sec === 0 ? 'Much harder to steal. ' : 'Nearly impossible to steal. ') + 'Racing drops to ' + months(raceStep(s) / TUNE.secMul[s.sec] * TUNE.secMul[s.sec + 1]) + ' a turn, for good.' + (c ? ' ' + c[1] : ''), c ? [c[0], 'secure'] : ['secure']);
 const testOpt = s => s.deal ? o('test', 'Test with the labs', (narrow(s) ? 'Narrows the danger range. ' : '') + 'The labs stay patient.', ['test'])
   : s.knownOver ? o('test', 'Stop and test', 'Training stops. The labs get readier to stop.', ['hold', 'test'])
   : o('test', 'Slow down and test', (narrow(s) ? 'Narrows the danger range. ' : '') + 'Half speed, watching for the danger point. The labs get readier to stop.', ['slow', 'test']);
@@ -266,7 +266,7 @@ function play(s, picks) {
   const openly = !s.deal || (s.deal.level === 3 && s.cn < s.us - 0.5);
   let cnStep = 0;
   if (openly || s.hidden) {
-    const copy = Math.min(s.controls >= 2 ? TUNE.cnCopyCut : TUNE.cnCopy, Math.max(0, s.us - s.cn - 1));
+    const copy = TUNE.cnCopySec[s.sec] * Math.min(s.controls >= 2 ? TUNE.cnCopyCut : TUNE.cnCopy, Math.max(0, s.us - s.cn - 1));   // China learns less from locked-down labs
     cnStep = openly ? (s.controls >= 3 ? TUNE.cnOwnCut : TUNE.cnOwn) + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 1) + 1] + copy : TUNE.cnHidden;
     if (s.deal && openly) cnStep = Math.min(cnStep, s.us - s.cn);
     if (s.cn >= s.lo) cnStep *= TUNE.slow;                                   // Beijing slows in the danger range; it does not stop
@@ -379,7 +379,7 @@ function end(s, how, ev) {
     else if (s.blockade) how = 'siege';
     else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
-    else how = lead >= TUNE.decisive && s.sec >= 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'behind';
+    else how = lead >= TUNE.decisive && (s.sec >= 1 || s.hack < 1) ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'behind';
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
   return ev;

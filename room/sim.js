@@ -66,7 +66,7 @@ function fog(s, k) {
 // Every combination of moves, each scored by LOOK fogged games played out by the best of the scripted rooms (A 4 to F 0).
 const LOOK = 8, PTS = { A: 4, B: 3, C: 2, D: 1, F: 0 };
 BOTS.look = (s, T) => {
-  const base = [BOTS.pause, BOTS.pauseSoft, BOTS.lead, BOTS.leadVault], fogs = [];
+  const base = [BOTS.pause, BOTS.pauseSoft, BOTS.lead, BOTS.leadVault, BOTS.leadOpen], fogs = [];
   for (let k = 0; k < LOOK; k++) fogs.push(JSON.stringify(fog(s, k)));
   const ids = T.tables.map(tb => tb.opts.filter(o => !o.off).map(o => o.id)), bolds = [null].concat(T.bold.filter(b => !b.off).map(b => b.id));
   let best = null, bv = -1;
