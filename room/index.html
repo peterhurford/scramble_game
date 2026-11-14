@@ -136,6 +136,7 @@ const SHORT = { vp: 'President', dni: 'DNI', doc: 'Commerce', state: 'State', wa
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+// skipped: the bulletins were skipped with Esc, so the recap lists them.
 // news: index of the bulletin on screen (-1 none); shown: its result is revealed; brief: the turn's crisis is on screen.
 let st = { screen: 'intro', game: null, past: [], events: [], news: -1, shown: false, brief: false, picks: {}, t0: 0, turnT0: 0 };
 
@@ -152,12 +153,12 @@ function lockIn() {
   if (st.screen !== 'decide' || !ready()) return;
   st.past.push(JSON.stringify(st.game));
   st.events = Room.play(st.game, st.picks);
-  st.screen = 'resolve'; st.news = 0; st.shown = false; draw();
+  st.screen = 'resolve'; st.news = 0; st.shown = false; st.skipped = false; draw();
 }
 const inNews = () => st.screen === 'resolve' && st.news >= 0 && st.news < st.events.length;
 function nextNews(skip) {
   if (!skip && st.events[st.news].tease && !st.shown) st.shown = true;
-  else { st.news = skip || st.news + 1 >= st.events.length ? -1 : st.news + 1; st.shown = false; }
+  else { st.news = skip || st.news + 1 >= st.events.length ? -1 : st.news + 1; st.shown = false; st.skipped = !!skip; }
   draw();
 }
 function endBrief() { st.brief = false; draw(); }
@@ -279,7 +280,8 @@ function news(g) {
 function resolve(g) {
   const last = g.votes[g.votes.length - 1];
   let h = '<div class="ask"><h2>' + last.date + ' · the cabinet decided</h2></div>' + tags(last.picks) + '<div class="evs">';
-  st.events.forEach((e, i) => { h += '<div class="ev ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '" style="animation-delay:' + (i * 0.06) + 's">' + '<b>' + esc(e.title) + '</b>' + body(e.text, e.src) + '</div>'; });
+  // The bulletins are listed here only if the facilitator skipped them.
+  if (st.skipped) st.events.forEach((e, i) => { h += '<div class="ev ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '" style="animation-delay:' + (i * 0.06) + 's">' + '<b>' + esc(e.title) + '</b>' + body(e.text, e.src) + '</div>'; });
   return h + '</div><div class="go"><button class="btn" id="b-next">' + (g.over ? 'See how it ends' : 'Next turn') + '</button><span class="hint">Space or Enter</span></div>';
 }
 
