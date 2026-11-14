@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* One projected screen: top bar, the race track, five gauges, then the five cabinet groups' options or the turn's events. */
+/* One projected screen: top bar, the race track, six gauges, then the five cabinet groups' options or the turn's events. */
 :root{
   --bg:#E3E8ED; --sheet:#F8F9FB; --sheet2:#EEF2F6; --ink:#15202B; --muted:#56626F; --faint:#9AA6B2; --rule:#C8D0D9;
   --accent:#1A4480; --accent-ink:#fff; --accent-soft:#DCE6F3;
@@ -57,7 +57,7 @@ button{font:inherit;color:inherit}
 .mk.cn{top:70px;background:var(--cn);color:var(--accent-ink)} .mk.cn::after{bottom:100%;border-bottom-color:var(--cn)}
 @media (prefers-reduced-motion:reduce){.mk,.band{transition:none}}
 
-.gauges{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+.gauges{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px}
 .g{background:var(--sheet);border:1px solid var(--rule);padding:9px 13px;min-width:0}
 .g b{display:block;font-size:1.2em;font-weight:900;line-height:1.2;margin:2px 0}
 .g .sub{font-size:.82em;color:var(--muted)} .g .sub strong{color:var(--ink)}
@@ -105,7 +105,7 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 // Rendering and the facilitator's controls; all rules are in engine.js.
 // Each group's principal announces a choice and the facilitator clicks it (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
-const TURN_SECS = 150, GAME_MINS = 30, SAVE = 'scramble-room-v2';
+const TURN_SECS = 150, GAME_MINS = 30, SAVE = 'scramble-room-v3';
 const SHORT = { vp: 'President', dni: 'DNI', doc: 'Commerce', state: 'State', war: 'War' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -154,7 +154,8 @@ function gauges(g, v) {
     G(v.lead < 2 ? 'hot' : '', 'US lead', cap(v.leadText), g.deal ? 'By Beijing\'s own account' : v.lead >= 1 ? 'China is behind' : 'The lead is gone') +
     G(g.sec === 0 ? 'hot' : '', 'The weights', cap(v.security), 'Stolen this turn: <strong>' + v.theft + '</strong>' + (g.thefts ? ' · already stolen' + (g.thefts > 1 ? ' ' + g.thefts + ' times' : ' once') : '')) +
     G(v.warP >= 0.1 ? 'hot' : '', 'Taiwan Strait', v.tensionText, 'War this turn: <strong>' + v.war + '</strong>') +
-    G(g.deal ? 'ok' : '', 'Beijing', g.deal ? 'Mutual pause' : v.trustText, g.deal ? 'Inspectors: <strong>' + (g.inspectors ? 'on the ground' : 'none') + '</strong> · trust: ' + v.trustText.toLowerCase() : 'Yes to a pause: <strong>' + v.deal + '</strong>') +
+    G(g.deal ? 'ok' : '', 'Beijing', g.deal ? 'Mutual pause' : v.trustText, g.deal ? 'Inspectors: <strong>' + (g.inspectors ? 'on the ground' : 'none') + '</strong> · trust: ' + v.trustText.toLowerCase() : 'Its price for a pause: ' + v.asks.map(a => '<strong>' + (a || 'unknown') + '</strong>').join(' and ')) +
+    G(v.willing ? '' : 'hot', 'The labs', v.labsText, g.national ? 'They answer to the President' : v.willing ? 'Would accept a pause' : v.labsText === 'Defiant' ? 'Will not hold, even if ordered' : 'Would not accept a pause') +
     G(v.overNowP > 0 ? 'hot' : '', 'Runaway RSI', v.knownOver ? 'Past the danger point' : v.overNowP <= 0 ? 'Short of the range' : v.overNowP < 1 ? 'Inside the range' : 'Beyond the range', v.knownOver ? 'The US frontier can improve itself' : (v.overNowP > 0 ? 'Possible now: <strong>' + v.overNow + '</strong> · a' : 'A') + 'fter a turn of racing: <strong>' + v.overIfRace + '</strong>') +
     '</div>';
 }
@@ -183,10 +184,10 @@ function intro() {
   return '<div class="intro"><div class="lbl">A 30-minute game for a room · you are the President and the cabinet</div><h1>The Scramble</h1>' +
     '<p class="lede">It is January 2027. American labs are about six months ahead of China in the race to AI that can improve itself. You have six turns, to the end of 2028, to get the world through it.</p>' +
     '<div class="three"><div><h3>The weights can be stolen</h3><p>Beijing\'s hackers go for the frontier model again and again. Today they would probably get it, and one success erases the lead.</p></div>' +
-    '<div><h3>China is right behind</h3><p>Squeeze Beijing and you keep the lead but risk war over Taiwan. Talk and you might get a deal, if you have leverage and if Beijing keeps it.</p></div>' +
+    '<div><h3>China is right behind</h3><p>Squeeze Beijing and you keep the lead but risk war over Taiwan. A mutual pause has a price: Beijing wants two things it has not told you, and your own labs have to agree to stop. Then Beijing has to keep it.</p></div>' +
     '<div><h3>No one knows where runaway starts</h3><p>Somewhere roughly a year ahead, AI starts improving itself. Race past that point and every turn is a coin flip on losing control. That goes for China too.</p></div></div>' +
     '<ol class="how"><li><b>Five groups, five seats:</b> the President (the labs), Director of National Intelligence, Commerce, State, War. Each group names its principal; the rest are the staff.</li>' +
-    '<li><b>Each turn every seat has three options.</b> Staff argue, the principal decides. Talk to the other groups: your choices only work together.</li>' +
+    '<li><b>Each turn every seat has three options,</b> and they change with the situation. Staff argue, the principal decides. Talk to the other groups: a deal with Beijing or the labs takes several seats at once.</li>' +
     '<li><b>Then the world moves,</b> and the room finds out what Beijing, the hackers and the models did.</li>' +
     '<li><b>Odds come in the IC\'s words,</b> and they mean what they say: "unlikely" things happen about one time in four, and over six turns some of them will.</li></ol>' +
     '<button class="btn" id="b-start">Start the clock</button>' +
@@ -213,12 +214,12 @@ function resolve(g) {
 }
 
 function ending(g) {
-  const o = g.over, facts = [], m = Room.months, gap = (x, past, short) => x > g.line ? past : m(g.line - x) + ' ' + short;
+  const o = g.over, v = Room.view(g), facts = [], m = Room.months, gap = (x, past, short) => x > g.line ? past : m(g.line - x) + ' ' + short;
   facts.push('Runaway RSI became possible <b>' + m(g.line) + '</b> past the January 2027 frontier. The US ended ' + gap(g.us, 'past that point.', 'short of it.'));
   facts.push('China ended ' + gap(g.cn, 'past that point too.', 'short of it.') + (Math.abs(g.cn - g.cnShown) >= 1 ? ' That is ' + m(g.cn - g.cnShown) + ' further than anyone knew.' : ''));
+  facts.push('Beijing\'s price for a pause was ' + g.asks.map(a => Room.ASKS[a].short).join(' and ') + '.' + (g.known.every(Boolean) ? '' : ' The cabinet never learned all of it.'));
   if (g.deal) facts.push(g.hidden ? 'Beijing was running a hidden program under the deal.' : 'Beijing kept the deal.');
-  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + '.');
-  const v = Room.view(g);
+  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + ', and ' + v.labsText.toLowerCase() + '.');
   facts.push('The Strait ended ' + v.tensionText.toLowerCase() + '; relations with Beijing, ' + v.trustText.toLowerCase() + '.');
   return '<div class="panel end"><div class="grade ' + o.grade + '">' + o.grade + '</div><div><div class="lbl">' + (g.turn >= Room.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.votes[g.votes.length - 1].date) + '</div><h1>' + esc(o.title) + '</h1><p>' + esc(o.text) + '</p></div></div>' +
     '<div class="cols"><div class="panel"><div class="lbl">What was hidden</div><ul>' + facts.map(f => '<li>' + f + '</li>').join('') + '</ul></div>' +
