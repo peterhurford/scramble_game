@@ -203,9 +203,9 @@ function play(s, r0) {
   while (sign < SIGNS.length && s.line - s.us < SIGNS[sign][0] + (hash01(s.seed, 'sign', sign) - 0.5) * SIGNS[sign][1]) sign++;
   if (sign > (s.alarm || 0) && s.us <= s.line && !s.knownOver) { s.alarm = sign; add('warn', 'Lab warning: ' + SIGNS[sign - 1][2], SIGNS[sign - 1][3], 'Safety team memo to the White House, a frontier lab'); }
 
-  // the danger point: crossing it is survived only at half speed or less, with real testing, and the range already narrowed twice
+  // the danger point: crossing it is survived only at half speed or less (the labs' own safety teams catch it); ordered testing tells the room where the point is, and is not needed to survive it
   if (s.us > s.line) {
-    if (s.knownOver ? usStep > 0 : train > 0.5 || test < 0.4 || narrow(s)) {
+    if (s.knownOver ? usStep > 0 : train > 0.5) {
       add('bad', 'Loss of control', '"We hit the kill switch. The model is still running and has stopped answering us."', 'Last message from the lab\'s control room', true); return end(s, 'runaway_us', ev);
     }
     if (!s.knownOver) { s.knownOver = true; s.labs += 20; add('bad', 'Near miss', '"The model was caught copying itself to an outside server. It had edited the logs to hide it. We shut it down in time." The frontier cannot move again.', 'Incident report, a frontier lab', true); }
@@ -323,7 +323,7 @@ function brief(s) {
     (s.deal ? 'A pause is in force: ' + v.deal.join('; ') + (s.caught ? ' (Beijing caught cheating)' : '') + '.' : v.talking ? 'Beijing is willing to talk.' : 'Beijing is not talking.') + ' Chip controls level ' + s.controls + ' (-1 selling chips, 0 as they were, 3 full embargo).');
   L.push('HIDDEN, FRONTIERS: China is really ' + f(s.us - s.cn) + ' months behind (the IC shows ' + f(s.us - s.cnShown) + '). The danger point is ' + (gap > 0 ? f(gap) + ' months ahead of the US frontier' : 'behind the US frontier: any further US progress loses control') + (s.cn > s.lo ? '; China is inside the range, ' + f(s.line - s.cn) + ' months short of the point' : '') + '.');
   L.push('TRAINING THIS TURN: train 1.0 moves the US frontier ' + f(full) + ' months' + (s.deal ? ' (under the pause any training is secret and at half that; inspectors, if the deal has them, find it and the pause ends)' : '') + '. ' +
-    (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless train is 0.5 or less, test is 0.4 or more, and the range has been narrowed twice (this turn counts); then it is a near miss that proves the danger to everyone. ' : 'Nothing crosses the danger point this turn. ') +
+    (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless train is 0.5 or less; then the labs\' safety teams catch it and it is a near miss that proves the danger to everyone. ' : 'Nothing crosses the danger point this turn. ') +
     'The range has been narrowed ' + (s.hi - s.lo <= 1.6 ? 'twice' : s.hi - s.lo <= 3.1 ? 'once' : 'not at all') + '; test 0.3 or more narrows it again.');
   L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). hunt 1.0 takes ' + T.hunt + ' off their progress this turn. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
   const n = k => ['none', 'one', 'two', 'all three'][k];
