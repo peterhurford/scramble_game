@@ -61,3 +61,4 @@ Each owner reports its own mechanism's results, measured with compare.js on the 
 - 13 Nov 5:23p: a power cut killed v41 at ~4:11p in main run3 (runs 0-2 saved: held-out 751.3 / 756.7 / 723.9). Resumed from run3 (same seeds) from worktree v41-search; log .claude/worktrees/v41-search/v41_search.log. Integrator is now scramble-game-38 (#1a37).
 - v41 landed 13 Nov ~9:10p. Old v40 baseline line replaced. Branch rows for engine-fixes, lab-agency, keep-pace and strategic-china removed (landed); owners remove their worktrees and branches.
 - 13 Nov: lab-agency closed by 1c (worktree and branch removed; labAI 0 reproduced on 4fbac75; labSpurn 0 +14.0 on hawk0, +13.7 on dove2, under its 20 bar, no change).
+- 13 Nov: keep-pace closed by af (was fc); best genomes all keep pace (hold minus keep: -2.9 / -9.4 / +3.2 / 0.0); af may send a situational-gene branch for v42 if Peter says yes. engine-fixes closed by e2 (was ce).
