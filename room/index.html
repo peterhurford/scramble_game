@@ -87,21 +87,22 @@ button{font:inherit;color:inherit}
 .evs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .ev{background:var(--sheet);border:1px solid var(--rule);border-left:6px solid var(--faint);padding:9px 14px;animation:in .45s both}
 .ev b{font-weight:900;font-size:1.08em} .ev p{margin:2px 0 0;font-family:var(--f-body)}
-.ev .src{font-size:.72em;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:2px} .ev.clip p{font-style:italic}
+.ev blockquote{margin:0;font-family:var(--f-body);font-style:italic} .ev .by{font-size:.8em;color:var(--muted);margin:2px 0 4px} .ev.big blockquote{font-size:1.25em;margin-top:8px}
 .ev.big{grid-column:1/-1;border:2px solid var(--bad);border-left-width:14px;padding:18px 22px;animation:in .45s both,alarm 1.1s 3 both}
-.ev.big b{display:block;font-size:2.3em;line-height:1.05;text-transform:uppercase;letter-spacing:.02em} .ev.big p{font-size:1.25em;margin-top:8px} .ev.big .src::before{content:'Flash · ';color:var(--bad);font-weight:900}
+.ev.big b{display:block;font-size:2.3em;line-height:1.05;text-transform:uppercase;letter-spacing:.02em} .ev.big p{font-size:1.25em;margin-top:8px}
 @keyframes alarm{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 0 8px var(--bad)}}
 .ev.good{border-left-color:var(--good)} .ev.good b{color:var(--good)} .ev.bad{border-left-color:var(--bad)} .ev.bad b{color:var(--bad)} .ev.warn{border-left-color:var(--warn)} .ev.warn b{color:var(--warn)}
 .ov{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 97%,transparent);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}
 .news{background:var(--sheet);border:1px solid var(--rule);border-top:8px solid var(--faint);width:min(1100px,100%);box-shadow:0 30px 80px -30px rgba(0,0,0,.6);animation:in .3s both}
 .news.good{border-top-color:var(--good)} .news.bad{border-top-color:var(--bad)} .news.warn{border-top-color:var(--warn)}
-.news .mh{display:flex;justify-content:space-between;gap:16px;padding:10px 26px;border-bottom:1px solid var(--rule);font-family:var(--f-mono);font-size:.85em;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)} .news .mh b{color:var(--ink)}
+.news .mh{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 26px 12px;border-bottom:1px solid var(--rule);font-family:var(--f-mono);font-size:.85em;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)} .news .mh b{color:var(--ink);font-size:2.6em;font-weight:900;letter-spacing:.02em;line-height:1} .news .mh span{font-weight:900}
+.news blockquote{margin:0;font-family:var(--f-body);font-size:1.6em;line-height:1.3;font-style:italic} .news .by{margin:8px 0 14px;font-size:1.15em;color:var(--muted)} .news.big .mh span{color:var(--bad)} .news.crisisn .mh span{color:var(--warn)}
 .news .mb{padding:22px 26px 8px} .news h2{margin:0 0 12px;font-size:2.5em;line-height:1.05;font-weight:900} .news p{margin:0;font-family:var(--f-body);font-size:1.5em;line-height:1.35}
-.news.good h2{color:var(--good)} .news.bad h2{color:var(--bad)} .news.warn h2{color:var(--warn)} .news.clip p{font-style:italic}
+.news.good h2{color:var(--good)} .news.bad h2{color:var(--bad)} .news.warn h2{color:var(--warn)}
 .news .go{padding:0 26px 22px} .news .pips{display:flex;gap:5px;margin-left:auto} .news .pips i{width:22px;height:6px;background:var(--rule)} .news .pips i.done{background:var(--accent)}
-.news.big{border:3px solid var(--bad);border-top-width:8px;animation:in .3s both,alarm 1.1s 3 both} .news.big h2{font-size:4em;text-transform:uppercase;letter-spacing:.01em} .news.big .mh span:first-child::before{content:'Flash · ';color:var(--bad);font-weight:900}
+.news.big{border:3px solid var(--bad);border-top-width:8px;animation:in .3s both,alarm 1.1s 3 both} .news.big h2{font-size:4em;text-transform:uppercase;letter-spacing:.01em}
 .news p.rule{margin-top:16px;font-style:normal;font-family:var(--f-mono);font-size:1.05em;line-height:1.4;padding:12px 14px;border-left:5px solid var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
-.news.crisisn{border:3px solid var(--warn);border-top-width:8px} .news.crisisn .mh span:first-child::before{content:'Crisis · ';color:var(--warn);font-weight:900}
+.news.crisisn{border:3px solid var(--warn);border-top-width:8px}
 .news.tease{border-top-color:var(--accent)} .news.tease h2{font-size:2.8em} .news.tease p.rule{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:1.4em}
 .crisis{display:flex;align-items:baseline;gap:14px;margin:14px 0 0;padding:10px 14px;border:2px solid var(--warn);border-left-width:8px;background:color-mix(in srgb,var(--warn) 9%,transparent)} .crisis b{font-size:1.15em;font-weight:900;color:var(--warn);white-space:nowrap} .crisis span{font-size:1em}
 @media (prefers-reduced-motion:reduce){.news,.news.big{animation:none}}
@@ -251,28 +252,34 @@ function decide(g) {
 }
 
 function tags(picks) { return '<div class="tags">' + Object.keys(SHORT).map(k => '<span><i>' + SHORT[k] + '</i>' + esc(picks[k]) + '</span>').join('') + '</div>'; }
+// An event's text: a leading quote is set as a quotation with its byline straight after it, then any narration.
+function body(text, src) {
+  const m = /^("[^"]*")\s*([\s\S]*)$/.exec(text), by = src ? '<div class="by">' + esc(src) + '</div>' : '';
+  return m ? '<blockquote>' + esc(m[1]) + '</blockquote>' + by + (m[2] ? '<p>' + esc(m[2]) + '</p>' : '') : '<p>' + esc(text) + '</p>' + by;
+}
+const head = (date, kind) => '<div class="mh"><b>' + date + '</b><span>' + kind + '</span></div>';
 // The crisis that opens a turn; the round clock is already running.
 function brief(g) {
   const c = Room.crisis(g);
-  return '<div class="ov"><div class="news warn clip crisisn"><div class="mh"><span>' + esc(c.src) + '</span><b>' + Room.DATES[g.turn] + '</b></div>' +
-    '<div class="mb"><h2>' + esc(c.title) + '</h2><p>' + esc(c.text) + '</p><p class="rule">' + esc(c.rule) + '</p></div>' +
+  return '<div class="ov"><div class="news warn clip crisisn">' + head(Room.DATES[g.turn], 'Crisis') +
+    '<div class="mb"><h2>' + esc(c.title) + '</h2>' + body(c.text, c.src) + '<p class="rule">' + esc(c.rule) + '</p></div>' +
     '<div class="go"><button class="btn" id="b-brief">To the cabinet</button><span class="hint">Space or Enter</span></div></div></div>';
 }
 // The turn's events, one bulletin at a time, before the recap screen. A rolled event first asks its question.
 function news(g) {
   const e = st.events[st.news], n = st.events.length, last = st.news === n - 1;
-  if (e.tease && !st.shown) return '<div class="ov"><div class="news tease"><div class="mh"><span>Developing</span><b>' + g.votes[g.votes.length - 1].date + '</b></div>' +
+  if (e.tease && !st.shown) return '<div class="ov"><div class="news tease">' + head(g.votes[g.votes.length - 1].date, 'Developing') +
     '<div class="mb"><h2>' + esc(e.tease) + '</h2><p class="rule">The IC\'s estimate: ' + esc(e.odds) + '.</p></div>' +
     '<div class="go"><button class="btn" id="b-news">Reveal</button><span class="hint">Space or Enter</span></div></div></div>';
   let pips = ''; for (let i = 0; i < n; i++) pips += '<i class="' + (i <= st.news ? 'done' : '') + '"></i>';
-  return '<div class="ov"><div class="news ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '"><div class="mh"><span>' + esc(e.src || 'Situation Room') + '</span><b>' + g.votes[g.votes.length - 1].date + '</b></div>' +
-    '<div class="mb"><h2>' + esc(e.title) + '</h2><p>' + esc(e.text) + '</p></div>' +
+  return '<div class="ov"><div class="news ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '">' + head(g.votes[g.votes.length - 1].date, e.big ? 'Flash' : 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns) +
+    '<div class="mb"><h2>' + esc(e.title) + '</h2>' + body(e.text, e.src) + '</div>' +
     '<div class="go"><button class="btn" id="b-news">' + (last ? 'Where that leaves us' : 'Next') + '</button><span class="hint">Space or Enter · Esc skips to the recap</span><div class="pips">' + pips + '</div></div></div></div>';
 }
 function resolve(g) {
   const last = g.votes[g.votes.length - 1];
   let h = '<div class="ask"><h2>' + last.date + ' · the cabinet decided</h2></div>' + tags(last.picks) + '<div class="evs">';
-  st.events.forEach((e, i) => { h += '<div class="ev ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '" style="animation-delay:' + (i * 0.06) + 's">' + (e.src ? '<div class="src">' + esc(e.src) + '</div>' : '') + '<b>' + esc(e.title) + '</b><p>' + esc(e.text) + '</p></div>'; });
+  st.events.forEach((e, i) => { h += '<div class="ev ' + e.tone + (e.src ? ' clip' : '') + (e.big ? ' big' : '') + '" style="animation-delay:' + (i * 0.06) + 's">' + '<b>' + esc(e.title) + '</b>' + body(e.text, e.src) + '</div>'; });
   return h + '</div><div class="go"><button class="btn" id="b-next">' + (g.over ? 'See how it ends' : 'Next turn') + '</button><span class="hint">Space or Enter</span></div>';
 }
 
