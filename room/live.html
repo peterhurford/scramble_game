@@ -179,9 +179,11 @@ function go() {
   g.standing = { train: ruling.train, secure: ruling.secure, test: ruling.test, hunt: ruling.hunt };
   g.log.push({ date, orders: st.orders, replies: st.answer.replies, updates: st.answer.updates || null, events: st.events.map(e => e.title) });
   // each table's reply is the first cards the room reads, ahead of what the ledger reports
-  const R = ruling, seen = {};
-  st.events = st.answer.replies.filter(r => (r.quote || r.did)).map(r => { const first = !seen[r.table]; seen[r.table] = 1; return { tone: '', title: World.TABLES[r.table], reply: { order: st.orders[r.table] || '', did: r.did || '', quote: r.quote || '', by: r.by || '',
-    odds: first ? (R.chances || []).filter(c => c.table === r.table && !(c.op && (R.ops || []).some(x => x.name === c.op && x.left > 0))).map(c => ({ what: c.what, word: World.oddsWord(c.odds) })) : [] } }; }).concat(st.events);
+  const R = ruling;
+  // an estimate sits on the card of the reply that speaks to it; one that names no reply of its table goes on that table's first card
+  const all = st.answer.replies, home = c => { const r = all[c.reply]; return r && r.table === c.table ? c.reply : all.findIndex(x => x.table === c.table); };
+  st.events = all.map((r, i) => (r.quote || r.did) ? { tone: '', title: World.TABLES[r.table], reply: { order: st.orders[r.table] || '', did: r.did || '', quote: r.quote || '', by: r.by || '',
+    odds: (R.chances || []).filter(c => home(c) === i && !(c.op && (R.ops || []).some(x => x.name === c.op && x.left > 0))).map(c => ({ what: c.what, word: World.oddsWord(c.odds) })) } } : null).filter(Boolean).concat(st.events);
   st.error = ''; st.news = 0; st.screen = 'news';
   if (st.events.length) draw(); else next();
 }

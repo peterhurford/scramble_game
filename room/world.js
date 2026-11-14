@@ -120,7 +120,7 @@ function rule(s, r0) {
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
     intelOdds: odds(r.intelOdds), sabotageOdds: odds(r.sabotageOdds), ops, facts: Array.isArray(r.facts) ? r.facts.slice(0, TUNE.maxFacts).map(x => str(x, 150)).filter(Boolean) : null,
-    chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
+    chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', reply: Number.isInteger(c.reply) ? c.reply : -1, op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
   };
 }
 
