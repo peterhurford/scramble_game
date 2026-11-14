@@ -35,12 +35,12 @@ const TUNE = {
 
 const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
 const SECURITY = ['ordinary corporate security', 'hardened against state hackers', 'a government vault'];
-// Beijing's price for a pause: two of these, hidden until the back channel or the DNI finds them.
+// Beijing's price for a pause: two of these (want completes "Beijing will not sign unless ..."), hidden until the back channel or the DNI finds them.
 const ASKS = {
-  chips: { short: 'chips', want: 'chip controls eased this turn, or none in force', met: (s, p) => p.doc === 'carrot' || s.controls <= 0 },
-  pacific: { short: 'the fleet stood down', want: 'the Pacific fleet stood down this turn', met: (s, p) => p.war === 'reassure' },
-  face: { short: 'a working relationship', want: 'a working relationship first (trust at Working or better)', met: s => s.trust >= 40 },
-  quiet: { short: 'no humiliation', want: 'no public humiliation (no sabotage, no exposing its hackers, ever)', met: s => !s.shamed },
+  chips: { short: 'chips', want: 'America eases chip controls this turn, or has none in force', met: (s, p) => p.doc === 'carrot' || s.controls <= 0 },
+  pacific: { short: 'the fleet stood down', want: 'the Pacific fleet stands down this turn', met: (s, p) => p.war === 'reassure' },
+  face: { short: 'a working relationship', want: 'relations are already at Working or better', met: s => s.trust >= 40 },
+  quiet: { short: 'no attacks on it', want: 'America has never sabotaged its data centers or named its hackers in public', met: s => !s.shamed },
 };
 
 // One crisis opens each turn after the first: drawn per seed from those whose ok(s) holds, never twice a game.
@@ -145,7 +145,7 @@ function seats(s) {
   const o = (id, title, text, off) => ({ id, title, text, off: !!off });
   const fresh = s.fresh && !s.deal, hot = s.tension >= 45;
   const known = s.asks.filter((a, i) => s.known[i]).map(a => ASKS[a].want);
-  const ask = 'Beijing has two demands. ' + (known.length === 2 ? 'Both are known: ' + known.join('; and ') + '.' : known.length ? 'We know one: ' + known[0] + '. The other we have not learned.' : 'We have not learned either.');
+  const ask = 'Beijing has two demands. ' + (known.length === 2 ? 'It will not sign unless ' + known.join('; and unless ') + '.' : known.length ? 'We know one: it will not sign unless ' + known[0] + '. The other we have not learned.' : 'We have not learned either.');
   const pay = s.sec === 0 ? ['Pay the labs to lock down', 'Federal money for security: from now on most theft attempts fail. The labs welcome it.']
     : s.sec === 1 ? ['Pay for a vault', 'Federal money moves the weights into a government vault: theft becomes nearly impossible.']
     : !s.boxed ? ['Pay for containment', 'Fund human sign-off on AI-run research: halves the chance of losing control past the danger point.']
@@ -185,7 +185,7 @@ function seats(s) {
       s.snub === s.turn - 1 ? o('summit', 'Propose a mutual pause', 'Beijing said no last turn and will not come back to the table yet.', true)
         : !willing(s) ? o('summit', 'Propose a mutual pause', 'Our own labs will not agree to stop, so Beijing will not believe the offer: it will say no, and will not come back to the table next turn. Win the labs over first; Commerce can pay them. ' + ask)
         : o('summit', 'Propose a mutual pause', 'Both sides stop frontier training. ' + ask + ' Chance of a yes if we meet both: ' + odds(dealOdds(s, 2)) + '. One: ' + odds(dealOdds(s, 1)) + '. Neither: ' + odds(dealOdds(s, 0)) + '. Fails if the President races this turn.'),
-      fresh ? o('expose', 'Expose the theft', 'Name Beijing\'s hackers before the world. Allies sanction China: lasting leverage. Trust drops; Beijing is humiliated.')
+      fresh ? o('expose', 'Expose the theft', 'Name Beijing\'s hackers before the world. Allies sanction China: lasting leverage. Trust drops, and Beijing does not forget.')
         : hot ? o('hotline', 'Open the crisis hotline', 'Generals talk to generals: tension drops sharply. Buys no trust.')
         : o('allies', 'Rally the allies', 'A united front: lasting leverage over Beijing, and China slowed a little. Some trust lost.') ] },
     { id: 'war', who: 'Secretary of War', brief: 'The Pacific and covert action', opts: [
@@ -193,7 +193,7 @@ function seats(s) {
       o('deter', 'Reinforce the Pacific', 'War this turn less likely, and Beijing is likelier to back down if confronted. Tension creeps up.'),
       s.deal && s.caught ? o('strike', 'Strike the hidden site', 'Destroy the secret program: about three months of it gone. Tension jumps; even odds the deal survives.')
         : fresh ? o('burn', 'Burn the stolen copy', 'Cyber Command goes after the stolen weights: likely to take back most of what Beijing gained. Tension rises.')
-        : o('sabotage', 'Sabotage their data centers', 'Sets China back about three months. Tension jumps, trust collapses, Beijing is humiliated' + (s.deal ? ', and the deal dies.' : '.')) ] },
+        : o('sabotage', 'Sabotage their data centers', 'Sets China back about three months. Tension jumps, trust collapses, Beijing does not forget' + (s.deal ? ', and the deal dies.' : '.')) ] },
   ];
 }
 
@@ -215,7 +215,7 @@ function play(s, picks) {
   s.votes.push({ turn: t, date: DATES[t], picks: chosen });
   const fix = () => { s.trust = clamp(s.trust, 0, 100); s.tension = clamp(s.tension, 0, 100); s.labs = clamp(s.labs, 0, 100); };
   const breakDeal = why => { if (!s.deal) return; s.deal = false; s.inspectors = false; s.hidden = false; s.caught = false; s.cnShown = s.cn; s.trust -= 30; s.tension += 15; add('bad', 'The deal is dead', why); };
-  const learn = () => { const i = s.known.indexOf(false); if (i < 0 || s.deal) return; s.known[i] = true; add('info', 'Beijing\'s price', 'Before it signs a pause, Beijing wants ' + ASKS[s.asks[i]].want + '.'); };
+  const learn = () => { const i = s.known.indexOf(false); if (i < 0 || s.deal) return; s.known[i] = true; add('info', 'Beijing\'s price', 'Beijing will not sign a pause unless ' + ASKS[s.asks[i]].want + '.'); };
   const snap = state === 'inspect' && s.inspectors;   // inspectors already in place: a snap inspection
   let secUp = false, boost = false, signed = false;
   const harden = () => { if (secUp || s.sec >= 2) return false; s.sec++; secUp = true; return true; };
@@ -281,7 +281,7 @@ function play(s, picks) {
   if (dni === 'mole') { if (roll('mole') < TUNE.moleBurned) { s.trust -= 15; s.tension += 10; add('bad', 'The mole is caught', 'He was on the seven o\'clock news in a grey tracksuit, reading his confession off a card. "The American spy has admitted everything."', 'State media, Beijing'); } else { s.mole = true; add('good', 'A mole is in place', 'The IC now has a standing source inside Beijing\'s program.'); } tease('The IC\'s recruit reports for his first day inside Beijing\'s program. Does he get in clean?', 1 - TUNE.moleBurned); }
   if (c === 'defector') {
     if (dni !== 'beijing') add('warn', 'The walk-in is gone', '"He waited at the consulate gate for forty minutes. Then a black car pulled up, and he got in without being asked."', 'Cable, CIA station, Singapore');
-    else if (!s.deal) { s.known = [true, true]; add('good', 'The walk-in talks', '"He drew the Standing Committee\'s table from memory and told us who said what." Before it signs a pause, Beijing wants ' + s.asks.map(a => ASKS[a].want).join('; and ') + '.', 'Debrief, CIA station, Singapore'); }
+    else if (!s.deal) { s.known = [true, true]; add('good', 'The walk-in talks', '"He drew the Standing Committee\'s table from memory and told us who said what." Beijing will not sign a pause unless ' + s.asks.map(a => ASKS[a].want).join('; and unless ') + '.', 'Debrief, CIA station, Singapore'); }
     else add(s.hidden ? 'bad' : 'good', 'The walk-in talks', s.hidden ? '"He gave us the coordinates before we had finished asking. He says the site has been running for months."' : '"We asked him nine ways. There is no hidden site. He says the General Secretary means to keep this one."', 'Debrief, CIA station, Singapore');
   }
   if (dni === 'beijing') { if (c !== 'defector') learn(); if (roll('asset') < TUNE.burned) { s.trust -= 10; add('bad', 'An asset is burned', 'Beijing rolls up one of the IC\'s sources and makes sure Washington knows.'); } }
@@ -290,7 +290,7 @@ function play(s, picks) {
   // the summit
   if (state === 'summit') {
     const met = s.asks.filter(a => ASKS[a].met(s, picks)).length, p = dealOdds(s, met);
-    const tell = () => { s.known = [true, true]; return ' Its price: ' + s.asks.map(a => ASKS[a].want).join('; ') + '.'; };
+    const tell = () => { s.known = [true, true]; return ' It will not sign unless ' + s.asks.map(a => ASKS[a].want).join('; and unless ') + '.'; };
     if (vp === 'race' || !willing(s)) s.snub = t;
     if (vp === 'race') add('bad', 'Beijing says no', 'State proposed a pause while the labs raced. Beijing did not take it seriously.');
     else if (!willing(s)) add('bad', 'Beijing says no', 'The labs said in public that they would not stop. Beijing does not believe Washington can deliver them.');
