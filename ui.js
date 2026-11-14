@@ -475,7 +475,7 @@ function objective(v) {
     body = `<h3>Hold the pause, build Phase 2</h3>
       <div class="obrow"><span>Pacing support</span>${meter(v.support, v.support < 30 ? 'bad' : v.support < 45 ? 'warn' : 'good', [25])}<b class="mono">${v.support}</b></div>
       <div class="ticks">${rows.map(it => `<span class="${it[0] ? 'ok' : ''}">${it[0] ? '✓' : '○'} ${it[1]}: <b>${esc(String(it[2]))}</b></span>`).join('')}</div>
-      <div class="ticks"><span>Confidence Beijing will comply: <b>${E.betrayWord(S)}</b></span><span>Legal footing: <b>${S.flags.statute ? 'law' : S.flags.billDue ? 'bill moving, executive meanwhile' : 'executive orders'}</b>, courts ${esc(E.courtRead(S).text)}</span><span>Senate: <b>${v.senate}</b></span>${S.pacing.keep != null ? `<span>Labs: <b>${S.pacing.keep ? (E.keepGap(S) ? 'keeping pace with China' : 'paused; keep pace if the lead falls under ' + E.TUNE.aloneFloor + ' months') : 'paused, by your order'}</b></span>` : ''}</div>`;
+      <div class="ticks"><span>Confidence Beijing will comply: <b>${E.betrayWord(S)}</b></span><span>Legal footing: <b>${S.flags.statute ? 'law' : S.flags.billDue ? 'bill moving, executive meanwhile' : 'executive orders'}</b>, courts ${esc(E.courtRead(S).text)}</span><span>Senate: <b>${v.senate}</b></span>${S.pacing.keep != null || E.keepGap(S) ? `<span>Labs: <b>${S.pacing.keep == null ? 'keeping pace with China, awaiting your order' : S.pacing.keep ? (E.keepGap(S) ? 'keeping pace with China' : 'paused; keep pace if the lead falls under ' + E.TUNE.aloneFloor + ' months') : 'paused, by your order'}</b></span>` : ''}</div>`;
   }
   return `<div class="obj"><div class="goal">${body}</div><div class="pres"><span>The President</span>“${esc(presidentLine(v))}”</div></div>`;
 }
