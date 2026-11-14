@@ -187,7 +187,7 @@ function facts(g, v) {
 // Who each table is dealing with, shown over its box.
 function lock(g, v, id) {
   const L = (label, c, txt, more) => '<div class="lock"><i>' + label + ': </i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
-  if (id === 'wh') return L('The labs', g.national || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase()) + L('Their security', 'warn', v.security);
+  if (id === 'wh') return L('The labs', g.national || g.law || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase()) + L('Their security', 'warn', v.security);
   if (id === 'state') {
     if (g.deal) return L('A pause is signed', g.caught ? 'bad' : 'good', g.caught ? 'and Beijing is cheating' : 'and holding', '<br>' + v.deal.map(x => '<span class="pill">' + esc(x) + '</span>').join(''));
     return v.talking ? L('Beijing', 'warn', 'will talk') : L('Beijing', 'bad', 'is not talking');

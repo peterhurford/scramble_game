@@ -11,7 +11,7 @@ const TUNE = {
   full: 3.5, natMul: 0.8, siegeMul: 0.5,   // months of US frontier progress in a turn of all-out training, and what scales it
   cnStart: -6, cnFog: 2,
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
-  line: [7.5, 13.5],
+  line: [6.2, 12.2],
   hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58,   // hackers: noticed at 1, weights gone at 2
   secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
@@ -29,7 +29,7 @@ const gives = d => (d.chips ? 1 : 0) + (d.inspectors ? 0 : 1) + (d.parity ? 1 : 
 const terms = d => (d.parity ? ['America stops now', 'China stops once it has caught up'] : ['Both sides stop now'])
   .concat(d.inspectors ? 'Inspectors in both countries' : 'No inspectors', d.chips ? 'America lifts the chip controls' : [], d.extra || []);
 // A ruling that changes nothing: the labs keep training flat out.
-const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0,
+const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0 };
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
@@ -55,7 +55,8 @@ function newGame(seed) {
 }
 
 const secLevel = s => TUNE.secAt.filter(x => s.secWork >= x - 1e-9).length;
-const willing = (s, d) => s.national || s.labs >= (d.inspectors ? TUNE.labInspect : TUNE.labWilling);
+const obey = s => s.national || s.law;   // a takeover or a law binding every lab: the labs do as they are told
+const willing = (s, d) => obey(s) || s.labs >= (d.inspectors ? TUNE.labInspect : TUNE.labWilling);
 const fullStep = s => TUNE.full * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
 const narrow = s => !s.knownOver && s.hi - s.lo > 1.6;
 const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
@@ -79,7 +80,7 @@ function view(s) {
     leadText: Math.abs(lead) < 1 ? 'Neck and neck' : months(lead) + (lead > 0 ? ' ahead' : ' behind'),
     weights: s.seenHack ? 'hackers inside the labs' : 'no hackers found inside', security: SECURITY[secLevel(s)],
     strait: s.blockade ? 'Blockaded' : s.warned ? 'Beijing is threatening' : s.tension < 35 ? 'Calm' : s.tension < 55 ? 'Tense' : 'Hot',
-    labsText: s.national ? 'Nationalized' : s.labs < TUNE.labDefiant ? 'Defiant' : s.labs < TUNE.labInspect ? 'Would refuse any pause' : s.labs < TUNE.labWilling ? 'Would stop only with inspectors' : 'Would stop',
+    labsText: s.national ? 'Nationalized' : s.law ? 'Bound by law' : s.labs < TUNE.labDefiant ? 'Defiant' : s.labs < TUNE.labInspect ? 'Would refuse any pause' : s.labs < TUNE.labWilling ? 'Would stop only with inspectors' : 'Would stop',
     eyesText: ['No source in Beijing', 'One source in Beijing', 'Two sources in Beijing'][s.eyes],
     deal: s.deal ? terms(s.deal) : null, talking: s.offer != null, knownOver: s.knownOver,
   };
@@ -93,7 +94,7 @@ function rule(s, r0) {
   if (secure + test > 1) { const k = secure + test; secure /= k; test /= k; }
   return {
     train: Math.min(clamp(r.train, 0, 1), 1 - secure - test), secure, test,
-    nationalize: b('nationalize') && !s.national, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
+    nationalize: b('nationalize') && !s.national, law: b('law') && !s.law, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
     controls: Math.sign(clamp(r.controls, -1, 1)), propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -1, 1)),
     intel: b('intel') && s.eyes < 2, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage') && !s.sabotaged,
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
@@ -114,6 +115,7 @@ function play(s, r0) {
 
   // the dials
   if (r.nationalize) { s.national = true; s.tension += 10; }
+  if (r.law) { s.law = true; add('good', 'Congress binds the labs', '"Every frontier lab now trains, tests and stops under one federal license. No lab can gain by ignoring it."', 'Conference report, U.S. Congress'); }
   if (r.controls > 0 && s.controls < 3) { s.controls++; s.tension += T.squeeze; s.trust -= 6; }
   if (r.controls < 0 && s.controls > -1) { s.controls--; s.tension -= 10; s.trust += 10; }
   if (r.backdown) { s.controls = Math.min(0, s.controls); s.tension -= 25; s.trust += 5; s.blockade = false; add('warn', 'The blockade is lifted', '"The exercise is concluded." The sea lanes reopen.', 'Eastern Theater Command, one-line notice'); }
@@ -121,7 +123,7 @@ function play(s, r0) {
 
   // defiant labs do half of what they are told and keep training
   let defy = false;
-  if (!s.national && s.labs < T.labDefiant) { secure *= 0.5; test *= 0.5; const least = s.deal ? 0.4 : 0.6; if (train < least) { train = least; defy = true; } }
+  if (!obey(s) && s.labs < T.labDefiant) { secure *= 0.5; test *= 0.5; const least = s.deal ? 0.4 : 0.6; if (train < least) { train = least; defy = true; } }
 
   // Pentagon
   if (r.run) {
@@ -194,9 +196,9 @@ function play(s, r0) {
   }
 
   // the labs' own safety teams report what they see as the frontier nears the danger point; the distances are blurred per game, so a warning is a sign, not a measurement
-  const SIGNS = [[9, 3, 'the model games its tests', '"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking."'],
-    [6, 2, 'the model tried to switch off its monitoring', '"During a test the model tried to switch off the software that watches it. We caught it. The next model will be better at this."'],
-    [3, 2, 'the model took computing power it was not given', '"The model found a flaw in our test servers and used it to give itself more computing power. We are not sure we can contain the next one."']];
+  const SIGNS = [[8, 3, 'the model games its tests', '"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking."'],
+    [5, 2, 'the model tried to switch off its monitoring', '"During a test the model tried to switch off the software that watches it. We caught it. The next model will be better at this."'],
+    [2.5, 1.5, 'the model took computing power it was not given', '"The model found a flaw in our test servers and used it to give itself more computing power. We are not sure we can contain the next one."']];
   let sign = s.alarm || 0;
   while (sign < SIGNS.length && s.line - s.us < SIGNS[sign][0] + (hash01(s.seed, 'sign', sign) - 0.5) * SIGNS[sign][1]) sign++;
   if (sign > (s.alarm || 0) && s.us <= s.line && !s.knownOver) { s.alarm = sign; add('warn', 'Lab warning: ' + SIGNS[sign - 1][2], SIGNS[sign - 1][3], 'Safety team memo to the White House, a frontier lab'); }
@@ -330,7 +332,7 @@ function brief(s) {
     'Anything else the room puts in the deal (a joint lab, a guarantee over Taiwan, money) goes in extra; give leverage +1 only if it costs America something real, and charge that cost with the nudges. ' +
     'What moves it toward better terms: a US lead of ' + T.leadFor + '+ months that its hackers cannot steal back, chip controls at level ' + T.ctlFor + '+, proof the danger is real (a near miss, or a twice-narrowed range close to the frontier). What moves it away: a hot Strait, hostility (trust is ' + Math.round(s.trust) + ', hostile below ' + T.cold + '), a US lead under ' + T.leadShort + ' months. ' +
     (s.deal ? (s.caught ? 'It has been caught cheating. ' + (s.floor <= 1 ? 'Confronted, it would shut the site and admit inspectors.' : 'Confronted, it would walk out.') : s.hidden ? 'It is training in secret right now.' : cheats(s) ? 'It will start training in secret this turn.' : 'It is keeping the deal.') + ' Only a source in Beijing can see cheating. ' : 'Under a deal without inspectors it would cheat ' + (s.floor === 2 ? 'always' : 'while it is ' + T.cheatLead + '+ months behind') + '. ') +
-    'The labs sign a pause with inspectors at cooperation ' + T.labInspect + '+, one without at ' + T.labWilling + '+ (now ' + Math.round(s.labs) + (s.national ? ', nationalized: they obey' : '') + '); below ' + T.labDefiant + ' they defy orders. Racing costs cooperation, testing builds it. A pause cannot be signed in a turn with train above 0.5.');
+    'The labs sign a pause with inspectors at cooperation ' + T.labInspect + '+, one without at ' + T.labWilling + '+ (now ' + Math.round(s.labs) + (s.national ? ', nationalized: they obey' : s.law ? ', bound by an act of Congress: they obey' : '') + '); below ' + T.labDefiant + ' they defy orders. Racing costs cooperation, testing builds it. A pause cannot be signed in a turn with train above 0.5.');
   L.push('HIDDEN, STRAIT: tension ' + Math.round(s.tension) + '. ' + (s.blockade ? 'Taiwan is blockaded: US training runs at half speed until it ends. backdown (lifting every chip control) ends it. run (a convoy) ' + (s.bluff ? 'works: Beijing will not fire' : 'means war: Beijing will fire') + '. More chip controls or sabotage during the blockade ' + (s.bluff ? 'do not start a war' : 'mean war') + '.' : 'Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades Taiwan at ' + Math.round(redLine(s)) + '. Tightening chip controls adds ' + T.squeeze + ', sabotage 30, nationalizing 10, racing close to the danger range ' + T.fear + '; easing controls takes off 10; a show of force (deter) moves the blockade line up ' + T.deter + ' (twice at most) and costs trust. ' + (s.bluff ? 'If it came to a blockade, Beijing would not fire first.' : 'If it came to a blockade, Beijing would fire on a convoy.')));
   if (!s.sabotaged) L.push('SABOTAGE (once): sets China back ' + T.sabotage + ' months, Beijing answers in kind (the US loses ' + T.revenge + '), stops talking, and tension jumps.');
   return L.join('\n');
