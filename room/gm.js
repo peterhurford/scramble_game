@@ -33,7 +33,12 @@ const RULING = {
   us: num('-1 to 0. Extra months lost by the US frontier. Usually 0.'),
   hack: num('-0.7 to 0.5. Extra change in the hackers\' progress. Usually 0.'),
 };
-const SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'ruling', 'note'], properties: {
+const VOICE = who => ({ type: 'object', additionalProperties: false, required: ['by', 'quote'], description: who, properties: {
+  by: { type: 'string', description: 'Who is speaking and where, short.' }, quote: { type: 'string', description: 'One or two plain sentences, 35 words at most, no quotation marks.' } } });
+const SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'updates', 'ruling', 'note'], properties: {
+  updates: { type: 'object', additionalProperties: false, required: ['beijing', 'labs'], description: 'Two updates for the briefing at the end of the period.', properties: {
+    beijing: VOICE('Where Beijing stands at the end of the period, in public: a ministry spokesperson or the state press.'),
+    labs: VOICE('Where the labs stand at the end of the period: a chief executive writing privately to the President.') } },
   replies: { type: 'array', description: 'One reply to each table that gave an order, in the order White House, State, Pentagon.', items: { type: 'object', additionalProperties: false, required: ['table', 'by', 'quote'], properties: {
     table: { type: 'string', enum: ['wh', 'state', 'pent'] },
     by: { type: 'string', description: 'Who is speaking and where, as a short byline: "Chief executive of a frontier lab, by phone".' },
@@ -62,6 +67,8 @@ How to rule.
 - Beijing bargains. A pause can be on any terms the room writes; record them faithfully, including terms the room invented. If Beijing would not sign them today it refuses and says what it would need instead, in its own words. If it would sign, it says so. An invented term moves Beijing only if it costs America something real, and then you charge that cost.
 - Your replies must agree with the arithmetic you are given. Do not promise safety the ledger will not deliver, and do not reveal hidden numbers. A character may hint at what they would plausibly know, with their own doubt in it.
 
+The updates. Besides the replies, write two updates the room reads at the end of the period, after the results: one from Beijing and one from the labs. Each answers what the room did this turn: how their own work is going, what worries them, what they will do or want next. Beijing speaks in public and may shade the truth; the lab chief writes privately to the President and is frank, including about what the models are now doing and about Washington. Keep them to posture and progress: do not announce or rule out the events the ledger reports (a theft, a signing, a blockade, a loss of control). Never repeat an earlier update. The writing rules below apply to them too.
+
 How to write the replies.
 - One reply per table that gave an order. One or two sentences, 35 words at most. A table that wrote nothing gets no reply.
 - Plain speech, the way a tired official talks on a secure line. No metaphors, no wit, no slogans, nothing literary.
@@ -71,7 +78,7 @@ How to write the replies.
 
 // The turn as the game master reads it: the ledger's brief, what was said before, and the three orders.
 function prompt(body) {
-  const log = (body.state.log || []).map(t => t.date + '\n' + Object.keys(W.TABLES).map(k => (t.orders[k] ? W.TABLES[k] + ' ordered: ' + t.orders[k] + '\n' : '') + (t.replies || []).filter(r => r.table === k).map(r => '  ' + r.by + ': ' + r.quote + '\n').join('')).join('') + (t.events.length ? 'Then: ' + t.events.join('; ') + '.\n' : '')).join('\n');
+  const log = (body.state.log || []).map(t => t.date + '\n' + Object.keys(W.TABLES).map(k => (t.orders[k] ? W.TABLES[k] + ' ordered: ' + t.orders[k] + '\n' : '') + (t.replies || []).filter(r => r.table === k).map(r => '  ' + r.by + ': ' + r.quote + '\n').join('')).join('') + (t.events.length ? 'Then: ' + t.events.join('; ') + '.\n' : '') + (t.updates ? '  Beijing, afterwards: ' + t.updates.beijing.quote + '\n  The labs, afterwards: ' + t.updates.labs.quote + '\n' : '')).join('\n');
   return W.brief(body.state) + '\n\n' + (log ? 'EARLIER TURNS\n' + log + '\n' : '') + 'THIS TURN\'S ORDERS\n' +
     Object.keys(W.TABLES).map(k => W.TABLES[k] + ': ' + (String(body.orders[k] || '').trim().slice(0, 600) || '(no order)')).join('\n');
 }
@@ -94,7 +101,7 @@ function viaCli(text) {
   });
 }
 const mock = body => ({ replies: Object.keys(W.TABLES).filter(k => (body.orders[k] || '').trim()).map(k => ({ table: k, by: 'Canned reply, ' + W.TABLES[k], quote: 'We will do it. It will cost more than you think, and I cannot promise it works.' })),
-  ruling: Object.assign({}, W.DEFAULT, { train: 0.5, secure: 0.5 }), note: 'Mock game master: no model was asked.' });
+  updates: null, ruling: Object.assign({}, W.DEFAULT, { train: 0.5, secure: 0.5 }), note: 'Mock game master: no model was asked.' });
 const BACKEND = process.env.GM === 'mock' ? 'mock' : process.env.ANTHROPIC_API_KEY ? 'sdk' : 'cli';
 
 async function gm(body) {

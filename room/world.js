@@ -247,6 +247,35 @@ function play(s, r0) {
     s.warned = near;
   }
 
+  // every briefing carries word from Beijing and from the labs; an event that already speaks for one of them stands in for it
+  const said = list => ev.some(e => list.some(x => e.title.startsWith(x)));
+  if (!said(['Beijing', 'A pause is signed', 'The pause is over', 'Taiwan is blockaded', 'The blockade is lifted', 'China is in'])) {
+    const seen = s.us - s.cnShown, w = want(s);
+    add('info', 'From Beijing', '"' + (
+      s.deal && s.caught ? 'The site in Gansu is a weather research center. China is keeping its word.'
+      : s.deal ? 'China has stopped its training runs as agreed. We expect America to keep doing the same.'
+      : s.blockade ? 'The exercise around Taiwan will continue until America lifts its chip controls.'
+      : r.controls > 0 ? 'America has cut off more chips. It will not stop China. It tells us what America intends.'
+      : r.controls < 0 ? 'We welcome the step on chips. It makes a serious conversation possible.'
+      : seen < T.leadShort ? 'China\'s models are now the equal of any in the world. We see no reason to stop while America does not.'
+      : train >= 0.7 && s.us >= s.lo - T.full ? 'American labs are running toward a danger their own scientists describe. China will not be the one left behind when they get there.'
+      : w <= 1 ? 'Our scientists share the worry about losing control. China is ready to talk seriously about stopping, on fair terms.'
+      : s.trust < T.cold ? 'Washington speaks of safety and acts to keep China down. We will keep building.'
+      : 'China\'s program is on schedule. We will not accept a world where one country holds this technology alone.') + '"',
+      s.deal || s.blockade || r.controls ? 'Foreign Ministry spokesperson, Beijing' : 'Xinhua, quoting a senior official');
+  }
+  if (!said(['A lab defies', 'The labs refuse', 'Near miss'])) {
+    const mood = s.labs < T.labInspect ? 0 : s.labs < T.labWilling ? 1 : 2;
+    add('info', 'From the labs', '"' + (
+      s.national ? 'The engineers still come in. Some of the best ones have not, since the takeover.'
+      : s.deal ? 'We have stopped, as ordered. Every week we stand still we lose people. ' + ['Nobody in Washington can tell us how long this lasts.', 'We cannot hold them much longer.', 'We still think it is the right call.'][mood]
+      : test >= secure && test >= 0.3 ? 'Our safety teams have the people they asked for. They are finding more than we expected. ' + ['Washington ordered this without asking what it costs.', 'The next model is late because of it.', 'We are glad someone asked.'][mood]
+      : secure >= 0.3 ? 'A large part of our engineers are rebuilding the network, not the model. ' + ['Washington has not told us what China is doing meanwhile.', 'The next model is late, and China is not waiting.', 'It needed doing.'][mood]
+      : train >= 0.7 ? 'The next model is ahead of schedule. It now writes much of the code for its own successor. ' + ['We do not need Washington\'s help to run our labs.', 'If we slow down, our rivals and China will not.', 'We would slow down if everyone did.'][mood]
+      : 'We are close to standing still while China is not. ' + ['We hope someone in Washington has a plan, because we have not seen one.', 'We cannot do this for long.', 'We will hold as long as we can.'][mood]) + '"',
+      'Chief executive of a frontier lab, letter to the President');
+  }
+
   s.turn++;
   if (s.turn >= T.turns) return end(s, 'time', ev);
   return ev;

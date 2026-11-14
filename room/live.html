@@ -157,7 +157,10 @@ function go() {
   const g = st.game, date = World.DATES[g.turn];
   st.past.push(JSON.stringify(g));
   st.events = World.play(g, ruling);
-  g.log.push({ date, orders: st.orders, replies: st.answer.replies, events: st.events.map(e => e.title) });
+  // the game master's words replace the ledger's stock updates where the ledger left room for one
+  const up = st.answer.updates || {};
+  for (const e of st.events) { const u = e.title === 'From Beijing' ? up.beijing : e.title === 'From the labs' ? up.labs : null; if (u && u.quote) { e.text = '"' + String(u.quote).replace(/"/g, "'") + '"'; e.src = u.by; } }
+  g.log.push({ date, orders: st.orders, replies: st.answer.replies, updates: st.answer.updates || null, events: st.events.map(e => e.title) });
   st.error = ''; st.news = 0; st.screen = 'news';
   if (st.events.length) draw(); else next();
 }
