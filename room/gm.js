@@ -260,8 +260,18 @@ function status() {
   return { stage: NOW.stage, step: NOW.stage === 'voice' ? 'voice' : NOW.step || '', frac, secs: (Date.now() - NOW.t0) / 1000 };
 }
 async function gm(body) { NOW = { stage: 'ruling', t0: Date.now() }; try { return await gm1(body); } finally { NOW = null; } }
+const missing = (out, body) => Object.keys(W.TABLES).filter(k => (body.orders[k] || '').trim() && !(out.replies || []).some(r => r.table === k && (r.quote || r.did)));
 async function gm1(body) {
-  const t0 = Date.now(), out = BACKEND === 'mock' ? mock(body) : await ASK[BACKEND](prompt(body));
+  const t0 = Date.now(); let out = BACKEND === 'mock' ? mock(body) : await ASK[BACKEND](prompt(body));
+  // a table that wrote an order and got no reply would have no card: ask once more, and keep the fuller answer
+  const miss = missing(out, body);
+  if (miss.length && BACKEND !== 'mock') {
+    if (NOW) { NOW.step = ''; NOW.chars = 0; }
+    let again = null; try { again = await ASK[BACKEND](prompt(body) + '\n\nYour last answer gave no reply to: ' + miss.map(k => W.TABLES[k]).join(', ') + '. Every table that wrote an order must get a reply.'); } catch (e) { console.error('second ask failed: ' + e.message); }
+    if (again && missing(again, body).length < miss.length) out = again;
+    out.retry = 'asked again: no reply to ' + miss.join(', ') + (missing(out, body).length ? '; still missing ' + missing(out, body).join(', ') : '');
+    console.error(out.retry);
+  }
   out.ruling = W.rule(body.state, Object.assign({}, out.ruling, { ops: out.ops, facts: out.facts, chances: out.chances })); delete out.ops; delete out.facts; delete out.chances;   // the page and the ledger read them from the ruling
   if (BACKEND !== 'mock' && VOICE_MODEL !== 'off') { if (NOW) { NOW.stage = 'voice'; NOW.t1 = Date.now(); } await voice(out, body); }
   out.backend = BACKEND + (MODEL ? ' ' + MODEL : ''); out.secs = Math.round((Date.now() - t0) / 100) / 10;
@@ -287,4 +297,4 @@ if (require.main === module) http.createServer((req, res) => {
   fs.readFile(file, (e, data) => e ? send(404, 'text/plain', 'not found') : send(200, TYPES[path.extname(name)], data));
 }).listen(PORT, '127.0.0.1', () => console.log('The Scramble, Room Edition: http://localhost:' + PORT + '  (game master: ' + BACKEND + ')'));
 
-module.exports = { gm, prompt, voice, SYSTEM, SCHEMA, BACKEND };
+module.exports = { gm, prompt, voice, SYSTEM, SCHEMA, BACKEND, ASK };
