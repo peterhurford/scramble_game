@@ -209,7 +209,7 @@ function play(s, picks) {
     if (!opt) throw new Error('no such option for ' + seat.id + ': ' + picks[seat.id]);
     chosen[seat.id] = opt.title;
   }
-  const { vp, dni, doc, state, war } = picks, c = s.crisis;
+  const { vp, dni, doc, state, war } = picks, c = s.crisis, lead0 = view(s).leadText.toLowerCase();
   // tease marks the last event as the result of a roll: the screen asks the question, with its odds, before showing it.
   const tease = (q, p) => { const e = ev[ev.length - 1]; e.tease = q; e.odds = odds(p); };
   s.votes.push({ turn: t, date: DATES[t], picks: chosen });
@@ -325,7 +325,8 @@ function play(s, picks) {
   }
   s.cn += cnStep;
   add('info', s.deal ? (vp === 'secret' ? 'America cheats' : 'Both sides hold') : s.pace === 'race' ? 'The labs race' : s.pace === 'hold' ? 'The labs are told to hold' : 'The labs go at half speed',
-    'The US frontier moves ' + months(usStep) + '. China ' + (s.deal && !s.caught ? 'reports the same as last turn' : 'moves ' + months(cnStep)) + '. The US is now ' + view(s).leadText.toLowerCase() + '.');
+    (s.pace === 'hold' && !defy ? 'The US frontier barely moves. ' : 'The US frontier advances ' + months(usStep) + '. ') + (s.deal && !s.caught ? 'Beijing reports no progress. By its account the' : 'The') +
+    (lead0 === view(s).leadText.toLowerCase() ? ' US is still ' + lead0 + '.' : ' US was ' + lead0 + ' and is now ' + view(s).leadText.toLowerCase() + '.'));
   if (defy) {
     add('bad', 'A lab defies the pause', '"We burn forty million dollars a day standing still. I will not lay off four thousand people for a treaty nobody has shown me. The clusters come back up Monday."' + (s.deal ? ' Beijing noticed.' : ''), 'Leaked memo from a lab chief executive');
     if (s.deal) { s.trust -= 20; if (s.trust < 10) breakDeal('Beijing says America never stopped, and leaves the pause.'); }
