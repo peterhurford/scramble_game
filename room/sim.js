@@ -2,12 +2,12 @@
 const R = require('./engine.js');
 const N = +process.argv[2] || 20000;
 
-// A bot returns { w, bold }: each table takes the answer whose acts weigh most under w (ties go to the first), and bold is the bold move wanted, if on offer.
+// A bot returns { w, bold }: each table takes the answer, from either of its questions, whose acts weigh most under w (ties go to the first), and bold is the bold move wanted, if on offer.
 const choose = (T, w, bold) => {
   const p = { bold: bold && T.bold.some(b => b.id === bold && !b.off) ? bold : null };
   for (const tb of T.tables) {
     const sc = x => x.acts.reduce((n, a) => n + (w[a] || 0), 0);
-    p[tb.id] = tb.opts.filter(x => !x.off).reduce((best, x) => sc(x) > sc(best) ? x : best).id;
+    p[tb.id] = tb.qs.flatMap(d => d.opts).filter(x => !x.off).reduce((best, x) => sc(x) > sc(best) ? x : best).id;
   }
   return p;
 };
@@ -34,7 +34,7 @@ const HAWK = { tighten: 2, allies: 1, deter: 1, lock: 2, guard: 1, burn: 2, expo
 const BOTS = {
   random: (s, T, i) => {
     const p = {}, b = T.bold.filter(x => !x.off), k = Math.floor(R.hash01(i, s.turn, 'bold') * b.length * 3);   // a bold move one turn in three
-    for (const tb of T.tables) p[tb.id] = R.hash01(i, s.turn, tb.id) < 0.5 ? 'a' : 'b';
+    for (const tb of T.tables) { const o = tb.qs.flatMap(d => d.opts).filter(x => !x.off); p[tb.id] = o[Math.floor(R.hash01(i, s.turn, tb.id) * o.length)].id; }
     p.bold = k < b.length ? b[k].id : null;
     return p;
   },

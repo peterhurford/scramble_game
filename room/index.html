@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* One projected screen: top bar, the race track, six gauges, then the three tables' questions and the bold moves, or the turn's events. */
+/* One projected screen: top bar, the race track, six gauges, then each table's two questions and the bold moves, or the turn's events. */
 :root{
   --bg:#E3E8ED; --sheet:#F8F9FB; --sheet2:#EEF2F6; --ink:#15202B; --muted:#56626F; --faint:#9AA6B2; --rule:#C8D0D9;
   --accent:#1A4480; --accent-ink:#fff; --accent-soft:#DCE6F3;
@@ -73,9 +73,9 @@ button{font:inherit;color:inherit}
 .seats,.bolds{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px} .bolds{margin-top:4px} .bl{margin-top:14px}
 .seat{background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px;min-width:0}
 .seat.set{border-top-color:var(--good)}
-.seat h3{margin:0;font-size:.8em;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)} .seat.cr{border-top-color:var(--warn)} .seat.cr h3{color:var(--warn)}
-.seat .tag{float:right;font-style:normal;background:var(--warn);color:var(--accent-ink);padding:1px 6px}
-.seat .q{margin:0 0 2px;font-size:1.3em;font-weight:900;line-height:1.2}
+.seat h3{margin:0;font-size:.8em;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.seat .tag{float:right;font-style:normal;font-size:.6em;letter-spacing:.12em;text-transform:uppercase;background:var(--warn);color:var(--accent-ink);padding:2px 6px;margin-left:8px}
+.seat .q{margin:6px 0 0;font-size:1.15em;font-weight:900;line-height:1.2} .seat .q.cr{color:var(--warn)}
 .seat .opt b{font-size:1.1em} .seat .opt span{font-size:.95em}
 .opt .who{display:block;font-style:normal;font-size:.68em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .opt{all:unset;box-sizing:border-box;cursor:pointer;display:block;border:2px solid var(--rule);background:var(--sheet2);padding:6px 9px}
@@ -128,7 +128,7 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 // Each table announces its answer and the facilitator clicks it; a bold move is clicked on, or again to take it back (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 // TURN_SECS covers a whole round: the crisis, the decision and the news.
-const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v6';
+const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v7';
 const SHORT = { wh: 'White House', state: 'State', pent: 'Pentagon', bold: 'Bold move' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -139,7 +139,7 @@ let st = { screen: 'intro', game: null, past: [], events: [], news: -1, brief: f
 function seedFromHash() { const m = /seed=([\w-]+)/.exec(location.hash); return m ? m[1] : String(Math.floor(Math.random() * 1e6)); }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(st)); } catch (e) {} }
 function load() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.game) st = s; } catch (e) {} }
-const ready = () => Room.turn(st.game).tables.every(tb => tb.opts.some(o => o.id === st.picks[tb.id] && !o.off));
+const ready = () => Room.turn(st.game).tables.every(tb => tb.qs.some(d => d.opts.some(o => o.id === st.picks[tb.id] && !o.off)));
 
 function start(seed) {
   st = { screen: 'decide', game: Room.newGame(seed), past: [], events: [], picks: {}, t0: Date.now(), turnT0: Date.now() };
@@ -231,8 +231,11 @@ function decide(g) {
   const c = Room.crisis(g), T = Room.turn(g);
   let h = (c && c.rule ? '<div class="crisis"><b>' + esc(c.title) + '</b><span>' + esc(c.rule) + '</span></div>' : '') + '<div class="seats">';
   for (const tb of T.tables) {
-    h += '<div class="seat' + (st.picks[tb.id] ? ' set' : '') + (tb.crisis ? ' cr' : '') + '"><h3>' + esc(tb.who) + (tb.crisis ? '<i class="tag">Crisis</i>' : '') + '</h3><p class="q">' + esc(tb.q) + '</p>';
-    for (const o of tb.opts) h += '<button class="opt' + (st.picks[tb.id] === o.id ? ' on' : '') + '" data-seat="' + tb.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '><b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
+    h += '<div class="seat' + (st.picks[tb.id] ? ' set' : '') + '"><h3>' + esc(tb.who) + '</h3>';
+    for (const d of tb.qs) {
+      h += '<p class="q' + (d.crisis ? ' cr' : '') + '">' + (d.crisis ? '<i class="tag">Crisis</i>' : '') + esc(d.q) + '</p>';
+      for (const o of d.opts) h += '<button class="opt' + (st.picks[tb.id] === o.id ? ' on' : '') + '" data-seat="' + tb.id + '" data-opt="' + o.id + '"' + (o.off ? ' disabled' : '') + '><b>' + esc(o.title) + '</b><span>' + esc(o.text) + '</span></button>';
+    }
     h += '</div>';
   }
   h += '</div><div class="lbl bl">One bold move, if any</div><div class="bolds">';

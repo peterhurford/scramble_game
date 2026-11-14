@@ -1,7 +1,7 @@
 // The Scramble: Room Edition. A seven-turn game for a room split into three tables (White House, State, Pentagon),
 // on the main game's three problems: weight theft, the US-China balance, and the hidden point where AI starts improving itself.
-// Each turn every table answers one question with two answers (turn(s)): the turn's crisis (CRISES) puts a question to the
-// tables it touches, and the others get their next standing question (OPEN before a pause, DEAL under one).
+// Each turn every table answers one of the two questions in front of it (turn(s)), each with two answers: the turn's crisis (CRISES)
+// puts a question to the tables it touches, beside one of their standing questions (OPEN before a pause, DEAL under one).
 // The room may also make one bold move a turn. An answer is a list of acts; play() applies them, then the world moves.
 // A pause needs Beijing's hidden two-part price met (ASKS), labs willing to stop, and a White House that is not racing that turn.
 // No DOM; runs in node (room/sim.js) and the browser (room/index.html).
@@ -25,7 +25,7 @@ const TUNE = {
   warFrom: 35, warSlope: 0.005, warDeter: 0.6, warWatch: 0.6, cornered: 5,
   labs0: 45, labRace: 6, labHold: -8, labPay: 12, labCompute: 25, labLock: -15, labTest: -5, labBack: 10, labShelve: -10, labWait: 20,
   labWilling: 55, labDefiant: 25, defy: 2,
-  dealBase: -0.4, dealAsk: 0.3, dealLead: 0.04, dealTrust: 0.003, dealLever: 0.04,
+  dealBase: -0.4, dealAsk: 0.3, dealLead: 0.04, dealTrust: 0.003, dealLever: 0.04, dealHalf: 0.1, dealNone: 0.04,
   inspect: 0.40, inspectTrust: 0.005, inspectLever: 0.1,
   confront: 0.25, confrontCtl: 0.12, confrontLever: 0.1, confrontWar: 0.2, confrontDni: 0.1,
   cheat: 0.65, cheatTrust: 0.002, cheatMin: 0.4, cheatInsp: 0.3, cheatAgain: 0.5,
@@ -72,7 +72,8 @@ function newGame(seed) {
 
 const warRisk = s => clamp((s.tension - TUNE.warFrom) * TUNE.warSlope, 0, 0.5);
 const lever = s => Math.max(0, s.controls) + s.leverage;
-const dealOdds = (s, met) => clamp(TUNE.dealBase + TUNE.dealAsk * met + TUNE.dealLead * clamp(s.us - s.cnShown, 0, 8) + TUNE.dealTrust * s.trust + TUNE.dealLever * lever(s) + (s.crisis === 'opening' ? TUNE.opening : 0), 0.03, 0.9);
+// Beijing does not sign for less than its price: short of it, a yes is a long shot whatever else Washington holds.
+const dealOdds = (s, met) => Math.min([TUNE.dealNone, TUNE.dealHalf, 0.9][met], clamp(TUNE.dealBase + TUNE.dealAsk * met + TUNE.dealLead * clamp(s.us - s.cnShown, 0, 8) + TUNE.dealTrust * s.trust + TUNE.dealLever * lever(s) + (s.crisis === 'opening' ? TUNE.opening : 0), 0.03, 0.9));
 const inspectOdds = s => clamp(TUNE.inspect + TUNE.inspectTrust * s.trust + TUNE.inspectLever * lever(s), 0.1, 0.9);
 const confrontOdds = (s, deter, watch) => clamp(TUNE.confront + TUNE.confrontCtl * Math.max(0, s.controls) + TUNE.confrontLever * s.leverage + (deter ? TUNE.confrontWar : 0) + (watch ? TUNE.confrontDni : 0), 0.1, 0.9);
 const willing = s => s.national || s.labs >= TUNE.labWilling;
@@ -264,22 +265,28 @@ function bold(s) {
     b('national', 'wh', 'Nationalize the labs', s.national ? 'Already done.' : 'The labs obey from now on. Slower for good; Beijing is alarmed.', s.national),
     s.snub === s.turn - 1 ? b('summit', 'state', 'Propose a mutual pause', 'Beijing said no last turn. Not yet.', true)
       : !willing(s) ? b('summit', 'state', 'Propose a mutual pause', 'Will fail: our labs refuse to stop. Then Beijing will not talk next turn.')
-      : b('summit', 'state', 'Propose a mutual pause', 'Fails if the White House races. Yes if we meet both demands: ' + odds(dealOdds(s, 2)) + '; one: ' + odds(dealOdds(s, 1)) + '; neither: ' + odds(dealOdds(s, 0)) + '. A no shuts talks next turn.'),
+      : b('summit', 'state', 'Propose a mutual pause', 'Fails if the White House races. With both of Beijing\'s demands met, a yes is ' + odds(dealOdds(s, 2)) + '; short of that, ' + odds(dealOdds(s, 1)) + '. A no shuts talks next turn.'),
     b('sabotage', 'pent', 'Sabotage their data centers', 'China loses about three months. Tension jumps, trust collapses.') ];
 }
 
-// This turn's question for each table, and the bold moves on offer.
+// This turn's questions for each table, and the bold moves on offer. A table answers one question: the crisis's, if it has one for
+// that table, or one of its own (the standing questions it has gone longest without answering). An answer already on offer under
+// the table's first question is not repeated under the second.
 function turn(s) {
   const c = CRISES[s.crisis], book = s.deal ? DEAL : OPEN;
   const tables = Object.keys(TABLES).map(id => {
-    const mine = c && c[id] && c[id](s), last = d => s.asked[id].lastIndexOf(d.key);
-    const d = mine || book[id](s).filter(Boolean).reduce((best, x) => last(x) < last(best) ? x : best);
-    return { id, who: TABLES[id], key: d.key || s.crisis, q: d.q, opts: d.opts, crisis: !!mine };
+    const mine = c && c[id] && c[id](s), last = d => s.asked[id].lastIndexOf(d.key), seen = [];
+    if (mine) { mine.key = mine.key || s.crisis; mine.crisis = true; }
+    const rest = book[id](s).filter(d => d && !(mine && d.key === mine.key)).map((d, i) => [last(d), i, d]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]);
+    const fresh = x => { const k = x.acts.join(); if (seen.includes(k)) return false; seen.push(k); return true; };
+    const qs = (mine ? [mine, rest[0]] : rest.slice(0, 2)).filter(Boolean)
+      .map(d => ({ key: d.key, q: d.q, crisis: !!d.crisis, opts: d.opts.filter(fresh).map(x => Object.assign({}, x, { id: d.key + ':' + x.id })) })).filter(d => d.opts.length);
+    return { id, who: TABLES[id], qs };
   });
   return { tables, bold: bold(s) };
 }
 
-// One turn. picks = { wh, state, pent: 'a' or 'b', bold: a bold move's id or nothing }. Returns the events to read out.
+// One turn. picks = { wh, state, pent: an answer's id from turn(s), bold: a bold move's id or nothing }. Returns the events to read out.
 function play(s, picks) {
   if (s.over) return [];
   const ev = [], t = s.turn, roll = name => hash01(s.seed, t, name), T = turn(s), A = {}, chosen = {};
@@ -288,16 +295,16 @@ function play(s, picks) {
   // note: an answer going as expected; the screen reads these out together as one bulletin.
   const note = (...x) => { add(...x); ev[ev.length - 1].routine = true; };
   for (const tb of T.tables) {
-    const opt = tb.opts.find(x => x.id === picks[tb.id] && !x.off);
+    const opt = tb.qs.flatMap(d => d.opts).find(x => x.id === picks[tb.id] && !x.off);
     if (!opt) throw new Error('no such answer for ' + tb.id + ': ' + picks[tb.id]);
     chosen[tb.id] = opt.title; for (const a of opt.acts) A[a] = true;
+    if (opt.acts.join() !== 'race') s.asked[tb.id].push(opt.id.split(':')[0]);   // racing on answers nothing: the question stays
   }
   if (picks.bold) {
     const b = T.bold.find(x => x.id === picks.bold && !x.off);
     if (!b) throw new Error('no such bold move: ' + picks.bold);
     chosen.bold = b.title; A[b.id] = true;
   }
-  for (const tb of T.tables) s.asked[tb.id].push(tb.key);
   const has = a => !!A[a], c = s.crisis, lead0 = view(s).leadText.toLowerCase();
   s.votes.push({ turn: t, date: DATES[t], picks: chosen });
   const fix = () => { s.trust = clamp(s.trust, 0, 100); s.tension = clamp(s.tension, 0, 100); s.labs = clamp(s.labs, 0, 100); };
@@ -309,8 +316,8 @@ function play(s, picks) {
   let boost = false, signed = false;
 
   // State
-  if (has('tighten')) { s.controls++; s.tension += 12; s.trust -= 10; note('info', 'State: ' + chosen.state.toLowerCase(), ['"China firmly opposes these controls and will respond."', '"The United States is cutting China off. China will respond in kind."', '"This is an embargo. China will treat it as a hostile act."'][clamp(s.controls, 1, 3) - 1], 'Foreign Ministry spokesperson, Beijing'); }
-  if (has('carrot')) { s.controls--; s.tension -= 10; s.trust += 10; note('info', 'State: ' + chosen.state.toLowerCase(), 'Chip shipments to China resume within days.', 'Wire report, Shenzhen'); }
+  if (has('tighten')) { s.controls++; s.tension += 12; s.trust -= 10; note('info', chosen.state, ['"China firmly opposes these controls and will respond."', '"The United States is cutting China off. China will respond in kind."', '"This is an embargo. China will treat it as a hostile act."'][clamp(s.controls, 1, 3) - 1], 'Foreign Ministry spokesperson, Beijing'); }
+  if (has('carrot')) { s.controls--; s.tension -= 10; s.trust += 10; note('info', s.controls >= 0 ? 'The chip controls are eased' : 'Chips for Beijing', 'Chip shipments to China resume within days.', 'Wire report, Shenzhen'); }
   if (c === 'ultimatum') {
     if (has('carrot')) add('good', 'The drills are called off', '"The exercise is postponed." Beijing got what it asked for.', 'Eastern Theater Command, one-line notice');
     else { s.tension += TUNE.ultimatum; add('bad', 'The deadline passes', '"Live-fire drills began this morning on three sides of Taiwan. Flights are cancelled."', 'Wire flash, Taipei'); }
@@ -327,7 +334,7 @@ function play(s, picks) {
   if (has('snap')) s.trust -= 5;
 
   // White House
-  if (has('secure')) { s.labs += TUNE.labPay; note('good', 'The labs take the money', harden() + ' The weights are behind ' + SECURITY[s.sec] + '.'); }
+  if (has('secure')) { s.labs += TUNE.labPay; note('good', 'The labs take the money', harden()); }
   if (has('box')) { s.boxed = true; note('good', 'Human sign-off', 'AI-run research now needs a human signature. Losing control is half as likely.'); }
   if (has('compute')) { s.labs += TUNE.labCompute; boost = true; note('good', 'Federal compute for the labs', 'The labs get their data centers.'); }
   if (has('back')) s.labs += TUNE.labBack;
