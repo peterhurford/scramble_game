@@ -272,7 +272,7 @@ async function gm1(body) {
     out.retry = 'asked again: no reply to ' + miss.join(', ') + (missing(out, body).length ? '; still missing ' + missing(out, body).join(', ') : '');
     console.error(out.retry);
   }
-  out.ruling = W.rule(body.state, Object.assign({}, out.ruling, { ops: out.ops, facts: out.facts, chances: out.chances })); delete out.ops; delete out.facts; delete out.chances;   // the page and the ledger read them from the ruling
+  out.ruling = W.rule(body.state, Object.assign({}, out.ruling, { ops: out.ops, facts: out.facts, chances: out.chances, says: { beijing: !!(out.updates && out.updates.beijing && (out.updates.beijing.quote || '').trim()) } })); delete out.ops; delete out.facts; delete out.chances;   // the page and the ledger read them from the ruling
   if (BACKEND !== 'mock' && VOICE_MODEL !== 'off') { if (NOW) { NOW.stage = 'voice'; NOW.t1 = Date.now(); } await voice(out, body); }
   out.backend = BACKEND + (MODEL ? ' ' + MODEL : ''); out.secs = Math.round((Date.now() - t0) / 100) / 10;
   return out;

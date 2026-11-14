@@ -119,6 +119,7 @@ function rule(s, r0) {
     intel: b('intel') && s.eyes < 2, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage'),
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
+    says: { beijing: !!(r.says && r.says.beijing) },
     intelOdds: odds(r.intelOdds), sabotageOdds: odds(r.sabotageOdds), ops, facts: Array.isArray(r.facts) ? r.facts.slice(0, TUNE.maxFacts).map(x => str(x, 150)).filter(Boolean) : null,
     chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', reply: Number.isInteger(c.reply) ? c.reply : -1, op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
   };
@@ -310,9 +311,10 @@ function play(s, r0) {
     s.warned = near;
   }
 
-  // every briefing carries word from Beijing and from the labs; an event that already speaks for one of them stands in for it
+  // every briefing carries word from Beijing and from the labs; an event that already speaks for one of them stands in for the stock line,
+  // but never for an update the game master wrote (r.says.beijing), which answers what the room did
   const said = list => ev.some(e => list.some(x => e.title.startsWith(x)));
-  if (!said(['Beijing', 'A pause is signed', 'The pause is over', 'Taiwan is blockaded', 'The blockade is lifted', 'China is in'])) {
+  if (r.says.beijing || !said(['Beijing', 'A pause is signed', 'The pause is over', 'Taiwan is blockaded', 'The blockade is lifted', 'China is in'])) {
     const seen = s.us - s.cnShown, w = want(s);
     add('info', 'From Beijing', '"' + (
       s.deal && s.caught ? 'The site in Gansu is a weather research center. China is keeping its word.'
