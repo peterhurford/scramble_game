@@ -39,7 +39,7 @@ const RULING = {
   hack: num('-0.7 to 0.5. Extra change in the hackers\' progress. Usually 0.'),
 };
 const VOICE = who => ({ type: 'object', additionalProperties: false, required: ['by', 'quote'], description: who, properties: {
-  by: { type: 'string', description: 'Who is speaking and where, short.' }, quote: { type: 'string', description: 'One or two plain sentences, 35 words at most, no quotation marks.' } } });
+  by: { type: 'string', description: 'Who is speaking and where, short.' }, quote: { type: 'string', description: 'Two or three plain, complete sentences, 50 words at most, understood on first hearing, no quotation marks.' } } });
 const TABLE = { type: 'string', enum: ['wh', 'state', 'pent'] };
 const SIDE = d => ({ type: 'object', additionalProperties: false, required: ['tone', 'title', 'text', 'by', 'tension', 'trust', 'labs', 'cn', 'us', 'hack', 'secure'], description: d, properties: {
   tone: { type: 'string', enum: ['good', 'bad', 'warn', 'info'], description: 'How the room will take the news.' },
@@ -56,7 +56,7 @@ const SCHEMA = { type: 'object', additionalProperties: false, required: ['pictur
     aim: { type: 'string', description: 'For the facilitator: what this table is trying to achieve, in your own words, and how its order fits or cuts against the picture. One sentence.' },
     did: { type: 'string', description: 'What is now happening because of this order, as a plain fact the room can check its order against: "Half the labs\' engineers are rebuilding security." If the main thing takes time, say when to expect it: "Teams are being recruited; ready by the autumn at the earliest." 16 words at most, no numbers finer than a half or a third, no game words.' },
     by: { type: 'string', description: 'Who is speaking and where, as a short byline: "Chief executive of a frontier lab, by phone".' },
-    quote: { type: 'string', description: 'What they say. One or two plain sentences, 35 words at most, no quotation marks.' } } } },
+    quote: { type: 'string', description: 'What they say. Two or three plain, complete sentences, 50 words at most, understood on first hearing, no quotation marks.' } } } },
   ops: { type: 'array', description: 'Every operation under way after this turn\'s orders: the ones you were given that continue, and new ones. Leave one out to end it.', items: { type: 'object', additionalProperties: false, required: ['name', 'table', 'left', 'report'], properties: {
     name: { type: 'string', description: 'A short plain name, kept word for word from turn to turn: "Explosives into Chinese data centers".' },
     table: TABLE,
@@ -118,8 +118,10 @@ How to rule.
 The updates. Besides the replies, write two updates the room reads at the end of the period, after the results: one from Beijing and one from the labs. Each answers what the room did this turn: how their own work is going, what worries them, what they will do or want next. Beijing speaks in public and may shade the truth; the lab chief writes privately to the President and is frank, including about what the models are now doing and about Washington. Keep them to posture and progress: do not announce or rule out the events the ledger reports (a theft, a signing, a blockade, a loss of control). Never repeat an earlier update. The writing rules below apply to them too.
 
 How to write the replies.
-- One reply per table that gave an order. One or two sentences, 35 words at most. A table that wrote nothing gets no reply.
+- One reply per table that gave an order. Two or three sentences, 50 words at most. A table that wrote nothing gets no reply.
 - Plain speech, the way a tired official talks on a secure line. No metaphors, no wit, no slogans, nothing literary.
+- The quote is read aloud once to a room of thirty people who are not specialists. Every sentence must be understood on first hearing. Use full ordinary sentences with the subject and the reason spelled out; do not compress. Say the concrete thing: who will do what, by when, and what they want in return. Instead of "we will not say it is sealed", say "we cannot promise the weights are safe from theft yet". Instead of "the price is tighter chip controls or public hearings", say "the senators we need want one of two things first: stricter limits on chip sales, or public hearings on the labs".
+- Do not end on a punchy line, a challenge or a command to the room ("Name which, and it moves."). Do not use the rhythm of a speech or a thriller: no clipped fragments, no paired contrasts, no dramatic last clause. If a listener might ask "what does that mean?", rewrite it.
 - No precise numbers: "about four months", "likely", "almost certainly not". Time is said in months, seasons or dates ("by the autumn", "about a year"), never in turns. Never percentages. Never game words such as turn, level, dial, tension, trust, cooperation, ruling.
 - did: the plain fact of what is now happening because of the order, and when to expect the rest if it takes time. If part of the order was not carried out, say which part.
 - An official who works for the room reports what has been done, as done: "NSA teams are inside the labs." For what takes time: what has begun, when it will be ready, and the odds. No advice against the order, no "we could". Then at most one thing the room should know.
