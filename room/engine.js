@@ -339,7 +339,7 @@ function play(s, picks) {
     s.tests++;
     const w = Math.max(1, (s.hi - s.lo) / 2), lo = clamp(s.line - w * (0.15 + 0.7 * roll('band')), s.lo, s.hi - w);
     s.lo = lo; s.hi = lo + w;
-    add('info', 'The IC narrows its range', s.us >= s.hi ? 'The frontier is beyond the whole range.' : s.us >= s.lo ? 'The frontier is inside the range now.' : 'Runaway RSI becomes possible in ' + months(s.lo - s.us) + ', and is all but certain ' + months(s.hi - s.us).replace('about ', '') + ' out.');
+    add('info', 'The IC narrows its range', 'The IC\'s evaluators set the labs\' newest model to doing AI research on its own and projected the trend. Their estimate: ' + (s.us >= s.hi ? 'the frontier is already beyond the whole range.' : s.us >= s.lo ? 'the frontier is inside the range now.' : 'runaway RSI becomes possible after ' + months(s.lo - s.us) + ' more of full-speed progress, and is all but certain after ' + months(s.hi - s.us).replace('about ', '') + '.'));
   }
 
   // theft
