@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Scramble: Room Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* One projected screen: top bar, the race track, five gauges, then the vote (throttle + four cards) or the turn's events. */
+:root{
+  --bg:#E3E8ED; --sheet:#F8F9FB; --sheet2:#EEF2F6; --ink:#15202B; --muted:#56626F; --faint:#9AA6B2; --rule:#C8D0D9;
+  --accent:#1A4480; --accent-ink:#fff; --accent-soft:#DCE6F3;
+  --good:#22744A; --bad:#B42318; --warn:#9A5B00; --cn:#B8323A; --us:#1A4480;
+  --f-ui:"Public Sans","Helvetica Neue",Arial,sans-serif; --f-body:"Source Serif 4",Georgia,serif; --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D131A; --sheet:#151E28; --sheet2:#1B2632; --ink:#E3E9EF; --muted:#9AA7B4; --faint:#5F6D7B; --rule:#2A3746;
+  --accent:#8FB4EC; --accent-ink:#0D131A; --accent-soft:#1E3150; --good:#6FD39A; --bad:#F38A80; --warn:#F2B65C; --cn:#F0828A; --us:#8FB4EC; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D131A; --sheet:#151E28; --sheet2:#1B2632; --ink:#E3E9EF; --muted:#9AA7B4; --faint:#5F6D7B; --rule:#2A3746;
+  --accent:#8FB4EC; --accent-ink:#0D131A; --accent-soft:#1E3150; --good:#6FD39A; --bad:#F38A80; --warn:#F2B65C; --cn:#F0828A; --us:#8FB4EC; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:clamp(14px,1.15vw,19px);line-height:1.4}
+button{font:inherit;color:inherit}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.lbl{font-size:.72em;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.wrap{max-width:1700px;margin:0 auto;padding:0 16px 20px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 22px;padding:10px 0;border-bottom:3px double var(--rule)}
+.mark{font-weight:900;font-size:1.25em;letter-spacing:-.01em}
+.mark small{font-weight:700;font-size:.6em;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-left:8px}
+.pips{display:flex;gap:5px;align-items:center}
+.pips i{width:26px;height:10px;background:var(--rule)} .pips i.done{background:var(--accent)} .pips i.now{background:var(--accent);outline:2px solid var(--accent);outline-offset:2px}
+.date{font-weight:800;font-size:1.15em}
+.sp{flex:1}
+.clock{text-align:right;line-height:1.15} .clock b{font-family:var(--f-mono);font-size:1.5em;font-weight:600} .clock b.late{color:var(--bad)}
+.ghost{all:unset;box-sizing:border-box;cursor:pointer;font-weight:700;font-size:.8em;color:var(--accent);border:1px solid var(--accent);padding:6px 10px;white-space:nowrap}
+.ghost:hover{background:var(--accent-soft)} .ghost[disabled]{opacity:.35;cursor:not-allowed}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--accent);color:var(--accent-ink);padding:14px 26px;text-align:center}
+.btn:hover{filter:brightness(1.1)} .btn[disabled]{opacity:.35;cursor:not-allowed;filter:none}
+:is(.btn,.ghost,.card,.thr):focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.panel{background:var(--sheet);border:1px solid var(--rule);padding:12px 16px;margin-top:12px}
+
+/* the race track: months of frontier progress, -6 to 22 */
+.track{position:relative;height:118px;margin:4px 56px 0}
+.rail{position:absolute;left:0;right:0;top:54px;height:10px;background:var(--sheet2);border:1px solid var(--rule)}
+.band{position:absolute;top:26px;height:66px;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--bad) 30%,transparent) 0 6px,color-mix(in srgb,var(--bad) 10%,transparent) 6px 12px);border-left:2px solid var(--bad);border-right:2px solid var(--bad);transition:left .8s,width .8s}
+.band span{position:absolute;left:50%;top:-22px;transform:translateX(-50%);white-space:nowrap;font-size:.72em;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--bad)}
+.truth{position:absolute;top:18px;height:82px;width:0;border-left:3px solid var(--ink)}
+.truth span{position:absolute;top:-20px;left:-3px;white-space:nowrap;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.tick{position:absolute;top:66px;width:1px;height:8px;background:var(--faint)} .tick span{position:absolute;top:36px;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:.68em;color:var(--faint);white-space:nowrap}
+.mk{position:absolute;transform:translateX(-50%);transition:left .9s cubic-bezier(.3,.7,.3,1);font-weight:900;font-size:.8em;letter-spacing:.06em;color:#fff;padding:3px 9px;white-space:nowrap}
+.mk::after{content:"";position:absolute;left:50%;margin-left:-6px;border:6px solid transparent}
+.mk.us{top:26px;background:var(--us);color:var(--accent-ink)} .mk.us::after{top:100%;border-top-color:var(--us)}
+.mk.cn{top:70px;background:var(--cn);color:var(--accent-ink)} .mk.cn::after{bottom:100%;border-bottom-color:var(--cn)}
+@media (prefers-reduced-motion:reduce){.mk,.band{transition:none}}
+
+.gauges{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+.g{background:var(--sheet);border:1px solid var(--rule);padding:9px 13px;min-width:0}
+.g b{display:block;font-family:var(--f-mono);font-size:1.55em;font-weight:600;line-height:1.15}
+.g .sub{font-size:.82em;color:var(--muted)} .g .sub strong{color:var(--ink)}
+.g.hot b,.g.hot .sub strong{color:var(--bad)} .g.ok b{color:var(--good)}
+.bar{height:7px;background:var(--sheet2);border:1px solid var(--rule);margin:5px 0 3px} .bar i{display:block;height:100%;background:var(--accent);transition:width .8s}
+.bar.t i{background:var(--bad)}
+
+.ask{display:flex;align-items:baseline;gap:12px;margin:16px 0 6px} .ask h2{margin:0;font-size:1.05em;font-weight:900;letter-spacing:.02em} .ask span{color:var(--muted);font-size:.85em}
+.thrs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.thr,.card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;background:var(--sheet);border:2px solid var(--rule);padding:10px 14px;position:relative}
+.thr:hover,.card:hover{border-color:var(--accent)}
+.thr.on,.card.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.thr[disabled],.card[disabled]{opacity:.45;cursor:not-allowed;border-color:var(--rule)}
+.thr b{font-weight:900;font-size:1.15em;letter-spacing:.08em} .thr span{display:block;font-size:.85em;color:var(--muted)}
+.key{position:absolute;top:8px;right:10px;font-family:var(--f-mono);font-size:.75em;border:1px solid var(--faint);color:var(--muted);padding:0 6px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.card h3{margin:2px 0 0;font-size:1.12em;font-weight:900;line-height:1.2} .card .s{font-size:.82em;font-weight:700;color:var(--accent)}
+.card p{font-family:var(--f-body);font-size:.92em;margin:6px 0} .card ul{margin:0;padding-left:1.1em;font-size:.84em;color:var(--muted)} .card li{margin:1px 0}
+.go{display:flex;align-items:center;gap:16px;margin-top:14px} .go .hint{color:var(--muted);font-size:.85em}
+
+.evs{display:grid;gap:8px;margin-top:6px}
+.ev{background:var(--sheet);border:1px solid var(--rule);border-left:6px solid var(--faint);padding:9px 14px;animation:in .45s both}
+.ev b{font-weight:900;font-size:1.08em} .ev p{margin:2px 0 0;font-family:var(--f-body)}
+.ev.good{border-left-color:var(--good)} .ev.good b{color:var(--good)} .ev.bad{border-left-color:var(--bad)} .ev.bad b{color:var(--bad)} .ev.warn{border-left-color:var(--warn)} .ev.warn b{color:var(--warn)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.ev{animation:none}}
+
+.intro{max-width:1100px;margin:3vh auto 0} .intro h1{font-size:3em;font-weight:900;letter-spacing:-.02em;margin:0 0 4px} .intro .lede{font-family:var(--f-body);font-size:1.3em;margin:8px 0 18px;max-width:38em}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px} .three div{background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:12px 16px} .three h3{margin:0 0 4px;font-size:1.1em;font-weight:900} .three p{margin:0;font-family:var(--f-body)}
+.how{font-family:var(--f-body);font-size:1.08em;margin:18px 0} .how li{margin:5px 0}
+.fine{font-size:.8em;color:var(--muted);margin-top:14px}
+.end{display:grid;grid-template-columns:auto 1fr;gap:10px 28px;align-items:center}
+.grade{font-size:7em;font-weight:900;line-height:1;width:1.5em;height:1.5em;display:grid;place-items:center;border:6px solid currentColor}
+.grade.A,.grade.B{color:var(--good)} .grade.C{color:var(--warn)} .grade.D,.grade.F{color:var(--bad)}
+.end h1{margin:0;font-size:2.6em;font-weight:900;letter-spacing:-.02em} .end p{margin:6px 0 0;font-family:var(--f-body);font-size:1.25em;max-width:40em}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px} .cols ul{margin:6px 0 0;padding-left:1.1em;font-family:var(--f-body)} .cols li{margin:4px 0}
+table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{padding:4px 10px 4px 0;border-bottom:1px solid var(--rule)} td:first-child{color:var(--muted);white-space:nowrap}
+@media (max-width:900px){.gauges{grid-template-columns:repeat(2,1fr)}.cards,.three,.cols{grid-template-columns:1fr}.thrs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="engine.js"></script>
+<script>
+'use strict';
+// Rendering and the facilitator's controls; all rules are in engine.js.
+// The facilitator takes each vote by show of hands and clicks the winner (keys: R/H throttle, 1-4 card, Enter locks in, U undoes a turn).
+const TURN_SECS = 150, GAME_MINS = 30, SAVE = 'scramble-room-v1';
+const $ = id => document.getElementById(id);
+const pct = p => Math.round(p * 100) + '%';
+const r1 = x => (Math.round(x * 10) / 10).toFixed(1);
+const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+let st = { screen: 'intro', game: null, past: [], events: [], thr: 'race', card: null, t0: 0, turnT0: 0 };
+
+function seedFromHash() { const m = /seed=([\w-]+)/.exec(location.hash); return m ? m[1] : String(Math.floor(Math.random() * 1e6)); }
+function save() { try { localStorage.setItem(SAVE, JSON.stringify(st)); } catch (e) {} }
+function load() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.game) st = s; } catch (e) {} }
+
+function start(seed) {
+  st = { screen: 'decide', game: Room.newGame(seed), past: [], events: [], thr: 'race', card: null, t0: Date.now(), turnT0: Date.now() };
+  draw();
+}
+function lockIn() {
+  if (st.screen !== 'decide' || !st.card) return;
+  st.past.push(JSON.stringify(st.game));
+  st.events = Room.play(st.game, st.thr, st.card);
+  st.screen = 'resolve'; draw();
+}
+function next() {
+  if (st.screen !== 'resolve') return;
+  if (st.game.over) st.screen = 'end';
+  else { st.screen = 'decide'; st.thr = st.game.deal ? 'hold' : st.game.throttle; st.card = null; st.turnT0 = Date.now(); }
+  draw();
+}
+function undo() {
+  if (!st.past.length) return;
+  st.game = JSON.parse(st.past.pop()); st.screen = 'decide'; st.thr = st.game.deal ? 'hold' : st.game.throttle; st.card = null; st.events = []; st.turnT0 = Date.now(); draw();
+}
+
+const X0 = -6, X1 = 22, pos = x => Math.max(0, Math.min(100, (x - X0) / (X1 - X0) * 100)) + '%';
+function track(g, v, reveal) {
+  let h = '<div class="track"><div class="rail"></div>';
+  h += '<div class="band" style="left:' + pos(v.lo) + ';width:calc(' + pos(v.hi) + ' - ' + pos(v.lo) + ')"><span>The line is somewhere in here</span></div>';
+  for (let x = X0; x <= X1; x += 2) h += '<div class="tick" style="left:' + pos(x) + '"><span>' + (x === 0 ? 'today' : (x > 0 ? '+' : '') + x) + '</span></div>';
+  if (reveal) h += '<div class="truth" style="left:' + pos(g.line) + '"><span>The line: ' + r1(g.line) + '</span></div>';
+  h += '<div class="mk us" id="mk-us" style="left:' + pos(g.us) + '">US ' + r1(g.us) + '</div>';
+  h += '<div class="mk cn" id="mk-cn" style="left:' + pos(reveal ? g.cn : g.cnShown) + '">CHINA ' + r1(reveal ? g.cn : g.cnShown) + '</div></div>';
+  return h;
+}
+function gauges(g, v) {
+  const G = (cls, lbl, big, sub) => '<div class="g ' + cls + '"><div class="lbl">' + lbl + '</div><b>' + big + '</b><div class="sub">' + sub + '</div></div>';
+  const bar = (x, cls) => '<div class="bar ' + cls + '"><i style="width:' + x + '%"></i></div>';
+  return '<div class="gauges">' +
+    G(v.lead < 2 ? 'hot' : '', 'US lead', (v.lead >= 0 ? '+' : '') + r1(v.lead) + ' mo', v.lead >= 0 ? 'China is behind' + (g.deal ? ', as declared' : '') : 'China is ahead') +
+    G(g.sl === 3 ? 'hot' : '', 'The weights', 'SL' + g.sl, 'Stolen this turn: <strong>' + pct(v.theft) + '</strong>' + (g.thefts ? ' · stolen ' + g.thefts + 'x' : '')) +
+    G(v.war >= 0.1 ? 'hot' : '', 'Taiwan Strait', pct(v.war) + ' war', bar(g.tension, 't') + 'Tension ' + Math.round(g.tension) + ' of 100') +
+    G(g.deal ? 'ok' : '', 'Beijing', g.deal ? 'DEAL' : pct(v.dealOdds) + ' yes', bar(g.trust, '') + 'Trust ' + Math.round(g.trust) + (g.deal ? ' · inspectors: ' + (g.inspectors ? 'yes' : 'no') : ' · odds at a summit')) +
+    G(v.overNow > 0 ? 'hot' : '', 'The line', v.knownOver ? 'PAST IT' : pct(v.overNow) + ' over', v.knownOver ? 'The US frontier has crossed' : 'If we race this turn: <strong>' + pct(v.overIfRace) + '</strong>') +
+    '</div>';
+}
+function topbar(g) {
+  let pips = ''; for (let i = 0; i < Room.TUNE.turns; i++) pips += '<i class="' + (i < g.turn - (st.screen === 'resolve' && !g.over ? 1 : 0) ? 'done' : i === g.turn - (st.screen === 'resolve' ? 1 : 0) && !g.over ? 'now' : '') + '"></i>';
+  return '<div class="top"><div class="mark">The Scramble<small>Room Edition</small></div><div class="pips">' + pips + '</div>' +
+    '<div class="date">' + (g.over ? 'The end' : st.screen === 'resolve' ? 'Turn ' + g.turn + ' of ' + Room.TUNE.turns + ' · what happened' : 'Turn ' + (g.turn + 1) + ' of ' + Room.TUNE.turns + ' · ' + Room.DATES[g.turn]) + '</div><div class="sp"></div>' +
+    '<div class="clock"><div class="lbl">This vote</div><b id="ck-turn">-</b></div><div class="clock"><div class="lbl">Game</div><b id="ck-game">-</b></div>' +
+    '<button class="ghost" id="b-undo"' + (st.past.length ? '' : ' disabled') + '>Undo turn (U)</button><button class="ghost" id="b-new">Restart</button></div>';
+}
+
+function draw() {
+  const g = st.game; let h = '';
+  if (st.screen === 'intro') h = intro();
+  else {
+    const v = Room.view(g), reveal = st.screen === 'end';
+    h = topbar(g) + '<div class="panel">' + track(g, v, reveal) + '</div>' + gauges(g, v);
+    if (st.screen === 'decide') h += decide(g, v);
+    if (st.screen === 'resolve') h += resolve(g);
+    if (st.screen === 'end') h += ending(g);
+  }
+  $('app').innerHTML = h; wire(); tick(); save();
+}
+
+function intro() {
+  return '<div class="intro"><div class="lbl">A 30-minute game for a room · you advise the President</div><h1>The Scramble</h1>' +
+    '<p class="lede">It is January 2027. American labs are six months ahead of China in the race to AI that can improve itself. You have six turns, to the end of 2028, to get the world through it.</p>' +
+    '<div class="three"><div><h3>The weights can be stolen</h3><p>Beijing\'s hackers try for the frontier model most turns. Today four in five attempts would work, and one success erases the lead.</p></div>' +
+    '<div><h3>China is right behind</h3><p>Squeeze Beijing and you keep the lead but risk war over Taiwan. Talk and you might get a deal, if you have leverage and if Beijing keeps it.</p></div>' +
+    '<div><h3>The line is hidden</h3><p>Somewhere between 9 and 15 months ahead, AI starts improving itself. Race past it and each turn is a coin flip on losing control. That goes for China too.</p></div></div>' +
+    '<ol class="how"><li><b>Vote one: race or hold?</b> Racing moves the US frontier about 4 months. Holding nearly stops it, and China keeps coming.</li>' +
+    '<li><b>Vote two: one move.</b> Four tracks, each offering its next step: protect the weights, find the line, squeeze Beijing, talk to Beijing.</li>' +
+    '<li><b>Then the world moves.</b> Every roll is shown with its odds.</li></ol>' +
+    '<button class="btn" id="b-start">Start the clock</button>' +
+    '<p class="fine">Facilitator: about 2.5 minutes a turn. Take each vote by show of hands and click the winner (keys R / H, 1-4, Enter). U undoes a turn; the dice for a turn stay the same if you replay it. Add #seed=123 to the address to rehearse a game and run the same one live.</p></div>';
+}
+
+function decide(g, v) {
+  const cs = Room.cards(g);
+  let h = '<div class="ask"><h2>Vote 1 · Race or hold?</h2><span>' + (g.deal ? 'The deal holds both frontiers.' : 'Free every turn.') + '</span></div><div class="thrs">' +
+    '<button class="thr' + (st.thr === 'race' ? ' on' : '') + '" data-thr="race"' + (g.deal ? ' disabled' : '') + '><span class="key">R</span><b>RACE</b><span>US frontier +' + r1(v.racePace) + ' months. Odds we end the turn past the line: ' + pct(v.overIfRace) + '</span></button>' +
+    '<button class="thr' + (st.thr === 'hold' ? ' on' : '') + '" data-thr="hold"><span class="key">H</span><b>HOLD</b><span>US frontier +' + Room.TUNE.usHold + '. ' + (g.deal ? 'Beijing has promised the same.' : 'China keeps coming, and copies its way up to one month behind.') + '</span></button></div>' +
+    '<div class="ask"><h2>Vote 2 · One move this turn</h2><span>Each track shows its next step.</span></div><div class="cards">';
+  cs.forEach((c, i) => {
+    h += '<button class="card' + (st.card === c.id ? ' on' : '') + '" data-card="' + c.id + '"' + (c.off ? ' disabled' : '') + '><span class="key">' + (i + 1) + '</span><div class="lbl">' + c.track + '</div><h3>' + esc(c.title) + '</h3><div class="s">' + esc(c.sub) + '</div><p>' + esc(c.text) + '</p><ul>' + c.fx.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul></button>';
+  });
+  return h + '</div><div class="go"><button class="btn" id="b-lock"' + (st.card ? '' : ' disabled') + '>Lock in the vote</button><span class="hint">' + (st.card ? 'Enter locks it in.' : 'Pick the winning move.') + '</span></div>';
+}
+
+function resolve(g) {
+  const last = g.votes[g.votes.length - 1];
+  let h = '<div class="ask"><h2>' + last.date + ' · the room voted to ' + last.throttle + ' and: ' + esc(last.card) + '</h2></div><div class="evs">';
+  st.events.forEach((e, i) => { h += '<div class="ev ' + e.tone + '" style="animation-delay:' + (i * 0.9) + 's"><b>' + esc(e.title) + '</b><p>' + esc(e.text) + '</p></div>'; });
+  return h + '</div><div class="go"><button class="btn" id="b-next">' + (g.over ? 'See how it ends' : 'Next turn') + '</button><span class="hint">Space or Enter</span></div>';
+}
+
+function ending(g) {
+  const o = g.over, facts = [];
+  facts.push('The line was at <b>' + r1(g.line) + '</b> months. The US frontier ended at ' + r1(g.us) + (g.us > g.line ? ', past it.' : ', ' + r1(g.line - g.us) + ' short of it.'));
+  facts.push('China ended at ' + r1(g.cn) + (g.cn > g.line ? ', past the line.' : ', ' + r1(g.line - g.cn) + ' months short of the line.'));
+  if (g.deal) facts.push(g.hidden ? 'Beijing was running a hidden program under the deal.' : 'Beijing kept the deal.');
+  facts.push(g.thefts ? 'The weights were stolen ' + g.thefts + ' time' + (g.thefts > 1 ? 's' : '') + ' (security ended at SL' + g.sl + ').' : 'The weights were never stolen (security ended at SL' + g.sl + ').');
+  facts.push('Strait tension ended at ' + Math.round(g.tension) + ' of 100; trust with Beijing at ' + Math.round(g.trust) + '.');
+  return '<div class="panel end"><div class="grade ' + o.grade + '">' + o.grade + '</div><div><div class="lbl">' + (g.turn >= Room.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.votes[g.votes.length - 1].date) + '</div><h1>' + esc(o.title) + '</h1><p>' + esc(o.text) + '</p></div></div>' +
+    '<div class="cols"><div class="panel"><div class="lbl">What was hidden</div><ul>' + facts.map(f => '<li>' + f + '</li>').join('') + '</ul></div>' +
+    '<div class="panel"><div class="lbl">How the room voted</div><table>' + g.votes.map(x => '<tr><td>' + x.date + '</td><td>' + x.throttle + '</td><td>' + esc(x.card) + '</td></tr>').join('') + '</table></div></div>' +
+    '<div class="go"><button class="btn" id="b-again">New game</button><button class="ghost" id="b-same">Replay this game (seed ' + esc(g.seed) + ')</button></div>';
+}
+
+function wire() {
+  const on = (id, f) => { const e = $(id); if (e) e.onclick = f; };
+  on('b-start', () => start(seedFromHash()));
+  on('b-lock', lockIn); on('b-next', next); on('b-undo', undo);
+  on('b-new', () => { st = { screen: 'intro', game: null, past: [], events: [] }; draw(); });
+  on('b-again', () => start(String(Math.floor(Math.random() * 1e6))));
+  on('b-same', () => start(st.game.seed));
+  document.querySelectorAll('[data-thr]').forEach(b => b.onclick = () => { if (!b.disabled) { st.thr = b.dataset.thr; draw(); } });
+  document.querySelectorAll('[data-card]').forEach(b => b.onclick = () => { if (!b.disabled) { st.card = b.dataset.card; draw(); } });
+}
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (st.screen === 'decide') {
+    if ((k === 'r' && !st.game.deal) || k === 'h') { st.thr = k === 'r' ? 'race' : 'hold'; draw(); }
+    const c = Room.cards(st.game)[+k - 1]; if (c && !c.off) { st.card = c.id; draw(); }
+    if (k === 'enter') { e.preventDefault(); lockIn(); }
+  } else if (st.screen === 'resolve' && (k === 'enter' || k === ' ')) { e.preventDefault(); next(); }
+  if (k === 'u' && st.screen !== 'intro') undo();
+});
+
+const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+function tick() {
+  const a = $('ck-turn'), b = $('ck-game'); if (!a) return;
+  if (st.screen === 'decide') { const left = TURN_SECS - (Date.now() - st.turnT0) / 1000; a.textContent = left >= 0 ? mmss(left) : '+' + mmss(-left); a.className = left < 0 ? 'late' : ''; }
+  else a.textContent = '-';
+  const el = (Date.now() - st.t0) / 1000; b.textContent = mmss(el); b.className = el > GAME_MINS * 60 ? 'late' : '';
+}
+setInterval(tick, 500);
+load(); draw();
+</script>
+</body>
+</html>
