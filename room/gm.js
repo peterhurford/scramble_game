@@ -177,14 +177,68 @@ async function viaOpenai(text) {
 }
 const mock = body => ({ replies: Object.keys(W.TABLES).filter(k => (body.orders[k] || '').trim()).map(k => ({ table: k, by: 'Canned reply, ' + W.TABLES[k], aim: '', did: 'The order is being carried out.', quote: 'It is done. It will cost more than you think.' })),
   picture: '', ops: body.state.ops || [], facts: body.state.facts || [], chances: [], updates: null, ruling: Object.assign({}, W.DEFAULT, { train: 0.5, secure: 0.5 }), note: 'Mock game master: no model was asked.' });
+
+// The second writer. The game master decides what each speaker says; this model only makes it sound like that person. GM_VOICE=off skips it.
+const VOICE_MODEL = process.env.GM_VOICE || 'claude-fable-5-2';
+const VOICE_SYSTEM = `You write dialogue for a tabletop exercise about American AI policy in 2027 and 2028. Thirty people in a room play the US government. After each round they hear short spoken lines from fictional officials: senators, agency heads, lab chief executives, Chinese officials. Another writer has already decided what each person says. You are given, for each line, who is speaking, what the room ordered, a plain statement of what is now happening (shown on screen beside the line), and a draft of the line. Your job is voice only: rewrite each draft as that person would really say it out loud.
+
+The drafts are accurate but sound written: tidy, explicit, symmetrical. Real officials do not talk like that. Write what you would hear if you were on the call.
+
+- A senator or committee chair never lays out a deal as a deal. They talk about their members, where the votes are, what colleagues back home will ask, what would make this an easier lift. They are warm, they hedge, they commit to as little as they can. The listener works out the price from what they say they need.
+- An agency head or general reports like someone who will be held to it later: what is under way, who has it, what they cannot yet vouch for. Flat and institutional. They caveat rather than dramatize.
+- A lab chief executive is smooth and sure of themselves, agrees in principle, resists on specifics, and always has the competitors and China in mind.
+- Chinese officials speak in the formal register of a foreign ministry, as if translated: the Chinese side, principles, mutual respect, what the United States should do. They are never blunt and never chatty. A lab chief or a general does not sound like them.
+- Anyone may start mid-thought, repeat a word, or trail into a qualification. Nobody delivers a closing line.
+
+Hold to these:
+- Keep the substance. Every fact, condition, date and estimate of likelihood in the draft must still be there for an attentive listener, even if it is now said sideways. Add no fact, promise, threat or number that the draft does not have. If the draft refuses, the line refuses; if it agrees, the line agrees.
+- The plain statement on screen already says what happened in so many words, so the spoken line does not have to. It must not contradict it.
+- It is heard once by people who are not specialists. Ordinary words. No acronyms beyond NSA, CIA and the like. No jargon the draft did not use.
+- Nothing that sounds like a slogan, a proverb, a movie or an essay. No commands to the room. No neat pairs or threes, no sentence built for effect, no dashes or semicolons.
+- No percentages. Time in months, seasons or dates. Never the words turn, round, level, dial, ruling, game.
+- Two to four sentences. 60 words is a hard limit for each line; count them, and cut detail before you go over.
+Return the lines in the order given, then the Beijing update and the labs update if there were any (empty strings if not).`;
+const VOICE_SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'beijing', 'labs'], properties: { replies: { type: 'array', items: { type: 'string' } }, beijing: { type: 'string' }, labs: { type: 'string' } } };
+function voiceCall(text) {
+  if (BACKEND === 'sdk') { const m = require('@anthropic-ai/sdk'), Anthropic = m.default || m;
+    return new Anthropic().messages.create({ model: VOICE_MODEL, max_tokens: 4000, system: VOICE_SYSTEM, messages: [{ role: 'user', content: text }], output_config: { effort: 'low', format: { type: 'json_schema', schema: VOICE_SCHEMA } } })
+      .then(res => { if (res.stop_reason !== 'end_turn') throw new Error('stopped (' + res.stop_reason + ')'); return JSON.parse(res.content.filter(b => b.type === 'text').map(b => b.text).join('')); }); }
+  return new Promise((resolve, reject) => {
+    const p = spawn('claude', ['-p', '--model', VOICE_MODEL, '--effort', 'low', '--system-prompt', VOICE_SYSTEM, '--json-schema', JSON.stringify(VOICE_SCHEMA), '--output-format', 'json', '--tools', ''], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
+    let out = ''; const t = setTimeout(() => { p.kill(); reject(new Error('timed out')); }, 60000);
+    p.stdout.on('data', d => out += d); p.on('error', reject);
+    p.on('close', () => { clearTimeout(t); try { const j = JSON.parse(out); resolve(j.structured_output || JSON.parse(j.result)); } catch (e) { reject(new Error(out.slice(0, 200) || 'no output')); } });
+    p.stdin.end(text);
+  });
+}
+// Rewrites the quotes in place; on any failure the game master's own wording stands.
+async function voice(out, body) {
+  const up = out.updates || {}, R = out.replies || [];
+  if (!R.length) return;
+  const text = R.map((r, i) => (i + 1) + '. Speaker: ' + r.by + '\n   The ' + W.TABLES[r.table] + ' ordered: ' + String(body.orders[r.table] || '').slice(0, 600) + '\n   On screen: ' + (r.did || '') + '\n   Draft: ' + r.quote).join('\n\n') +
+    (up.beijing ? '\n\nBeijing update, public. Speaker: ' + up.beijing.by + '\n   Draft: ' + up.beijing.quote : '') + (up.labs ? '\n\nLabs update, a private note to the President. Speaker: ' + up.labs.by + '\n   Draft: ' + up.labs.quote : '');
+  const t0 = Date.now();
+  try {
+    const v = await voiceCall(text), ok = q => typeof q === 'string' && q.trim().length > 20;
+    if (!Array.isArray(v.replies) || v.replies.length !== R.length || !v.replies.every(ok)) throw new Error('wrong shape');
+    R.forEach((r, i) => { r.draft = r.quote; r.quote = v.replies[i].trim(); });
+    if (up.beijing && ok(v.beijing)) { up.beijing.draft = up.beijing.quote; up.beijing.quote = v.beijing.trim(); }
+    if (up.labs && ok(v.labs)) { up.labs.draft = up.labs.quote; up.labs.quote = v.labs.trim(); }
+    out.voice = VOICE_MODEL + ' ' + Math.round((Date.now() - t0) / 100) / 10 + 's';
+  } catch (e) { out.voice = 'voice pass failed, drafts kept: ' + e.message; console.error(out.voice); }
+}
 const WANT = process.env.GM || 'claude';
 if (WANT === 'openai' && !(process.env.OPENAI_API_KEY && MODEL)) throw new Error('GM=openai needs OPENAI_API_KEY and GM_MODEL in the environment; GM=codex uses the codex login instead.');
 const BACKEND = ['mock', 'codex', 'openai'].includes(WANT) ? WANT : process.env.ANTHROPIC_API_KEY ? 'sdk' : 'cli';
 const ASK = { sdk: viaSdk, cli: viaCli, codex: viaCodex, openai: viaOpenai };
 
-async function gm(body) {
+// What the server is doing right now, for the page's waiting screen (GET /status).
+let NOW = null;
+async function gm(body) { NOW = { stage: 'ruling', t0: Date.now() }; try { return await gm1(body); } finally { NOW = null; } }
+async function gm1(body) {
   const t0 = Date.now(), out = BACKEND === 'mock' ? mock(body) : await ASK[BACKEND](prompt(body));
   out.ruling = W.rule(body.state, Object.assign({}, out.ruling, { ops: out.ops, facts: out.facts, chances: out.chances })); delete out.ops; delete out.facts; delete out.chances;   // the page and the ledger read them from the ruling
+  if (BACKEND !== 'mock' && VOICE_MODEL !== 'off') { if (NOW) { NOW.stage = 'voice'; NOW.t1 = Date.now(); } await voice(out, body); }
   out.backend = BACKEND + (MODEL ? ' ' + MODEL : ''); out.secs = Math.round((Date.now() - t0) / 100) / 10;
   return out;
 }
@@ -194,7 +248,8 @@ if (require.main === module) http.createServer((req, res) => {
   // The public page (thescramble.pages.dev/situationroom) calls this server on the facilitator's laptop, so that origin may read /gm.
   const site = /^https:\/\/([a-z0-9-]+\.)?thescramble\.pages\.dev$/.test(req.headers.origin || '') ? { 'Access-Control-Allow-Origin': req.headers.origin, 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Private-Network': 'true', Vary: 'Origin' } : {};
   const send = (code, type, data) => { res.writeHead(code, Object.assign({ 'Content-Type': type + '; charset=utf-8', 'Cache-Control': 'no-store' }, site)); res.end(data); };
-  if (req.method === 'OPTIONS' && req.url === '/gm') return send(204, 'text/plain', '');
+  if (req.method === 'OPTIONS' && (req.url === '/gm' || req.url === '/status')) return send(204, 'text/plain', '');
+  if (req.method === 'GET' && req.url === '/status') return send(200, 'application/json', JSON.stringify(NOW ? { stage: NOW.stage, secs: (Date.now() - NOW.t0) / 1000, voiceSecs: NOW.t1 ? (Date.now() - NOW.t1) / 1000 : 0 } : { stage: 'idle' }));
   if (req.method === 'POST' && req.url === '/gm') {
     let raw = '';
     req.on('data', d => { raw += d; if (raw.length > 2e5) req.destroy(); });
@@ -207,4 +262,4 @@ if (require.main === module) http.createServer((req, res) => {
   fs.readFile(file, (e, data) => e ? send(404, 'text/plain', 'not found') : send(200, TYPES[path.extname(name)], data));
 }).listen(PORT, '127.0.0.1', () => console.log('The Scramble, Room Edition: http://localhost:' + PORT + '  (game master: ' + BACKEND + ')'));
 
-module.exports = { gm, prompt, SYSTEM, SCHEMA, BACKEND };
+module.exports = { gm, prompt, voice, SYSTEM, SCHEMA, BACKEND };

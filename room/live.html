@@ -156,7 +156,7 @@ function start(seed) { st = { screen: 'orders', game: World.newGame(seed), past:
 async function ask() {
   keep();
   if (!IDS.some(k => (st.orders[k] || '').trim())) return;
-  st.screen = 'wait'; st.error = ''; st.waitT0 = Date.now(); draw(); tick();
+  st.screen = 'wait'; st.error = ''; st.waitT0 = Date.now(); live = { stage: '', miss: 0, at: 0 }; draw(); tick();
   try {
     const res = await fetch(GM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders }) }), out = await res.json();
     if (!res.ok) throw new Error(out.error || res.status);
@@ -253,7 +253,7 @@ function seats(g, v) {
   h += '</div>';
   if (st.screen === 'wait') return h + '<div class="eta"><div class="bar"><b id="eta-bar"></b><div class="sweep"></div></div><div class="etal"><span id="eta-txt"></span><span id="eta-el"></span></div></div>';
   h += '<div class="go">' + (a ? '<button class="btn" id="b-go">Go</button><button class="ghost" id="b-ask">Ask again</button><button class="ghost" id="b-back">Change the orders</button>' : '<button class="btn" id="b-ask">Send</button>') + '<span class="hint err">' + esc(st.error) + '</span></div>';
-  if (st.drawer) h += '<div class="drawer"><div class="lbl">Facilitator</div>' + (a ? '<p>' + esc(a.picture || '') + '</p>' + a.replies.map(r => '<p><b>' + World.TABLES[r.table] + ':</b> ' + esc(r.aim || '') + '</p>').join('') + '<p>' + esc(a.note) + (a.secs ? ' (' + a.secs + 's' + (a.backend ? ', ' + esc(a.backend) : '') + ')' : '') + '</p><textarea id="ruling">' + esc(st.rulingText) + '</textarea>' : '') + (g.last && g.last.why.length ? '<div class="lbl">Why last turn went as it did</div><pre>' + esc(g.last.why.join('\n')) + '</pre>' : '') + '<pre>' + esc(World.brief(g)) + '</pre></div>';
+  if (st.drawer) h += '<div class="drawer"><div class="lbl">Facilitator</div>' + (a ? '<p>' + esc(a.picture || '') + '</p>' + a.replies.map(r => '<p><b>' + World.TABLES[r.table] + ':</b> ' + esc(r.aim || '') + '</p>').join('') + '<p>' + esc(a.note) + (a.secs ? ' (' + a.secs + 's' + (a.backend ? ', ' + esc(a.backend) : '') + (a.voice ? '; voice ' + esc(a.voice) : '') + ')' : '') + '</p><textarea id="ruling">' + esc(st.rulingText) + '</textarea>' : '') + (g.last && g.last.why.length ? '<div class="lbl">Why last turn went as it did</div><pre>' + esc(g.last.why.join('\n')) + '</pre>' : '') + '<pre>' + esc(World.brief(g)) + '</pre></div>';
   return h;
 }
 // An event's text: a leading quote is set as a quotation with its byline straight after it, then any narration.
@@ -293,13 +293,26 @@ document.addEventListener('keydown', e => {
 });
 
 const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-// How long the game master should take: the mean of this game's earlier answers, or 40 s before the first.
-const expect = () => { const w = st.waits || []; return w.length ? w.reduce((x, y) => x + y, 0) / w.length : 40; };
+// How long the game master should take: the mean of this game's earlier answers, or 55 s before the first.
+const expect = () => { const w = st.waits || []; return w.length ? w.reduce((x, y) => x + y, 0) / w.length : 55; };
+// The server says what it is doing (GET status): deciding what happens, then writing the officials' lines. Polled once a second while waiting.
+let live = { stage: '', miss: 0, at: 0 };
+function poll() {
+  if (Date.now() - live.at < 1000) return; live.at = Date.now();
+  fetch(GM.replace(/gm$/, 'status')).then(r => r.json()).then(j => { live.stage = j.stage; live.voiceSecs = j.voiceSecs || 0; live.miss = 0; }, () => { live.miss++; });
+}
 function eta() {
   const bar = $('eta-bar'); if (!bar) return;
-  const el = (Date.now() - st.waitT0) / 1000, ex = expect(), left = ex - el;
-  bar.style.width = (el < ex ? 90 * el / ex : 90 + 9 * (1 - Math.exp(-(el - ex) / ex))) + '%';   // fills to 90% at the expected time, then creeps
-  $('eta-txt').textContent = left > 50 ? 'Replies in about a minute' : left > 7 ? 'Replies in about ' + Math.ceil(left / 5) * 5 + ' seconds' : el < ex * 1.4 ? 'Any moment now' : el < ex * 3 ? 'Taking longer than usual. Still working.' : 'Still working. A long answer can take two minutes.';
+  poll();
+  const el = (Date.now() - st.waitT0) / 1000, ex = expect(), V = 15, voice = live.stage === 'voice';
+  // the last stretch is the second writer: once the server says it has begun, time left is counted from there
+  const left = voice ? V - live.voiceSecs : Math.max(ex - el, 0) || 0, late = !voice && el > ex;
+  bar.style.width = (voice ? 80 + 19 * (1 - Math.exp(-live.voiceSecs / V * 2)) : el < ex ? 80 * el / ex : 80) + '%';
+  const secs = n => 'about ' + Math.ceil(n / 5) * 5 + ' seconds';
+  $('eta-txt').textContent = live.miss > 3 ? 'No word from the game master. Check that it is still running on the facilitator\'s laptop.'
+    : voice ? 'The decisions are made. Writing what each official says' + (left > 4 ? ', ' + secs(left) + ' more.' : ', any moment now.')
+    : late ? 'Still deciding what happens. This one is taking longer than usual; the game master is working.'
+    : 'Deciding what happens. Replies in ' + (left > 50 ? 'about a minute.' : left > 7 ? secs(left) + '.' : 'a moment.');
   $('eta-el').textContent = mmss(el);
 }
 function tick() {
