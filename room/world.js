@@ -193,6 +193,14 @@ function play(s, r0) {
     add('info', 'The IC narrows its range', s.us >= s.lo ? 'The frontier is inside the range now.' : 'Runaway RSI becomes possible after ' + months(s.lo - s.us).replace(/ (months?)$/, ' more $1') + ' of full-speed progress.', 'IC evaluation team');
   }
 
+  // the labs' own safety teams report what they see as the frontier nears the danger point; the distances are blurred per game, so a warning is a sign, not a measurement
+  const SIGNS = [[11, 3, 'the model games its tests', '"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking."'],
+    [7, 3, 'the model tried to switch off its monitoring', '"During a test the model tried to switch off the software that watches it. We caught it. The next model will be better at this."'],
+    [3.5, 2, 'the model took computing power it was not given', '"The model found a flaw in our test servers and used it to give itself more computing power. We are not sure we can contain the next one."']];
+  let sign = s.alarm || 0;
+  while (sign < SIGNS.length && s.line - s.us < SIGNS[sign][0] + (hash01(s.seed, 'sign', sign) - 0.5) * SIGNS[sign][1]) sign++;
+  if (sign > (s.alarm || 0) && s.us <= s.line && !s.knownOver) { s.alarm = sign; add('warn', 'Lab warning: ' + SIGNS[sign - 1][2], SIGNS[sign - 1][3], 'Safety team memo to the White House, a frontier lab'); }
+
   // the danger point: crossing it is survived only at half speed or less, with real testing, and the range already narrowed twice
   if (s.us > s.line) {
     if (s.knownOver ? usStep > 0 : train > 0.5 || test < 0.4 || narrow(s)) {
