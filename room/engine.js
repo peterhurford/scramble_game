@@ -77,7 +77,7 @@ function pressure(s) {
     - (s.tension >= TUNE.hot ? 1 : 0) - (s.trust < TUNE.cold ? 1 : 0) - (lead < TUNE.leadShort ? 1 : 0);
 }
 // The best terms Beijing would sign today.
-const want = s => s.blockade ? 3 : clamp(3 - pressure(s), s.floor, 3);
+const want = s => { const p = pressure(s); return s.blockade ? 3 : clamp(p >= 2 ? 0 : 3 - p, s.floor, 3); };   // two points of pressure get Beijing's best terms
 // Would Beijing cheat on this deal? Only where no inspector can see: always if it will never accept them, otherwise while it is behind.
 const cheats = s => s.deal && s.deal.level >= 2 && !s.cheated && (s.deal.level === 3 ? s.floor === 2 && s.cn >= s.us - 0.6 : s.floor === 2 || s.us - s.cn >= TUNE.cheatLead);
 
@@ -103,9 +103,9 @@ function view(s) {
 // A move: its acts are what play() applies.
 const o = (id, title, text, acts, off) => ({ id, title, text, acts, off: !!off, crisis: false });
 const fast = (s, x) => 'The frontier moves ' + months(raceStep(s) * (x || 1)) + '.';
-// Locked doors: slower, but Beijing's hackers get nowhere that turn.
-const lockOpt = s => s.deal ? o('lock', 'Lock the weights away', 'Hackers get nowhere this turn.', ['lock'])
-  : o('lock', 'Race behind locked doors', s.knownOver ? 'The frontier is past the danger point.' : fast(s, TUNE.locked) + (view(s).overIfLockP > 0 ? ' Past the danger point: ' + view(s).overIfLock + '.' : '') + ' Hackers get nowhere this turn.', ['lock']);
+// Security is work: engineers who spend the turn on it are not training, and Beijing's hackers make no headway that turn.
+const lockOpt = s => s.deal ? o('lock', 'Put engineers on security', 'Beijing\'s hackers make no headway.', ['lock'])
+  : o('lock', 'Put engineers on security', s.knownOver ? 'The frontier is past the danger point.' : fast(s, TUNE.locked) + (view(s).overIfLockP > 0 ? ' Past the danger point: ' + view(s).overIfLock + '.' : '') + ' Beijing\'s hackers make no headway.', ['lock']);
 const testOpt = s => s.deal ? o('test', 'Test with the labs', (narrow(s) ? 'Narrows the danger range. ' : '') + 'The labs stay patient.', ['test'])
   : s.knownOver ? o('test', 'Stop and test', 'Training stops. The labs get readier to stop.', ['hold', 'test'])
   : o('test', 'Slow down and test', (narrow(s) ? 'Narrows the danger range. ' : '') + 'Half speed, watching for the danger point. The labs get readier to stop.', ['slow', 'test']);
@@ -118,7 +118,7 @@ const pent = s => [
 
 // Each table's three standing moves before a pause.
 const OPEN = {
-  wh: s => [o('race', 'Race in the open', s.knownOver ? 'The frontier is past the danger point.' : fast(s) + (view(s).overIfRaceP > 0 ? ' Past the danger point: ' + view(s).overIfRace + '.' : '') + ' The labs get harder to stop.', ['race']), lockOpt(s), testOpt(s)],
+  wh: s => [o('race', 'Race', s.knownOver ? 'The frontier is past the danger point.' : fast(s) + (view(s).overIfRaceP > 0 ? ' Past the danger point: ' + view(s).overIfRace + '.' : '') + ' The labs get harder to stop.', ['race']), lockOpt(s), testOpt(s)],
   state: s => [
     s.controls >= 3 ? o('tighten', 'Full tech embargo', 'Already in force.', [], true)
       : o('tighten', ['Close the chip loopholes', 'Cut off cloud and copying', 'Full tech embargo'][Math.max(0, s.controls)], 'China slowed for good. Beijing will answer.', ['tighten']),
@@ -157,7 +157,7 @@ function bold(s) {
   return [
     b('national', 'wh', 'Nationalize the labs', s.national ? 'Already done.' : 'The labs obey from now on. Slower for good; Beijing is alarmed.', s.national),
     b('sign', 'state', 'Sign Beijing\'s offer', !of ? 'Beijing is not talking.' : of.title + ', as it stands.' + (willing(s, s.offer) ? '' : ' Our labs refuse these terms.')),
-    b('sabotage', 'pent', 'Sabotage their data centers', s.sabotaged ? 'Beijing has hardened its sites.' : 'China loses about ' + Math.round(TUNE.sabotage) + ' months. Beijing may answer in kind.', s.sabotaged) ];
+    b('sabotage', 'pent', 'Sabotage their data centers', s.sabotaged ? 'Beijing has hardened its sites.' : 'China loses about ' + Math.round(TUNE.sabotage) + ' months. Beijing will answer in kind.', s.sabotaged) ];
 }
 
 // This turn's moves for each table (a crisis move last, marked crisis), and the bold moves on offer.
@@ -226,8 +226,7 @@ function play(s, picks) {
   if (has('sabotage')) {
     s.sabotaged = true; s.cn -= TUNE.sabotage; s.cnShown -= TUNE.sabotage; s.tension += 30; s.trust -= 20; s.offer = null;
     add('warn', 'Sabotage', 'Three Chinese data centers went dark overnight. "We know who did this."', 'State media, Beijing');
-    // a Beijing that would fight for the Strait answers in kind
-    if (!s.bluff) { s.us -= TUNE.revenge; add('bad', 'Beijing answers in kind', '"The fire at the Ohio data center was not an accident. We have lost months of training."', 'FBI briefing to the President'); }
+    { s.us -= TUNE.revenge; add('bad', 'Beijing answers in kind', '"The fire at the Ohio data center was not an accident. We have lost months of training."', 'FBI briefing to the President'); }
   }
   fix();
   if (has('inspect')) {
@@ -273,7 +272,7 @@ function play(s, picks) {
   }
   s.cn += cnStep; if (openly || s.caught) s.cnShown += cnStep;
   if (s.eyes && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;
-  note('info', s.deal ? (has('secret') ? 'America cheats' : 'America holds') : pace === 'race' ? (locked ? 'The labs race behind locked doors' : 'The labs race') : pace === 'hold' ? 'The labs stop' : 'The labs go at half speed',
+  note('info', s.deal ? (has('secret') ? 'America cheats' : 'America holds') : pace === 'race' ? (locked ? 'The labs harden their networks' : 'The labs race') : pace === 'hold' ? 'The labs stop' : 'The labs go at half speed',
     (usStep < 0.5 ? 'The US frontier does not move. ' : 'The US frontier advances ' + months(usStep) + '. ') + (s.deal && !openly && !s.caught ? 'Beijing reports no progress. By its account the' : 'The') +
     (lead0 === view(s).leadText.toLowerCase() ? ' US is still ' + lead0 + '.' : ' US was ' + lead0 + ' and is now ' + view(s).leadText.toLowerCase() + '.'));
   if (defy) {

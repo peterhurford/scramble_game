@@ -16,7 +16,7 @@ const choose = (T, w, bold) => {
 const safe = (s, risk, lock) => !s.knownOver && R.view(s)[lock ? 'overIfLockP' : 'overIfRaceP'] <= (risk || 0);
 const seenLead = s => s.us - s.cnShown;
 
-// One parameterised room. o: lock (race behind locked doors: 'always', or 'warn' once hackers are inside), tests, squeeze (chip controls to reach), eyes, talks (bargain from this turn),
+// One parameterised room. o: lock (engineers on security: 'always', or 'warn' once hackers are inside), tests, squeeze (chip controls to reach), eyes, talks (bargain from this turn),
 // take (worst offer level it signs), by (turn from which it signs whatever is on the table, if at most takeLate), risk, run (run a blockade), sab (turn to sabotage).
 function room(s, T, o) {
   const v = R.view(s), lvl = s.offer, tests = s.knownOver ? 9 : Math.round(Math.log2(6 / (s.hi - s.lo)));
