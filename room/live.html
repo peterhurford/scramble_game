@@ -219,7 +219,7 @@ function seats(g, v) {
   let h = '<div class="seats">';
   for (const k of IDS) {
     h += '<div class="seat"><h3>' + World.TABLES[k] + '</h3>';
-    if (!a) h += lock(g, v, k) + '<textarea data-order="' + k + '" placeholder="What does ' + (k === 'wh' ? 'the White House' : k === 'state' ? 'State' : 'the Pentagon') + ' do?"' + (st.screen === 'wait' ? ' disabled' : '') + '>' + esc(st.orders[k] || '') + '</textarea>';
+    if (!a) h += lock(g, v, k) + '<textarea data-order="' + k + '" placeholder="What do you do?"' + (st.screen === 'wait' ? ' disabled' : '') + '>' + esc(st.orders[k] || '') + '</textarea>';
     else {
       h += '<p class="order">' + esc(st.orders[k] || 'No order.') + '</p>';
       a.replies.forEach((r, i) => { if (r.table === k) h += '<blockquote contenteditable="true" data-reply="' + i + '">' + esc(r.quote) + '</blockquote><div class="by">' + esc(r.by) + '</div>'; });

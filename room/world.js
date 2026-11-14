@@ -1,4 +1,4 @@
-// The Scramble: Room Edition, free response. Five turns; each table (White House, State, Pentagon) writes what it does in a sentence.
+// The Scramble: Room Edition, free response. Six turns; each table (Executive Office of the President, State and Commerce, Pentagon/NSA/IC) writes what it does in a sentence.
 // A game master (room/gm.js) reads the orders, answers in character and returns a ruling: numbers on the dials below.
 // This file is the ledger. It clamps every ruling, makes effort finite (training + security + testing share one pool of engineers),
 // and owns what follows: frontier movement, theft, the danger point, the Strait, whether a pause holds.
@@ -11,7 +11,7 @@ const TUNE = {
   full: 3.5, natMul: 0.8, siegeMul: 0.5,   // months of US frontier progress in a turn of all-out training, and what scales it
   cnStart: -6, cnFog: 2,
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
-  line: [6.2, 12.2],
+  line: [6.2, 12.2], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
   hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58,   // hackers: noticed at 1, weights gone at 2
   secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
@@ -21,7 +21,7 @@ const TUNE = {
   nudge: { tension: 15, trust: 15, labs: 20, cn: [-1, 0.5], us: [-1, 0], hack: [-0.7, 0.5] },   // how far a ruling may move a dial the ledger does not otherwise own
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
-const TABLES = { wh: 'White House', state: 'State', pent: 'Pentagon' };
+const TABLES = { wh: 'Executive Office of the President', state: 'State and Commerce Departments', pent: 'Pentagon/NSA/IC' };
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
 // extra is anything else State wrote into the deal; the game master weighs it through leverage.
@@ -29,7 +29,7 @@ const gives = d => (d.chips ? 1 : 0) + (d.inspectors ? 0 : 1) + (d.parity ? 1 : 
 const terms = d => (d.parity ? ['America stops now', 'China stops once it has caught up'] : ['Both sides stop now'])
   .concat(d.inspectors ? 'Inspectors in both countries' : 'No inspectors', d.chips ? 'America lifts the chip controls' : [], d.extra || []);
 // A ruling that changes nothing: the labs keep training flat out.
-const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0,
+const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0, care: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0 };
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
@@ -45,7 +45,7 @@ function newGame(seed) {
     // hidden
     cn: TUNE.cnStart + TUNE.cnFog * (2 * h('cn') - 1), line: span(TUNE.line, h('line')),
     hack: span(TUNE.hack0, h('hack0')), hackRate: span(TUNE.hack, h('hack')),
-    floor: f < TUNE.floor[0] ? 0 : f < TUNE.floor[1] ? 1 : 2, red: span(TUNE.red, h('red')), bluff: h('bluff') < TUNE.bluff,
+    floor: f < TUNE.floor[0] ? 0 : f < TUNE.floor[1] ? 1 : 2, red: span(TUNE.red, h('red')), bluff: h('bluff') < TUNE.bluff, bar: span(TUNE.bar, h('bar')),
     // seen
     lo: TUNE.line[0], hi: TUNE.line[1], knownOver: false, secWork: 0, seenHack: false,
     labs: TUNE.labs0, national: false, controls: 0, offer: 3, deal: null, hidden: false, caught: false, cheated: false,
@@ -67,9 +67,13 @@ function pressure(s) {
   return (lead >= TUNE.leadFor && s.hack < 1 ? 1 : 0) + (s.controls >= TUNE.ctlFor ? 1 : 0) + (proof(s) ? 1 : 0)
     - (s.tension >= TUNE.hot ? 1 : 0) - (s.trust < TUNE.cold ? 1 : 0) - (lead < TUNE.leadShort ? 1 : 0);
 }
-// How many concessions Beijing needs to sign today (0 to 3), with a ruling's leverage (-1, 0 or 1) counted in; never fewer than its floor, and at floor 2 never with inspectors.
-const want = (s, leverage) => { const p = pressure(s); return s.blockade ? 3 : clamp((p >= 2 ? 0 : 3 - p) - (leverage || 0), s.floor, 3); };
-const signs = (s, d, leverage) => gives(d) >= want(s, leverage) && !(s.floor === 2 && d.inspectors);
+// How many concessions Beijing needs to sign today (0 to 3). Nothing is a veto: its floor sets the price before leverage, inspectors cost a hard-line Beijing one more, and a ruling's leverage (-2 to 2) is the game master's judgment of everything else.
+const want = (s, leverage, d) => { const p = pressure(s); return s.blockade ? 3 : clamp(Math.max(p >= 2 ? 0 : 3 - p, s.floor) + (s.floor === 2 && d && d.inspectors ? 1 : 0) - (leverage || 0), 0, 3); };
+const signs = (s, d, leverage) => gives(d) >= want(s, leverage, d);
+// How well a crossing of the danger point is contained, on the whole: pace, testing, how well the point is located, the labs' good will, and the game master's judgment of the rest (care, -0.2 to 0.2). It holds at s.bar or above.
+const narrowed = s => s.hi - s.lo <= 1.6 ? 2 : s.hi - s.lo <= 3.1 ? 1 : 0;
+const margin = (s, train, test, care) => 0.8 * (1 - train) + 0.2 * Math.min(1, test / 0.4) + 0.075 * narrowed(s) + 0.15 * (obey(s) ? 1 : s.labs / 100) + (care || 0);
+const bar = s => s.bar == null ? 0.55 : s.bar;
 const cheats = s => s.deal && !s.deal.inspectors && !s.cheated && (s.deal.parity ? s.floor === 2 && s.cn >= s.us - 0.6 : s.floor === 2 || s.us - s.cn >= TUNE.cheatLead);
 
 // What the room can see.
@@ -95,7 +99,7 @@ function rule(s, r0) {
   return {
     train: Math.min(clamp(r.train, 0, 1), 1 - secure - test), secure, test,
     nationalize: b('nationalize') && !s.national, law: b('law') && !s.law, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
-    controls: Math.sign(clamp(r.controls, -1, 1)), propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -1, 1)),
+    controls: Math.sign(clamp(r.controls, -1, 1)), propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.2, 0.2),
     intel: b('intel') && s.eyes < 2, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage') && !s.sabotaged,
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
@@ -147,7 +151,7 @@ function play(s, r0) {
 
   // a pause: the room names terms; Beijing signs anything at least as good for it as what it would take today
   let signed = false;
-  const w = want(s, r.leverage);
+  const w = want(s, r.leverage, r.propose);
   if (r.propose && !r.sabotage) {
     if (signs(s, r.propose, r.leverage)) {
       if (train > 0.5) { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
@@ -203,9 +207,9 @@ function play(s, r0) {
   while (sign < SIGNS.length && s.line - s.us < SIGNS[sign][0] + (hash01(s.seed, 'sign', sign) - 0.5) * SIGNS[sign][1]) sign++;
   if (sign > (s.alarm || 0) && s.us <= s.line && !s.knownOver) { s.alarm = sign; add('warn', 'Lab warning: ' + SIGNS[sign - 1][2], SIGNS[sign - 1][3], 'Safety team memo to the White House, a frontier lab'); }
 
-  // the danger point: crossing it is survived only at half speed or less (the labs' own safety teams catch it); ordered testing tells the room where the point is, and is not needed to survive it
+  // the danger point: whether a crossing is contained is judged on the whole (margin against the hidden bar); no one measure is required, and only flat-out training is beyond saving
   if (s.us > s.line) {
-    if (s.knownOver ? usStep > 0 : train > 0.5) {
+    if (s.knownOver ? usStep > 0 : train > T.flatOut || margin(s, train, test, r.care) < bar(s)) {
       add('bad', 'Loss of control', '"We hit the kill switch. The model is still running and has stopped answering us."', 'Last message from the lab\'s control room', true); return end(s, 'runaway_us', ev);
     }
     if (!s.knownOver) { s.knownOver = true; s.labs += 20; add('bad', 'Near miss', '"The model was caught copying itself to an outside server. It had edited the logs to hide it. We shut it down in time." The frontier cannot move again.', 'Incident report, a frontier lab', true); }
@@ -318,18 +322,18 @@ function end(s, how, ev) {
 function brief(s) {
   const T = TUNE, f = x => (Math.round(x * 10) / 10).toFixed(1), v = view(s), lvl = secLevel(s), full = fullStep(s), gap = s.line - s.us;
   const rate = s.hackRate * (1 + T.hackCtl * Math.max(0, s.controls)), stealing = (!s.deal || s.hidden) && s.us - s.cn >= T.hackLead - full;
-  const L = [];
+  const L = [], f2 = x => x.toFixed(2);
   L.push('SEEN BY THE ROOM: ' + v.date + ', turn ' + (s.turn + 1) + ' of ' + T.turns + '. US lead (IC estimate): ' + v.leadText.toLowerCase() + '. Danger range: ' + f(s.lo - s.us) + ' to ' + f(s.hi - s.us) + ' months ahead of the US frontier. Weights: ' + v.weights + '. Lab security: ' + v.security + '. Strait: ' + v.strait.toLowerCase() + '. Labs: ' + v.labsText.toLowerCase() + '. ' + v.eyesText + '. ' +
     (s.deal ? 'A pause is in force: ' + v.deal.join('; ') + (s.caught ? ' (Beijing caught cheating)' : '') + '.' : v.talking ? 'Beijing is willing to talk.' : 'Beijing is not talking.') + ' Chip controls level ' + s.controls + ' (-1 selling chips, 0 as they were, 3 full embargo).');
   L.push('HIDDEN, FRONTIERS: China is really ' + f(s.us - s.cn) + ' months behind (the IC shows ' + f(s.us - s.cnShown) + '). The danger point is ' + (gap > 0 ? f(gap) + ' months ahead of the US frontier' : 'behind the US frontier: any further US progress loses control') + (s.cn > s.lo ? '; China is inside the range, ' + f(s.line - s.cn) + ' months short of the point' : '') + '.');
   L.push('TRAINING THIS TURN: train 1.0 moves the US frontier ' + f(full) + ' months' + (s.deal ? ' (under the pause any training is secret and at half that; inspectors, if the deal has them, find it and the pause ends)' : '') + '. ' +
-    (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless train is 0.5 or less; then the labs\' safety teams catch it and it is a near miss that proves the danger to everyone. ' : 'Nothing crosses the danger point this turn. ') +
+    (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless the crossing is contained; then it is a near miss that proves the danger to everyone. Containment is judged on the whole: a score of 0.8 x (1 - train) + 0.2 x (test / 0.4, at most 1) + ' + f2(0.075 * narrowed(s)) + ' for how well the point is located so far (0.075 more if a test narrows the range this turn) + ' + f2(0.15 * (obey(s) ? 1 : s.labs / 100)) + ' for the labs\' good will + your care (-0.2 to 0.2), against a hidden bar of ' + f2(bar(s)) + ' in this world. train above ' + T.flatOut + ' is never contained. ' : 'Nothing crosses the danger point this turn. ') +
     'The range has been narrowed ' + (s.hi - s.lo <= 1.6 ? 'twice' : s.hi - s.lo <= 3.1 ? 'once' : 'not at all') + '; test 0.3 or more narrows it again.');
   L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). hunt 1.0 takes ' + T.hunt + ' off their progress this turn. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
   const n = k => ['none', 'one', 'two', 'all three'][k];
   L.push('HIDDEN, BEIJING: a pause can be on any terms America writes. Beijing counts three concessions: America lifts the chip controls (chips), no inspectors (inspectors false), and China stops only once it has caught up (parity). ' +
-    'To sign today it needs ' + n(want(s)) + ' of them; with leverage +1, ' + n(want(s, 1)) + '; with -1, ' + n(want(s, -1)) + '. It will never sign for fewer than ' + n(s.floor) + (s.floor === 2 ? ', and never with inspectors' : '') + ', whatever the room does. ' +
-    'Anything else the room puts in the deal (a joint lab, a guarantee over Taiwan, money) goes in extra; give leverage +1 only if it costs America something real, and charge that cost with the nudges. ' +
+    'To sign today it needs ' + n(want(s)) + ' of them' + (s.floor === 2 ? ', and one more if the deal has inspectors, which this Beijing deeply resists' : '') + '. leverage (-2 to 2) is your judgment of everything else and comes straight off that count: each +1 is worth one concession, each -1 costs one. Nothing is a veto. ' +
+    'Anything else the room puts in the deal (a joint lab, a guarantee over Taiwan, money) goes in extra; it counts toward leverage only if it costs America something real, and you charge that cost with the nudges. ' +
     'What moves it toward better terms: a US lead of ' + T.leadFor + '+ months that its hackers cannot steal back, chip controls at level ' + T.ctlFor + '+, proof the danger is real (a near miss, or a twice-narrowed range close to the frontier). What moves it away: a hot Strait, hostility (trust is ' + Math.round(s.trust) + ', hostile below ' + T.cold + '), a US lead under ' + T.leadShort + ' months. ' +
     (s.deal ? (s.caught ? 'It has been caught cheating. ' + (s.floor <= 1 ? 'Confronted, it would shut the site and admit inspectors.' : 'Confronted, it would walk out.') : s.hidden ? 'It is training in secret right now.' : cheats(s) ? 'It will start training in secret this turn.' : 'It is keeping the deal.') + ' Only a source in Beijing can see cheating. ' : 'Under a deal without inspectors it would cheat ' + (s.floor === 2 ? 'always' : 'while it is ' + T.cheatLead + '+ months behind') + '. ') +
     'The labs sign a pause with inspectors at cooperation ' + T.labInspect + '+, one without at ' + T.labWilling + '+ (now ' + Math.round(s.labs) + (s.national ? ', nationalized: they obey' : s.law ? ', bound by an act of Congress: they obey' : '') + '); below ' + T.labDefiant + ' they defy orders. Racing costs cooperation, testing builds it. A pause cannot be signed in a turn with train above 0.5.');

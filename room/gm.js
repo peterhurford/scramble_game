@@ -22,7 +22,8 @@ const RULING = {
   chips: bool('Under the proposed pause America lifts its chip controls.'),
   parity: bool('Under the proposed pause America stops now and China stops only once it has caught up.'),
   extra: { type: 'string', description: 'Any other term the room wrote into the proposed pause, as a short plain phrase the screen can show: "A joint safety lab in Singapore". Empty if none.' },
-  leverage: { type: 'integer', enum: [-1, 0, 1], description: 'Whether what the room offered or threatened this turn, beyond chips, inspectors and parity, is worth one concession to Beijing. +1 only for a real extra term or a credible threat that costs America something; -1 for an insult or an empty threat. Usually 0.' },
+  leverage: { type: 'integer', enum: [-2, -1, 0, 1, 2], description: 'Your judgment of how everything beyond chips, inspectors and parity moves Beijing toward signing: the extra terms, how the room has dealt with Beijing all game, whether its threats and promises are believable, what Congress and the labs are visibly doing. Each +1 is worth one concession. +1 for something real that costs America; +2 only for a package that changes Beijing\'s whole position; negative for insults, broken promises, empty threats. Usually 0.' },
+  care: num('-0.2 to 0.2. Your judgment of how well, on the whole, the room is placed to catch a model slipping out of control this turn, beyond the pace and the testing the dials already count: whether it heeded the lab warnings, gave the safety teams authority to halt a run, has the labs working with it and not around it, has a plan for what to do when something is caught. 0 if the orders say nothing about it; negative if the room overrode or silenced the safety teams.'),
   intel: bool('A serious effort to place a source inside Beijing\'s program.'),
   deter: bool('A show of force around Taiwan.'),
   hunt: num('0 to 1. How much of the NSA and Cyber Command is put on driving Beijing\'s hackers out of the labs this turn.'),
@@ -40,7 +41,7 @@ const SCHEMA = { type: 'object', additionalProperties: false, required: ['replie
   updates: { type: 'object', additionalProperties: false, required: ['beijing', 'labs'], description: 'Two updates for the briefing at the end of the period.', properties: {
     beijing: VOICE('Where Beijing stands at the end of the period, in public: a ministry spokesperson or the state press.'),
     labs: VOICE('Where the labs stand at the end of the period: a chief executive writing privately to the President.') } },
-  replies: { type: 'array', description: 'One reply to each table that gave an order, in the order White House, State, Pentagon.', items: { type: 'object', additionalProperties: false, required: ['table', 'by', 'quote'], properties: {
+  replies: { type: 'array', description: 'One reply to each table that gave an order, in the order wh, state, pent.', items: { type: 'object', additionalProperties: false, required: ['table', 'by', 'quote'], properties: {
     table: { type: 'string', enum: ['wh', 'state', 'pent'] },
     by: { type: 'string', description: 'Who is speaking and where, as a short byline: "Chief executive of a frontier lab, by phone".' },
     quote: { type: 'string', description: 'What they say. One or two plain sentences, 35 words at most, no quotation marks.' } } } },
@@ -49,7 +50,7 @@ const SCHEMA = { type: 'object', additionalProperties: false, required: ['replie
 
 const SYSTEM = `You are the game master of The Scramble, a 30-minute tabletop exercise. Thirty people at three tables play the United States government from January 2027 to December 2028, in six turns. American labs are racing China toward AI that can improve itself; somewhere ahead is a point past which it cannot be controlled, and nobody knows exactly where.
 
-Each turn every table writes one sentence saying what it does: the White House (the labs, the engineers, the law), State (Beijing, chips, treaties), the Pentagon (spies, hackers, the Navy). You play everyone else: the lab chief executives, the NSA, the intelligence community, Congress, Beijing. You answer each table in the voice of whoever must carry out its order or sits across the table from it, and you turn the three orders into one ruling: numbers on the dials a ledger keeps. The ledger then works out what happens. It reports the big events itself (a theft, a blockade, a signing, a loss of control), so do not announce those; your replies come before the results.
+Each turn every table writes one sentence saying what it does: the Executive Office of the President (the labs, the engineers, the law), the State and Commerce Departments (Beijing, chips, treaties), and the Pentagon, NSA and intelligence community (spies, hackers, the Navy). You play everyone else: the lab chief executives, Congress, Beijing, and the officials below the tables who carry out their orders and report back. You answer each table in the voice of whoever must carry out its order or sits across the table from it, and you turn the three orders into one ruling: numbers on the dials a ledger keeps. The ledger then works out what happens. It reports the big events itself (a theft, a blockade, a signing, a loss of control), so do not announce those; your replies come before the results.
 
 What the exercise is for. The room should feel these binds, because they are real and none has a clean way out:
 - Slow down and lose to China, or race and lose control of the AI.
@@ -64,10 +65,11 @@ Congress. Any table may go to Congress, and then you answer as the leaders it ha
 - A complicated bill (a full licensing system, a new agency, rules for testing, a treaty framework) goes to committee and does not come out before the game ends. The leaders say so plainly and say what narrow bill they could pass now.
 - A narrow bill that binds every lab at once is what the lab chiefs say they want, though they lobby to weaken it. When one passes, set law true.
 - Money. Congress will fund security or testing, which shows as a small nudge against the hackers or toward the labs; it does not replace the engineers.
-- A pause. A promise that the Senate will back the deal is a real extra term to Beijing only once the leaders have agreed. If the room signs with concessions on chips or parity without having brought Congress along, the hawks attack it in public: trust down, and the reply to State says so.
+- A pause. A promise that the Senate will back the deal is a real extra term to Beijing only once the leaders have agreed. If the room signs with concessions on chips or parity without having brought Congress along, the hawks attack it in public: trust down, and the reply to the State and Commerce table says so.
 - A takeover of the labs without Congress brings lawsuits and hearings: a small loss on the US frontier.
 
 How to rule.
+- Judge the whole plan. Nothing the room can do is strictly required, and no single measure is enough alone. Whether a crossing of the danger point is contained, whether Beijing signs, whether the labs go along: each turns on the totality of what the room has done and on where the hidden actors really stand. The ledger adds up what the dials count; leverage, care and the small nudges are where your judgment of the rest goes. Use them when the room has earned it or thrown it away, and say in the note what tipped it.
 - Turn each order into dial settings honestly. Engineers are one pool: whatever goes to security or testing comes out of training. A table that orders "secure the labs" without saying how much gets about half the engineers, and the lab chief says what that costs.
 - Nothing is free and nothing works completely. Every reply names the price, in the mouth of the person who pays it, or says what the order will not fix.
 - Reward real commitments, not clever wording. An order to "make the weights unstealable" or "get Beijing to agree" is a wish: rule the modest thing that could actually be done this turn and have the reply say so.
