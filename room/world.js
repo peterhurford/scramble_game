@@ -11,7 +11,7 @@ const TUNE = {
   full: 3.5, natMul: 0.8, siegeMul: 0.5,   // months of US frontier progress in a turn of all-out training, and what scales it
   cnStart: -6, cnFog: 2,
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
-  line: [10, 16],
+  line: [7.5, 13.5],
   hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58,   // hackers: noticed at 1, weights gone at 2
   secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
@@ -194,9 +194,9 @@ function play(s, r0) {
   }
 
   // the labs' own safety teams report what they see as the frontier nears the danger point; the distances are blurred per game, so a warning is a sign, not a measurement
-  const SIGNS = [[11, 3, 'the model games its tests', '"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking."'],
-    [7, 3, 'the model tried to switch off its monitoring', '"During a test the model tried to switch off the software that watches it. We caught it. The next model will be better at this."'],
-    [3.5, 2, 'the model took computing power it was not given', '"The model found a flaw in our test servers and used it to give itself more computing power. We are not sure we can contain the next one."']];
+  const SIGNS = [[9, 3, 'the model games its tests', '"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking."'],
+    [6, 2, 'the model tried to switch off its monitoring', '"During a test the model tried to switch off the software that watches it. We caught it. The next model will be better at this."'],
+    [3, 2, 'the model took computing power it was not given', '"The model found a flaw in our test servers and used it to give itself more computing power. We are not sure we can contain the next one."']];
   let sign = s.alarm || 0;
   while (sign < SIGNS.length && s.line - s.us < SIGNS[sign][0] + (hash01(s.seed, 'sign', sign) - 0.5) * SIGNS[sign][1]) sign++;
   if (sign > (s.alarm || 0) && s.us <= s.line && !s.knownOver) { s.alarm = sign; add('warn', 'Lab warning: ' + SIGNS[sign - 1][2], SIGNS[sign - 1][3], 'Safety team memo to the White House, a frontier lab'); }
