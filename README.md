@@ -8,7 +8,7 @@ Open `index.html` in a browser. The game saves to localStorage after every move.
 
 - `engine.js`: the whole simulation (state, actions, events, China, labs, endings). No DOM; runs in node.
 - `ui.js`, `index.html`: rendering only.
-- `room/`: the Room Edition, a seven-turn, 30-minute version for a room split into three tables (White House, State, Pentagon), each picking one of three standing moves a turn (a crisis adds a fourth to one table), plus one bold move for the room (open `room/index.html`; rules in `room/engine.js`). `node room/sim.js` prints how scripted rooms end.
+- `room/`: the Room Edition, a seven-turn, 30-minute version for a room split into three tables (White House, State, Pentagon), each picking one of three standing moves a turn, plus one bold move for the room. Nothing is rolled after the start: the hidden facts are fixed, and Beijing answers what the room does (its pause offer, theft, a blockade). Open `room/index.html`; rules in `room/engine.js`. `node room/sim.js` prints how scripted rooms end.
 - `sim/playtest.js [games] [difficulty] [bot]`: plays scripted strategies (random, expert, hawk, hawksec, hawkpure, passive, early, noprep, reader, noauto, dpa, nosec, sl4only) and prints the endings.
 - `sim/trace.js [seed] [bot]`: one game, turn by turn.
 - `sim/loc.js [bot]`: breaks down what the bot's losses came from.

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* One projected screen: top bar, the race track over one line of facts, then each table's moves under what it still owes a pause, and the bold moves, or the turn's events. */
+/* One projected screen: top bar, the race track over one line of facts, then each table's moves under who it is dealing with, and the bold moves, or the turn's events. */
 :root{
   --bg:#E3E8ED; --sheet:#F8F9FB; --sheet2:#EEF2F6; --ink:#15202B; --muted:#56626F; --faint:#9AA6B2; --rule:#C8D0D9;
   --accent:#1A4480; --accent-ink:#fff; --accent-soft:#DCE6F3;
@@ -122,7 +122,7 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 // Each table announces its move and the facilitator clicks it; a bold move is clicked on, or again to take it back (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 // TURN_SECS covers a whole round: the crisis, the decision and the news.
-const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v8';
+const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v9';
 const SHORT = { wh: 'White House', state: 'State', pent: 'Pentagon', bold: 'Bold move' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -176,22 +176,22 @@ function track(g, v, reveal) {
   h += '<div class="mk cn" style="left:' + pos(reveal ? g.cn : g.cnShown) + '">CHINA</div></div>';
   return h;
 }
-const lvl = (x, warn, bad) => x === bad ? 'bad' : x === warn ? 'warn' : 'good';
 function facts(g, v) {
+  const sc = v.strait === 'Calm' ? 'good' : v.strait === 'Tense' ? 'warn' : 'bad';
   return '<div class="facts"><span>US lead' + (g.deal && !g.caught ? ', by Beijing\'s account' : '') + ': <b>' + v.leadText.toLowerCase() + '</b></span>' +
-    '<span>The weights: <b class="' + ['bad', 'warn', 'good'][g.sec] + '">' + v.security + '</b>, theft this turn <b>' + v.theft + '</b></span>' +
-    '<span>Taiwan Strait: <b class="' + (v.tensionText === 'Calm' ? 'good' : v.tensionText === 'Tense' ? 'warn' : 'bad') + '">' + v.tensionText.toLowerCase() + '</b>, war this turn <b>' + v.war + '</b></span></div>';
+    '<span>The weights: <b class="' + ['bad', 'warn', 'good'][g.sec] + '">' + v.security + '</b>' + (v.hackers ? ', <b class="bad">hackers inside the labs</b>' : '') + '</span>' +
+    '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span></div>';
 }
-// What each table still owes a pause, shown over its moves.
+// Who each table is dealing with, shown over its moves: the labs, Beijing's offer, the sources.
 function lock(g, v, id) {
-  const L = (c, txt, more) => '<div class="lock"><i>' + (g.deal ? 'The pause: ' : 'For a pause: ') + '</i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
-  if (id === 'wh') return L(v.willing ? 'good' : v.labsText === 'Would defy a stop' ? 'bad' : 'warn', 'the labs ' + v.labsText.toLowerCase().replace('nationalized', 'are nationalized'));
+  const L = (label, c, txt, more) => '<div class="lock"><i>' + label + ': </i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
+  if (id === 'wh') return L('The labs', g.national || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Would defy a stop' ? 'bad' : 'warn', v.labsText.toLowerCase());
   if (id === 'state') {
-    if (g.deal) return L(g.caught ? 'bad' : 'good', g.caught ? 'Beijing caught cheating' : 'Beijing has signed');
-    const pr = Room.price(g);
-    return L(pr.every(a => a.known && a.met) ? 'good' : 'warn', 'Beijing wants', ' ' + pr.map(a => !a.known ? '<span class="pill unk">?</span>' : '<span class="pill ' + (a.met ? 'ok' : 'no') + '" title="' + esc(a.want) + '">' + (a.met ? '✓ ' : '✗ ') + esc(a.short) + '</span>').join(''));
+    const pills = v.offer ? '<br>' + v.offer.terms.map(x => '<span class="pill">' + esc(x) + '</span>').join('') : '';
+    if (g.deal) return L('Signed', g.caught ? 'bad' : 'good', esc(v.offer.title.toLowerCase()) + (g.caught ? ', and Beijing is cheating' : ''), pills);
+    return v.offer ? L('Beijing offers', 'warn', esc(v.offer.title.toLowerCase()), pills) : L('Beijing', 'bad', 'is not talking');
   }
-  return g.inspectors ? L('good', 'inspectors are in') : L(g.eyes > 1 ? 'good' : g.eyes ? 'warn' : 'bad', g.eyes > 1 ? 'cheating would very likely be seen' : g.eyes ? 'cheating might be seen' : 'cheating would go unseen');
+  return L('Inside Beijing', g.eyes > 1 ? 'good' : g.eyes ? 'warn' : 'bad', v.eyesText.toLowerCase());
 }
 function topbar(g) {
   let pips = ''; for (let i = 0; i < Room.TUNE.turns; i++) pips += '<i class="' + (i < g.turn - (st.screen === 'resolve' && !g.over ? 1 : 0) ? 'done' : i === g.turn - (st.screen === 'resolve' ? 1 : 0) && !g.over ? 'now' : '') + '"></i>';
@@ -259,10 +259,11 @@ function ending(g) {
   const o = g.over, v = Room.view(g), facts = [], m = Room.months, gap = (x, past, short) => x > g.line ? past : m(g.line - x) + ' ' + short;
   facts.push('Runaway RSI became possible <b>' + m(g.line) + '</b> past the January 2027 frontier. The US ended ' + gap(g.us, 'past that point.', 'short of it.'));
   facts.push('China ended ' + gap(g.cn, 'past that point too.', 'short of it.') + (Math.abs(g.cn - g.cnShown) >= 1 ? ' That is ' + m(g.cn - g.cnShown) + ' further than anyone knew.' : ''));
-  facts.push('Beijing\'s price for a pause was ' + g.asks.map(a => Room.ASKS[a].short).join(' and ') + '.' + (g.known.every(Boolean) ? '' : ' The room never learned all of it.'));
+  facts.push('The best pause Beijing would ever have signed: <b>' + Room.OFFERS[g.floor].title.toLowerCase().replace(/^a /, '') + '</b> (' + Room.OFFERS[g.floor].terms.join(', ').toLowerCase() + ').');
+  facts.push(g.bluff ? 'Beijing would not have fought for the Strait.' : 'Beijing would have fought for the Strait.');
   if (g.deal) facts.push(g.hidden ? 'Beijing was running a hidden program under the deal.' : 'Beijing kept the deal.');
-  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + '.');
-  facts.push('The Strait ended ' + v.tensionText.toLowerCase() + '; relations with Beijing, ' + v.trustText.toLowerCase() + '.');
+  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + '. Against ordinary security, Beijing\'s hackers needed ' + (g.hackRate >= 1 ? 'two turns' : 'three turns') + '.');
+  facts.push('The Strait ended ' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '; relations with Beijing, ' + v.trustText.toLowerCase() + '.');
   return '<div class="panel end"><div class="grade ' + o.grade + '">' + o.grade + '</div><div><div class="lbl">' + (g.turn >= Room.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.votes[g.votes.length - 1].date) + '</div><h1>' + esc(o.title) + '</h1><p>' + esc(o.text) + '</p></div></div>' +
     '<div class="cols"><div class="panel"><div class="lbl">What was hidden</div><ul>' + facts.map(f => '<li>' + f + '</li>').join('') + '</ul></div>' +
     '<div class="panel"><div class="lbl">What the room did</div><table><tr><th></th>' + Object.values(SHORT).map(x => '<th>' + x + '</th>').join('') + '</tr>' +
