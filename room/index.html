@@ -129,7 +129,8 @@ table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{pad
 // Rendering and the facilitator's controls; all rules are in engine.js.
 // Each group's principal announces a choice and the facilitator clicks it (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
-const TURN_SECS = 180, GAME_MINS = 30, SAVE = 'scramble-room-v4';
+// TURN_SECS covers a whole round: the crisis, the decision and the news.
+const TURN_SECS = 240, NEWS_SECS = 60, GAME_MINS = 30, SAVE = 'scramble-room-v4';
 const SHORT = { vp: 'President', dni: 'DNI', doc: 'Commerce', state: 'State', war: 'War' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -158,7 +159,7 @@ function nextNews(skip) {
   else { st.news = skip || st.news + 1 >= st.events.length ? -1 : st.news + 1; st.shown = false; }
   draw();
 }
-function endBrief() { st.brief = false; st.turnT0 = Date.now(); draw(); }
+function endBrief() { st.brief = false; draw(); }
 function next() {
   if (st.screen !== 'resolve') return;
   if (st.game.over) st.screen = 'end';
@@ -202,7 +203,7 @@ function topbar(g) {
   let pips = ''; for (let i = 0; i < Room.TUNE.turns; i++) pips += '<i class="' + (i < g.turn - (st.screen === 'resolve' && !g.over ? 1 : 0) ? 'done' : i === g.turn - (st.screen === 'resolve' ? 1 : 0) && !g.over ? 'now' : '') + '"></i>';
   return '<div class="top"><div class="mark">The Scramble<small>Room Edition</small></div><div class="pips">' + pips + '</div>' +
     '<div class="date">' + (st.screen === 'end' ? 'The end' : st.screen === 'resolve' ? 'Turn ' + g.votes.length + ' of ' + Room.TUNE.turns + ' · what happened' : 'Turn ' + (g.turn + 1) + ' of ' + Room.TUNE.turns + ' · ' + Room.DATES[g.turn]) + '</div><div class="sp"></div>' +
-    '<div class="clock"><div class="lbl">This turn</div><b id="ck-turn">-</b></div><div class="clock"><div class="lbl">Game</div><b id="ck-game">-</b></div>' +
+    '<div class="clock"><div class="lbl">This round · lock in by ' + mmss(NEWS_SECS) + '</div><b id="ck-turn">-</b></div><div class="clock"><div class="lbl">Game</div><b id="ck-game">-</b></div>' +
     '<button class="ghost" id="b-undo"' + (st.past.length ? '' : ' disabled') + '>Undo turn (U)</button><button class="ghost" id="b-new">Restart</button></div>';
 }
 
@@ -231,7 +232,7 @@ function intro() {
     '<li><b>Odds come in the IC\'s words,</b> and they mean what they say: "unlikely" things happen about one time in four, and over seven turns some of them will.</li>' +
     '<li><b>From the second turn, each turn opens with a crisis.</b> It says what is at stake this turn and which seats can answer it.</li></ol>' +
     '<button class="btn" id="b-start">Start the clock</button>' +
-    '<p class="fine">Facilitator: about four minutes a turn, three to decide and one for the news. Ask each principal for a decision and click it; Enter locks the turn in, Space steps through the news and moves on, U undoes a turn (the dice for a turn stay the same if you replay it). Add #seed=123 to the address to rehearse a game and run the same one live.</p></div>';
+    '<p class="fine">Facilitator: four minutes a round, crisis and news included; the round clock runs through all of it, so lock the turn in with a minute left for the news. Ask each principal for a decision and click it; Enter locks the turn in, Space steps through the news and moves on, U undoes a turn (the dice for a turn stay the same if you replay it). Add #seed=123 to the address to rehearse a game and run the same one live.</p></div>';
 }
 
 function decide(g) {
@@ -250,12 +251,12 @@ function decide(g) {
 }
 
 function tags(picks) { return '<div class="tags">' + Object.keys(SHORT).map(k => '<span><i>' + SHORT[k] + '</i>' + esc(picks[k]) + '</span>').join('') + '</div>'; }
-// The crisis that opens a turn; the turn clock starts when it is dismissed.
+// The crisis that opens a turn; the round clock is already running.
 function brief(g) {
   const c = Room.crisis(g);
   return '<div class="ov"><div class="news warn clip crisisn"><div class="mh"><span>' + esc(c.src) + '</span><b>' + Room.DATES[g.turn] + '</b></div>' +
     '<div class="mb"><h2>' + esc(c.title) + '</h2><p>' + esc(c.text) + '</p><p class="rule">' + esc(c.rule) + '</p></div>' +
-    '<div class="go"><button class="btn" id="b-brief">To the cabinet</button><span class="hint">Space or Enter starts the turn clock</span></div></div></div>';
+    '<div class="go"><button class="btn" id="b-brief">To the cabinet</button><span class="hint">Space or Enter</span></div></div></div>';
 }
 // The turn's events, one bulletin at a time, before the recap screen. A rolled event first asks its question.
 function news(g) {
@@ -312,7 +313,7 @@ document.addEventListener('keydown', e => {
 const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
 function tick() {
   const a = $('ck-turn'), b = $('ck-game'); if (!a) return;
-  if (st.screen === 'decide' && !st.brief) { const left = TURN_SECS - (Date.now() - st.turnT0) / 1000; a.textContent = left >= 0 ? mmss(left) : '+' + mmss(-left); a.className = left < 0 ? 'late' : ''; }
+  if (st.screen === 'decide' || st.screen === 'resolve') { const left = TURN_SECS - (Date.now() - st.turnT0) / 1000; a.textContent = left >= 0 ? mmss(left) : '+' + mmss(-left); a.className = left < 0 ? 'late' : ''; }
   else a.textContent = '-';
   const el = (Date.now() - st.t0) / 1000; b.textContent = mmss(el); b.className = el > GAME_MINS * 60 ? 'late' : '';
 }
