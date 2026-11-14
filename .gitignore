@@ -2,3 +2,5 @@
 sim/*.out
 sim/*.log
 sim/.search.lock
+room/node_modules
+room/package-lock.json

@@ -1,0 +1,6 @@
+{
+  "name": "scramble-room",
+  "private": true,
+  "description": "Room Edition game master (gm.js). The SDK is only needed when ANTHROPIC_API_KEY is set; without it gm.js uses the claude CLI.",
+  "dependencies": { "@anthropic-ai/sdk": "^1.8.0" }
+}
