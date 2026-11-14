@@ -26,7 +26,7 @@ function room(s, T, o) {
     race: go || !safe(s, o.risk) ? -10 : 2, secure: s.sec < (o.sec || 0) ? (v.hackers || s.sec === 0 ? 6 : 3) : -1, test: needTest ? 4 : !safe(s, o.risk) ? 1 : 0, hold: 0, slow: 0, secret: -5,
     tighten: s.controls < (o.squeeze || 0) && !v.strait.startsWith('Beijing') && !s.blockade ? 4 : -5, carrot: o.carrot && s.controls >= 0 ? 3 : -2,
     talk: o.talks != null && s.turn >= o.talks ? 3 : 1, inspect: 4, confront: 5, tolerate: -3, backdown: o.run ? -5 : 9,
-    watch: s.eyes < (o.eyes || 0) ? 3 : 0, guard: v.hackers && s.sec < 2 ? (o.guard ? 5 : 2) : 1, deter: o.deter && s.deter < o.deter ? 2.5 : 0, run: o.run ? 9 : -5 };
+    watch: s.eyes < (o.eyes || 0) ? 3 : 0, guard: o.guard && s.sec < 2 ? 5 : v.hackers && s.sec < 2 ? 2 : 1, deter: o.deter && s.deter < o.deter ? 2.5 : 0, run: o.run ? 9 : -5 };
   return { w, bold: go ? 'sign' : o.sab != null && s.turn === o.sab ? 'sabotage' : o.nat != null && s.turn === o.nat ? 'national' : null };
 }
 const BOTS = {

@@ -108,9 +108,7 @@ button{font:inherit;color:inherit}
 .grade{font-size:7em;font-weight:900;line-height:1;width:1.5em;height:1.5em;display:grid;place-items:center;border:6px solid currentColor}
 .grade.A,.grade.B{color:var(--good)} .grade.C{color:var(--warn)} .grade.D,.grade.F{color:var(--bad)}
 .end h1{margin:0;font-size:2.6em;font-weight:900;letter-spacing:-.02em} .end p{margin:6px 0 0;font-family:var(--f-body);font-size:1.25em;max-width:40em}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px} .cols ul{margin:6px 0 0;padding-left:1.1em;font-family:var(--f-body)} .cols li{margin:4px 0}
-table{border-collapse:collapse;width:100%;margin-top:6px;font-size:.92em} td{padding:4px 10px 4px 0;border-bottom:1px solid var(--rule)} td:first-child{color:var(--muted);white-space:nowrap} th{text-align:left;font-size:.72em;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 10px 4px 0}
-@media (max-width:900px){.seats,.bolds,.cols,.evs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
+@media (max-width:900px){.seats,.bolds,.evs{grid-template-columns:1fr}.end{grid-template-columns:1fr}.grade{font-size:4em}.intro h1{font-size:2.1em}.tick span{display:none}}
 </style>
 </head>
 <body>
@@ -256,18 +254,8 @@ function news(g) {
     '<div class="go"><button class="btn" id="b-news">' + (last ? (g.over ? 'See how it ends' : 'Next turn') : 'Next') + '</button><div class="pips">' + pips + '</div></div></div></div>';
 }
 function ending(g) {
-  const o = g.over, v = Room.view(g), facts = [], m = Room.months, gap = (x, past, short) => x > g.line ? past : m(g.line - x) + ' ' + short;
-  facts.push('Runaway RSI became possible <b>' + m(g.line) + '</b> past the January 2027 frontier. The US ended ' + gap(g.us, 'past that point.', 'short of it.'));
-  facts.push('China ended ' + gap(g.cn, 'past that point too.', 'short of it.') + (Math.abs(g.cn - g.cnShown) >= 1 ? ' That is ' + m(g.cn - g.cnShown) + ' further than anyone knew.' : ''));
-  facts.push('The best pause Beijing would ever have signed: <b>' + Room.OFFERS[g.floor].title.toLowerCase().replace(/^a /, '') + '</b> (' + Room.OFFERS[g.floor].terms.join(', ').toLowerCase() + ').');
-  facts.push(g.bluff ? 'Beijing would not have fought for the Strait.' : 'Beijing would have fought for the Strait.');
-  if (g.deal) facts.push(g.hidden ? 'Beijing was running a hidden program under the deal.' : 'Beijing kept the deal.');
-  facts.push((g.thefts ? 'The weights were stolen ' + (g.thefts > 1 ? g.thefts + ' times' : 'once') : 'The weights were never stolen') + '. The labs ended with ' + Room.SECURITY[g.sec] + '. Against ordinary security, Beijing\'s hackers needed ' + (g.hackRate >= 1 ? 'two turns' : 'three turns') + '.');
-  facts.push('The Strait ended ' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '; relations with Beijing, ' + v.trustText.toLowerCase() + '.');
+  const o = g.over;
   return '<div class="panel end"><div class="grade ' + o.grade + '">' + o.grade + '</div><div><div class="lbl">' + (g.turn >= Room.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.votes[g.votes.length - 1].date) + '</div><h1>' + esc(o.title) + '</h1><p>' + esc(o.text) + '</p></div></div>' +
-    '<div class="cols"><div class="panel"><div class="lbl">What was hidden</div><ul>' + facts.map(f => '<li>' + f + '</li>').join('') + '</ul></div>' +
-    '<div class="panel"><div class="lbl">What the room did</div><table><tr><th></th>' + Object.values(SHORT).map(x => '<th>' + x + '</th>').join('') + '</tr>' +
-    g.votes.map(x => '<tr><td>' + x.date + '</td>' + Object.keys(SHORT).map(k => '<td>' + esc(x.picks[k] || '') + '</td>').join('') + '</tr>').join('') + '</table></div></div>' +
     '<div class="go"><button class="btn" id="b-again">New game</button><button class="ghost" id="b-same">Replay (seed ' + esc(g.seed) + ')</button></div>';
 }
 

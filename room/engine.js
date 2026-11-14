@@ -10,7 +10,7 @@
 
 const TUNE = {
   turns: 7,                       // Jan 2027 to Dec 2028
-  usRace: 3, slow: 0.5, secMul: [1, 0.9, 0.75], natMul: 0.8, siegeMul: 0.5, defy: 2,   // months of frontier progress per turn, and what scales it
+  usRace: 3, slow: 0.5, secMul: [1, 0.8, 0.7], natMul: 0.8, siegeMul: 0.5, defy: 2,   // months of frontier progress per turn, and what scales it
   cnStart: -6, cnFog: 2,          // China's distance as the IC reports it, and how far the truth may be either side
   cnOwn: 1.1, cnOwnCut: 0.9, cnChips: [1.2, 0.7, 0.4], cnCopy: 1.0, cnCopyCut: 0.5,   // cnChips by controls -1, 0, 1+
   crashAt: 7, crash: 0.5,         // a US lead this long sends Beijing into a crash program
