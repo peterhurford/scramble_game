@@ -10,23 +10,22 @@
 
 const TUNE = {
   turns: 7,                       // Jan 2027 to Dec 2028
-  usRace: 3, slow: 0.5, secMul: [1, 0.67, 0.45], natMul: 0.8, siegeMul: 0.5, defy: 2,   // months of frontier progress per turn, and what scales it
+  usRace: 3, slow: 0.5, locked: 0.67, natMul: 0.8, siegeMul: 0.5, defy: 2,   // months of frontier progress per turn, and what scales it
   cnStart: -6, cnFog: 2,          // China's distance as the IC reports it, and how far the truth may be either side
-  cnOwn: 1.1, cnOwnCut: 0.9, cnChips: [1.2, 0.7, 0.4], cnCopy: 1.0, cnCopyCut: 0.5, cnCopySec: [1, 0.5, 0],   // cnChips by controls -1, 0, 1+
+  cnOwn: 1.1, cnOwnCut: 0.9, cnChips: [1.2, 0.7, 0.4], cnCopy: 1.0, cnCopyCut: 0.5, cnCopyLocked: 0.5,   // cnChips by controls -1, 0, 1+
   crashAt: 7, crash: 0.5,         // a US lead this long sends Beijing into a crash program
   cnHidden: 1.7, sabotage: 2.5, revenge: 2,
-  lineLo: 8, lineHi: 14,
-  hack: [0.7, 1.2], hackSec: [1, 0.3, 0], hackLead: 2, hackCtl: 0.15, guard: 1.0,   // hackers' progress per turn (hidden, in this range) by lab security; at 1 they are noticed, at 2 they have the weights
+  lineLo: 10, lineHi: 16,
+  hack: [0.7, 1.2], hackLead: 2, hackCtl: 0.15, guard: 1.0,   // hackers' progress per turn the labs work in the open (hidden, in this range); at 1 they are noticed, at 2 they have the weights
   tension0: 30, trust0: 20, fear: 5,
-  red: [52, 76], squeeze: 14, warn: 12, deter: 6, bluff: 0.4,          // Beijing blockades at its red line (hidden), warns this far short of it; each show of force moves the line
+  red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,          // Beijing blockades at its red line (hidden), warns this far short of it; each show of force moves the line
   labs0: 45, labRace: -6, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
   floor: [0.35, 0.75],            // hidden: Beijing's best terms are level 0 below the first, level 1 below the second, else level 2
   leadFor: 4, leadShort: 2, ctlFor: 2, warm: 50, cold: 20, hot: 60, cheatLead: 3,
-  decisive: 5, ahead: 3,          // months of lead at the end, with no pause, for an A and a B
+  decisive: 5, ahead: 4,          // months of lead at the end, with no pause, for an A and a B
 };
 
 const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
-const SECURITY = ['ordinary corporate security', 'hardened against state hackers', 'a government vault'];
 const TABLES = { wh: 'White House', state: 'State', pent: 'Pentagon' };
 // The pause Beijing will sign, from America's best terms (0) to Beijing's (3).
 const OFFERS = [
@@ -55,7 +54,7 @@ function newGame(seed) {
     red: TUNE.red[0] + (TUNE.red[1] - TUNE.red[0]) * h('red'), bluff: h('bluff') < TUNE.bluff,
     // seen
     lo: TUNE.lineLo, hi: TUNE.lineHi, knownOver: false,     // the IC's range for the line; each test halves it
-    sec: 0, hack: 0, labs: TUNE.labs0, national: false, controls: 0,
+    hack: 0, labs: TUNE.labs0, national: false, controls: 0,
     offer: 3,                             // Beijing's offer on the table: an OFFERS level, or null when it is not talking
     deal: null,                           // { level, t } under a pause
     hidden: false, caught: false, cheated: false,
@@ -66,7 +65,7 @@ function newGame(seed) {
 }
 
 const willing = (s, level) => s.national || s.labs >= (level <= 1 ? TUNE.labInspect : TUNE.labWilling);
-const raceStep = s => TUNE.usRace * TUNE.secMul[s.sec] * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
+const raceStep = s => TUNE.usRace * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
 const narrow = s => !s.knownOver && s.hi - s.lo > 1.6;
 const pOver = (s, x) => s.knownOver ? 1 : clamp((x - s.lo) / (s.hi - s.lo), 0, 1);
 const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
@@ -74,7 +73,7 @@ const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
 const proof = s => s.knownOver || s.cn >= s.lo || (s.hi - s.lo <= 1.6 && s.us >= s.lo - TUNE.usRace);
 function pressure(s) {
   const lead = s.us - s.cn;
-  return (lead >= TUNE.leadFor && s.sec >= 1 ? 1 : 0) + (s.controls >= TUNE.ctlFor ? 1 : 0) + (proof(s) ? 1 : 0)
+  return (lead >= TUNE.leadFor && s.hack < 1 ? 1 : 0) + (s.controls >= TUNE.ctlFor ? 1 : 0) + (proof(s) ? 1 : 0)
     - (s.tension >= TUNE.hot ? 1 : 0) - (s.trust < TUNE.cold ? 1 : 0) - (lead < TUNE.leadShort ? 1 : 0);
 }
 // The best terms Beijing would sign today.
@@ -88,7 +87,7 @@ function view(s) {
   return {
     date: DATES[Math.min(s.turn, TUNE.turns - 1)], lo: s.lo, hi: s.hi, lead,
     leadText: Math.abs(lead) < 1 ? 'Neck and neck' : months(lead) + (lead > 0 ? ' ahead' : ' behind'),
-    security: SECURITY[s.sec], hackers: s.hack >= 1,
+    hackers: s.hack >= 1,
     strait: s.blockade ? 'Blockaded' : s.warned ? 'Beijing is threatening' : s.tension < 35 ? 'Calm' : s.tension < 55 ? 'Tense' : 'Hot',
     trustText: s.trust < 20 ? 'Hostile' : s.trust < 40 ? 'Wary' : s.trust < TUNE.warm ? 'Working' : 'Warm',
     labsText: s.national ? 'Nationalized' : s.labs < TUNE.labDefiant ? 'Would defy a stop' : s.labs < TUNE.labInspect ? 'Would refuse any pause' : s.labs < TUNE.labWilling ? 'Would stop only with inspectors' : 'Would stop',
@@ -97,16 +96,16 @@ function view(s) {
     willing: willing(s, s.deal ? s.deal.level : s.offer == null ? 3 : s.offer),
     knownOver: s.knownOver, overNow: odds(pOver(s, s.us)), overNowP: pOver(s, s.us),
     overIfRace: odds(pOver(s, s.us + raceStep(s))), overIfRaceP: pOver(s, s.us + raceStep(s)),
+    overIfLock: odds(pOver(s, s.us + raceStep(s) * TUNE.locked)), overIfLockP: pOver(s, s.us + raceStep(s) * TUNE.locked),
   };
 }
 
 // A move: its acts are what play() applies.
 const o = (id, title, text, acts, off) => ({ id, title, text, acts, off: !!off, crisis: false });
 const fast = (s, x) => 'The frontier moves ' + months(raceStep(s) * (x || 1)) + '.';
-// Locking down stops the labs rather than let them drift into the danger range untested.
-const careful = s => s.knownOver || pOver(s, s.us + raceStep(s) * TUNE.slow) > 0 ? ['hold', 'Training stops this turn.'] : ['slow', 'Half speed this turn.'];
-const secureOpt = (s, c) => s.sec >= 2 ? o('secure', 'Build a vault', 'The weights are already in a vault.', [], true)
-  : o('secure', s.sec === 0 ? 'Lock down the weights' : 'Build a vault', (s.sec === 0 ? 'Much harder to steal. ' : 'Nearly impossible to steal. ') + 'Racing drops to ' + months(raceStep(s) / TUNE.secMul[s.sec] * TUNE.secMul[s.sec + 1]) + ' a turn, for good.' + (c ? ' ' + c[1] : ''), c ? [c[0], 'secure'] : ['secure']);
+// Locked doors: slower, but Beijing's hackers get nowhere that turn.
+const lockOpt = s => s.deal ? o('lock', 'Lock the weights away', 'Hackers get nowhere this turn.', ['lock'])
+  : o('lock', 'Race behind locked doors', s.knownOver ? 'The frontier is past the danger point.' : fast(s, TUNE.locked) + (view(s).overIfLockP > 0 ? ' Past the danger point: ' + view(s).overIfLock + '.' : '') + ' Hackers get nowhere this turn.', ['lock']);
 const testOpt = s => s.deal ? o('test', 'Test with the labs', (narrow(s) ? 'Narrows the danger range. ' : '') + 'The labs stay patient.', ['test'])
   : s.knownOver ? o('test', 'Stop and test', 'Training stops. The labs get readier to stop.', ['hold', 'test'])
   : o('test', 'Slow down and test', (narrow(s) ? 'Narrows the danger range. ' : '') + 'Half speed, watching for the danger point. The labs get readier to stop.', ['slow', 'test']);
@@ -119,7 +118,7 @@ const pent = s => [
 
 // Each table's three standing moves before a pause.
 const OPEN = {
-  wh: s => [o('race', 'Race', s.knownOver ? 'The frontier is past the danger point.' : fast(s) + (view(s).overIfRaceP > 0 ? ' Past the danger point: ' + view(s).overIfRace + '.' : '') + ' The labs get harder to stop.', ['race']), secureOpt(s, careful(s)), testOpt(s)],
+  wh: s => [o('race', 'Race in the open', s.knownOver ? 'The frontier is past the danger point.' : fast(s) + (view(s).overIfRaceP > 0 ? ' Past the danger point: ' + view(s).overIfRace + '.' : '') + ' The labs get harder to stop.', ['race']), lockOpt(s), testOpt(s)],
   state: s => [
     s.controls >= 3 ? o('tighten', 'Full tech embargo', 'Already in force.', [], true)
       : o('tighten', ['Close the chip loopholes', 'Cut off cloud and copying', 'Full tech embargo'][Math.max(0, s.controls)], 'China slowed for good. Beijing will answer.', ['tighten']),
@@ -130,7 +129,7 @@ const OPEN = {
 };
 // Under a pause: training is stopped on both sides.
 const DEAL = {
-  wh: s => [o('secret', 'Train in secret', 'Half speed, out of sight.' + (s.deal.level <= 1 ? ' The inspectors will find it.' : ''), ['secret']), secureOpt(s), testOpt(s)],
+  wh: s => [o('secret', 'Train in secret', 'Half speed, out of sight.' + (s.deal.level <= 1 ? ' The inspectors will find it.' : ''), ['secret']), lockOpt(s), testOpt(s)],
   state: s => [
     s.caught ? o('confront', 'Confront Beijing', 'Shut the site and admit inspectors, or the pause is over.', ['confront'])
       : s.deal.level <= 1 ? o('inspect', 'Demand inspectors', 'Inspectors are in.', [], true)
@@ -207,7 +206,6 @@ function play(s, picks) {
   if (has('backdown')) { s.controls = Math.min(0, s.controls); s.tension -= 25; s.trust += 5; s.blockade = false; add('warn', 'Washington backs down', '"The exercise is concluded." The sea lanes reopen. The chip controls are gone.', 'Eastern Theater Command, one-line notice'); }
 
   // White House
-  if (has('secure')) { s.sec++; note('good', s.sec === 1 ? 'The labs are locked down' : 'The weights go into a vault', s.sec === 1 ? '"Every researcher now works inside a sealed network. They are not happy about it."' : '"The weights do not leave the bunker. Neither does anyone who can touch them."', 'Security review, a frontier lab'); }
   if (has('test')) s.labs += TUNE.labTest;
   if (has('national')) { s.national = true; s.tension += 10; add('warn', 'The labs are nationalized', 'Federal marshals take over the data centers. Beijing reads it as mobilization.', 'Wire report, Washington'); }
 
@@ -245,7 +243,7 @@ function play(s, picks) {
   let signed = false;
   if (has('sign')) {
     if (s.offer == null) add('bad', 'No answer from Beijing', 'Beijing is not talking.');
-    else if (has('race')) { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
+    else if (has('race') || has('lock')) { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
     else if (!labsOk) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
     else {
       s.deal = { level: s.offer, t }; signed = true; s.trust += 20; s.tension -= 25; if (s.offer === 1 || s.offer === 2) s.controls = -1;
@@ -255,18 +253,19 @@ function play(s, picks) {
   if (has('breakout')) breakDeal('America breaks out of the pause and races.');
 
   // the US frontier
-  const pace = s.deal ? (has('secret') ? 'slow' : 'hold') : has('race') || has('breakout') ? 'race' : has('hold') ? 'hold' : 'slow';
+  const pace = s.deal ? (has('secret') ? 'slow' : 'hold') : has('race') || has('lock') || has('breakout') ? 'race' : has('hold') ? 'hold' : 'slow';
   if (!s.national) s.labs += pace === 'race' ? TUNE.labRace : s.deal && !has('test') ? TUNE.labIdle : 0;   // under a pause the labs lose patience
   fix();
   const defy = pace === 'hold' && !s.national && s.labs < TUNE.labDefiant;
-  const usStep = pace === 'hold' ? (defy ? TUNE.defy : 0) : raceStep(s) * (pace === 'slow' ? TUNE.slow : 1);
+  const locked = has('lock');
+  const usStep = pace === 'hold' ? (defy ? TUNE.defy : 0) : raceStep(s) * (pace === 'slow' ? TUNE.slow : locked && !has('breakout') ? TUNE.locked : 1);
   s.us += usStep;
 
   // China's frontier
   const openly = !s.deal || (s.deal.level === 3 && s.cn < s.us - 0.5);
   let cnStep = 0;
   if (openly || s.hidden) {
-    const copy = TUNE.cnCopySec[s.sec] * Math.min(s.controls >= 2 ? TUNE.cnCopyCut : TUNE.cnCopy, Math.max(0, s.us - s.cn - 1));   // China learns less from locked-down labs
+    const copy = (locked ? TUNE.cnCopyLocked : 1) * Math.min(s.controls >= 2 ? TUNE.cnCopyCut : TUNE.cnCopy, Math.max(0, s.us - s.cn - 1));   // China learns less from locked labs
     cnStep = openly ? (s.controls >= 3 ? TUNE.cnOwnCut : TUNE.cnOwn) + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 1) + 1] + copy : TUNE.cnHidden;
     if (s.deal && openly) cnStep = Math.min(cnStep, s.us - s.cn);
     if (s.cn >= s.lo) cnStep *= TUNE.slow;                                   // Beijing slows in the danger range; it does not stop
@@ -274,7 +273,7 @@ function play(s, picks) {
   }
   s.cn += cnStep; if (openly || s.caught) s.cnShown += cnStep;
   if (s.eyes && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;
-  note('info', s.deal ? (has('secret') ? 'America cheats' : 'America holds') : pace === 'race' ? 'The labs race' : pace === 'hold' ? 'The labs stop' : 'The labs go at half speed',
+  note('info', s.deal ? (has('secret') ? 'America cheats' : 'America holds') : pace === 'race' ? (locked ? 'The labs race behind locked doors' : 'The labs race') : pace === 'hold' ? 'The labs stop' : 'The labs go at half speed',
     (usStep < 0.5 ? 'The US frontier does not move. ' : 'The US frontier advances ' + months(usStep) + '. ') + (s.deal && !openly && !s.caught ? 'Beijing reports no progress. By its account the' : 'The') +
     (lead0 === view(s).leadText.toLowerCase() ? ' US is still ' + lead0 + '.' : ' US was ' + lead0 + ' and is now ' + view(s).leadText.toLowerCase() + '.'));
   if (defy) {
@@ -302,8 +301,8 @@ function play(s, picks) {
   if (s.cn >= s.lo && (openly || s.caught) && !s.knownOver) add('warn', 'China is in the danger range', '"Beijing has slowed its training runs. It has not stopped them."', 'IC assessment');
 
   // theft: Beijing's hackers work on any lead worth stealing
-  if ((!s.deal || s.hidden) && s.us - s.cn >= TUNE.hackLead) {
-    const was = s.hack; s.hack += s.hackRate * TUNE.hackSec[s.sec] * (1 + TUNE.hackCtl * Math.max(0, s.controls));
+  if (!locked && (!s.deal || s.hidden) && s.us - s.cn >= TUNE.hackLead) {
+    const was = s.hack; s.hack += s.hackRate * (1 + TUNE.hackCtl * Math.max(0, s.controls));
     if (s.hack >= 2) {
       const gain = s.us - 1 - s.cn; s.cn += gain; s.thefts++; s.hack = 0;
       if (s.deal) add('bad', 'A break-in at the lab', '"Someone had access to the model weights for eleven hours. We cannot tell what was taken."', 'Security incident report, a frontier lab');
@@ -379,12 +378,12 @@ function end(s, how, ev) {
     else if (s.blockade) how = 'siege';
     else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
-    else how = lead >= TUNE.decisive && (s.sec >= 1 || s.hack < 1) ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'behind';
+    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'behind';
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
   return ev;
 }
 
-const api = { TUNE, DATES, SECURITY, TABLES, OFFERS, newGame, view, turn, play, ENDINGS, hash01, odds, months, crisis, willing, want, pressure };
+const api = { TUNE, DATES, TABLES, OFFERS, newGame, view, turn, play, ENDINGS, hash01, odds, months, crisis, willing, want, pressure };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Room = api;
 })(typeof window !== 'undefined' ? window : globalThis);

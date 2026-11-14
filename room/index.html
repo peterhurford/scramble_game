@@ -120,7 +120,7 @@ button{font:inherit;color:inherit}
 // Each table announces its move and the facilitator clicks it; a bold move is clicked on, or again to take it back (Enter locks in, Space moves on, U undoes a turn).
 // Nothing on screen is a precise number: odds are the IC's words, distances are rounded months.
 // TURN_SECS covers a whole round: the crisis, the decision and the news.
-const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v9';
+const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-room-v10';
 const SHORT = { wh: 'White House', state: 'State', pent: 'Pentagon', bold: 'Bold move' };
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -177,7 +177,7 @@ function track(g, v, reveal) {
 function facts(g, v) {
   const sc = v.strait === 'Calm' ? 'good' : v.strait === 'Tense' ? 'warn' : 'bad';
   return '<div class="facts"><span>US lead' + (g.deal && !g.caught ? ', by Beijing\'s account' : '') + ': <b>' + v.leadText.toLowerCase() + '</b></span>' +
-    '<span>The weights: <b class="' + ['bad', 'warn', 'good'][g.sec] + '">' + v.security + '</b>' + (v.hackers ? ', <b class="bad">hackers inside the labs</b>' : '') + '</span>' +
+    '<span>The weights: <b class="' + (v.hackers ? 'bad' : 'good') + '">' + (v.hackers ? 'hackers inside the labs' : 'no sign of hackers') + '</b></span>' +
     '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span></div>';
 }
 // Who each table is dealing with, shown over its moves: the labs, Beijing's offer, the sources.

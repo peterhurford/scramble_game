@@ -13,20 +13,22 @@ const choose = (T, w, bold) => {
   return p;
 };
 // Race only while the IC puts the whole step short of the danger range (or, with risk, while the odds are at most that).
-const safe = (s, risk) => !s.knownOver && R.view(s).overIfRaceP <= (risk || 0);
+const safe = (s, risk, lock) => !s.knownOver && R.view(s)[lock ? 'overIfLockP' : 'overIfRaceP'] <= (risk || 0);
 const seenLead = s => s.us - s.cnShown;
 
-// One parameterised room. o: sec (security to build), tests, squeeze (chip controls to reach), eyes, talks (bargain from this turn),
+// One parameterised room. o: lock (race behind locked doors: 'always', or 'warn' once hackers are inside), tests, squeeze (chip controls to reach), eyes, talks (bargain from this turn),
 // take (worst offer level it signs), by (turn from which it signs whatever is on the table, if at most takeLate), risk, run (run a blockade), sab (turn to sabotage).
 function room(s, T, o) {
   const v = R.view(s), lvl = s.offer, tests = s.knownOver ? 9 : Math.round(Math.log2(6 / (s.hi - s.lo)));
   const go = !s.deal && lvl != null && v.willing && (lvl <= o.take || (o.by != null && s.turn >= o.by && lvl <= o.takeLate));
   const needTest = tests < (o.tests || 0) || (o.take != null && !s.national && (!v.willing || s.labs + R.TUNE.labRace < R.TUNE.labInspect));
   const w = {
-    race: go || !safe(s, o.risk) ? -10 : 2, secure: s.sec < (o.sec || 0) ? (v.hackers || s.sec === 0 ? 6 : 3) : -1, test: needTest ? 4 : !safe(s, o.risk) ? 1 : 0, hold: 0, slow: 0, secret: -5,
+    race: go || !safe(s, o.risk) ? -10 : 2, lock: go || !safe(s, o.risk, true) ? -10 : seenLead(s) >= R.TUNE.hackLead - 3 && (o.lock === 'always' || (o.lock === 'warn' && v.hackers)) ? 3 : !safe(s, o.risk) ? 1.5 : -1, test: needTest ? 4 : !safe(s, o.risk) ? 1 : 0, hold: 0, slow: 0, secret: -5,
     tighten: s.controls < (o.squeeze || 0) && !v.strait.startsWith('Beijing') && !s.blockade ? 4 : -5, carrot: o.carrot && s.controls >= 0 ? 3 : -2,
     talk: o.talks != null && s.turn >= o.talks ? 3 : 1, inspect: 4, confront: 5, tolerate: -3, backdown: o.run ? -5 : 9,
-    watch: s.eyes < (o.eyes || 0) ? 3 : 0, guard: o.guard && s.sec < 2 ? 5 : v.hackers && s.sec < 2 ? 2 : 1, deter: o.deter && s.deter < o.deter ? 2.5 : 0, run: o.run ? 9 : -5 };
+    watch: s.eyes < (o.eyes || 0) ? 3 : 0, guard: o.guard ? 5 : v.hackers ? 2.6 : 1, deter: o.deter && s.deter < o.deter ? 2.5 : 0, run: o.run ? 9 : -5 };
+  // the Pentagon covers any turn the labs work in the open with a lead worth stealing
+  if (o.hunt && !s.deal && w.lock < Math.max(w.race, w.test) && seenLead(s) >= R.TUNE.hackLead - 1.5) w.guard = v.hackers ? 3.5 : 2.8;
   return { w, bold: go ? 'sign' : o.sab != null && s.turn === o.sab ? 'sabotage' : o.nat != null && s.turn === o.nat ? 'national' : null };
 }
 const BOTS = {
@@ -40,16 +42,16 @@ const BOTS = {
   holder: () => ({ w: { test: 2, talk: 1, guard: 1 } }),                          // tests and talks, never signs
   dove: (s, T) => room(s, T, { take: 3, talks: 0, carrot: true }),                // signs whatever Beijing offers
   hawk: (s, T) => room(s, T, { squeeze: 3, deter: 2, run: true }),                // squeezes and races, never secures
-  lead: (s, T) => room(s, T, { sec: 1, tests: 2, squeeze: 2, deter: 2, eyes: 1 }),
-  leadVault: (s, T) => room(s, T, { sec: 2, tests: 2, squeeze: 2, deter: 2, eyes: 1 }),
-  leadOpen: (s, T) => room(s, T, { sec: 0, tests: 2, squeeze: 2, deter: 2, guard: true }),
-  leadBold: (s, T) => room(s, T, { sec: 1, tests: 2, squeeze: 3, deter: 2, risk: 0.3, run: true }),
-  leadSab: (s, T) => room(s, T, { sec: 1, tests: 2, squeeze: 2, deter: 2, sab: 5 }),
-  pause: (s, T) => room(s, T, { sec: 1, tests: 2, squeeze: 2, deter: 1, eyes: 1, talks: 2, take: 0, by: 6, takeLate: 1 }),
-  pauseSoft: (s, T) => room(s, T, { sec: 1, tests: 2, eyes: 1, talks: 1, take: 1, by: 5, takeLate: 2 }),
-  pauseOpen: (s, T) => room(s, T, { sec: 0, tests: 2, squeeze: 2, eyes: 1, talks: 2, take: 0, by: 6, takeLate: 1, guard: true }),
-  pauseBlind: (s, T) => room(s, T, { sec: 1, tests: 2, talks: 1, take: 2 }),
-  mixed: (s, T) => room(s, T, { sec: 1, tests: 2, squeeze: 2, deter: 1, eyes: 2, talks: 3, take: 0 }),
+  lead: (s, T) => room(s, T, { lock: 'always', hunt: true, tests: 2, squeeze: 2, deter: 2, eyes: 1 }),
+  leadWarn: (s, T) => room(s, T, { lock: 'warn', tests: 2, squeeze: 2, deter: 2, eyes: 1 }),
+  leadOpen: (s, T) => room(s, T, { tests: 2, squeeze: 2, deter: 2, guard: true }),
+  leadBold: (s, T) => room(s, T, { lock: 'always', hunt: true, tests: 2, squeeze: 3, deter: 2, risk: 0.3, run: true }),
+  leadSab: (s, T) => room(s, T, { lock: 'always', hunt: true, tests: 2, squeeze: 2, deter: 2, sab: 5 }),
+  pause: (s, T) => room(s, T, { lock: 'always', hunt: true, tests: 2, squeeze: 2, deter: 1, eyes: 1, talks: 2, take: 0, by: 6, takeLate: 1 }),
+  pauseSoft: (s, T) => room(s, T, { lock: 'always', tests: 2, eyes: 1, talks: 1, take: 1, by: 5, takeLate: 2 }),
+  pauseOpen: (s, T) => room(s, T, { tests: 2, squeeze: 2, eyes: 1, talks: 2, take: 0, by: 6, takeLate: 1, guard: true }),
+  pauseBlind: (s, T) => room(s, T, { lock: 'always', tests: 2, talks: 1, take: 2 }),
+  mixed: (s, T) => room(s, T, { lock: 'always', hunt: true, tests: 2, squeeze: 2, deter: 1, eyes: 2, talks: 3, take: 0 }),
 };
 
 // The game as the room sees it: every hidden fact redrawn within what the room knows.
@@ -59,14 +61,17 @@ function fog(s, k) {
   if (!s.eyes && !s.thefts) { const d = T.cnFog * (2 * u('cn') - 1) * 0.8; c.cn = s.cnShown + d; }
   if (s.deal && !s.caught) { c.hidden = false; c.cn = c.cnShown; }
   if (s.eyes < 2) { const f = u('floor'); c.floor = f < T.floor[0] ? 0 : f < T.floor[1] ? 1 : 2; if (s.offer != null) c.floor = Math.min(c.floor, s.offer); c.bluff = u('bluff') < T.bluff; }
-  if (!s.blockade) c.red = Math.max(s.tension + 1 - T.deter * Math.min(2, s.deter), T.red[0] + (T.red[1] - T.red[0]) * u('red'));
+  if (!s.blockade) {   // a warning means the red line is within T.warn of today's tension; no warning means it is further off
+    const d = T.deter * Math.min(2, s.deter), lo = Math.max(T.red[0], s.tension - d + (s.warned ? 1 : T.warn + 0.01)), hi = Math.max(lo, s.warned ? Math.min(T.red[1], s.tension - d + T.warn) : T.red[1]);
+    c.red = lo + (hi - lo) * u('red');
+  }
   c.hackRate = T.hack[0] + (T.hack[1] - T.hack[0]) * u('hack');
   return c;
 }
 // Every combination of moves, each scored by LOOK fogged games played out by the best of the scripted rooms (A 4 to F 0).
 const LOOK = 8, PTS = { A: 4, B: 3, C: 2, D: 1, F: 0 };
 BOTS.look = (s, T) => {
-  const base = [BOTS.pause, BOTS.pauseSoft, BOTS.lead, BOTS.leadVault, BOTS.leadOpen], fogs = [];
+  const base = [BOTS.pause, BOTS.pauseSoft, BOTS.lead, BOTS.leadWarn, BOTS.leadOpen], fogs = [];
   for (let k = 0; k < LOOK; k++) fogs.push(JSON.stringify(fog(s, k)));
   const ids = T.tables.map(tb => tb.opts.filter(o => !o.off).map(o => o.id)), bolds = [null].concat(T.bold.filter(b => !b.off).map(b => b.id));
   let best = null, bv = -1;
