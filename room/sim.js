@@ -20,7 +20,7 @@ function team(s, o) {
     war: s.caught ? 'deter' : calm(s) };
   const known = s.known.every(Boolean), go = (known || s.turn >= 3) && s.sec >= Math.min(o.sec, 1) && s.turn >= 1;
   if (go) return {
-    vp: v.willing ? 'slow' : pace(s, o.risk), dni: s.sec < o.sec && v.willing ? 'lock' : 'beijing',
+    vp: v.willing && has(s, 'state', 'summit') ? 'hold' : pace(s, o.risk), dni: s.sec < o.sec && v.willing ? 'lock' : 'beijing',
     doc: wants(s, 'chips') && s.controls > 0 ? 'carrot' : 'pay',
     state: v.willing && has(s, 'state', 'summit') ? 'summit' : 'talk', war: wants(s, 'pacific') ? 'reassure' : calm(s) };
   return {
@@ -34,7 +34,7 @@ const BOTS = {
   random: (s, i) => { const p = {}; for (const seat of R.seats(s)) { const o = seat.opts.filter(x => !x.off); p[seat.id] = o[Math.floor(R.hash01(i, s.turn, seat.id) * o.length)].id; } return p; },
   racer: s => ({ vp: 'race', dni: 'lock', doc: 'tighten', state: 'allies', war: 'deter' }),
   holder: s => ({ vp: 'hold', dni: 'labs', doc: 'pay', state: 'talk', war: 'reassure' }),
-  dove: s => ({ vp: s.deal ? 'hold' : pace(s, 0), dni: 'beijing', doc: 'carrot', state: s.deal ? 'talk' : s.turn && R.view(s).willing && has(s, 'state', 'summit') ? 'summit' : 'talk', war: 'reassure' }),   // talks, never secures or verifies
+  dove: s => ({ vp: s.deal || (s.turn && R.view(s).willing && has(s, 'state', 'summit')) ? 'hold' : pace(s, 0), dni: 'beijing', doc: 'carrot', state: s.deal ? 'talk' : s.turn && R.view(s).willing && has(s, 'state', 'summit') ? 'summit' : 'talk', war: 'reassure' }),   // talks, never secures or verifies
   hawk: s => ({ vp: has(s, 'vp', 'national') ? 'national' : pace(s, 0), dni: 'lock', doc: s.controls < 3 ? 'tighten' : 'pay', state: 'allies', war: has(s, 'war', 'burn') ? 'burn' : 'deter' }),
   saboteur: s => ({ vp: pace(s, 0), dni: 'lock', doc: s.controls < 3 ? 'tighten' : 'pay', state: 'allies', war: s.turn % 2 ? 'sabotage' : 'deter' }),
   gambler: s => ({ vp: pace(s, 0.5), dni: 'labs', doc: 'pay', state: 'allies', war: 'deter' }),

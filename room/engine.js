@@ -2,7 +2,8 @@
 // three problems: weight theft, the US-China balance, and the hidden point where AI starts improving itself.
 // Each turn every group's principal (the President, the DNI, three secretaries) picks one of three options;
 // seats(s) offers them, and each seat's third option changes with the situation. All five apply, then the world moves.
-// A pause is a bargain on both sides: Beijing has a hidden two-part price (ASKS) and the labs must be willing to stop.
+// A pause is a bargain on both sides: Beijing has a hidden two-part price (ASKS), the labs must be willing to stop,
+// and the President must hold the turn State proposes it.
 // From the second turn each turn opens with a crisis (CRISES) that changes that turn's stakes.
 // No DOM; runs in node (room/sim.js) and the browser (room/index.html).
 // Every roll is hash01(seed, turn, name), so a replayed turn rolls the same dice whatever was chosen.
@@ -187,8 +188,8 @@ function seats(s) {
       o('walk', 'Walk away', 'End the deal. Both sides are free to race.') ]) : [
       o('talk', 'Work the back channel', 'Trust rises, tension falls, and we learn one of Beijing\'s demands.'),
       s.snub === s.turn - 1 ? o('summit', 'Propose a mutual pause', 'Beijing said no last turn and will not come back to the table yet.', true)
-        : !willing(s) ? o('summit', 'Propose a mutual pause', 'Our own labs will not agree to stop, so Beijing will not believe the offer: it will say no, and will not come back to the table next turn. Win the labs over first; Commerce can pay them. ' + ask)
-        : o('summit', 'Propose a mutual pause', 'Both sides stop frontier training. ' + ask + ' Chance of a yes if we meet both: ' + odds(dealOdds(s, 2)) + '. One: ' + odds(dealOdds(s, 1)) + '. Neither: ' + odds(dealOdds(s, 0)) + '. Fails if the President races this turn.'),
+        : !willing(s) ? o('summit', 'Propose a mutual pause', 'Our own labs will not agree to stop, so Beijing will not believe the offer: it will say no, and will not come back to the table next turn. Win the labs over first; Commerce can pay them. Beijing also only signs if the President holds the labs this turn. ' + ask)
+        : o('summit', 'Propose a mutual pause', 'Both sides stop frontier training. ' + ask + ' Chance of a yes if we meet both: ' + odds(dealOdds(s, 2)) + '. One: ' + odds(dealOdds(s, 1)) + '. Neither: ' + odds(dealOdds(s, 0)) + '. Beijing only signs if the President holds the labs this turn.'),
       fresh ? o('expose', 'Expose the theft', 'Name Beijing\'s hackers before the world. Allies sanction China: lasting leverage. Trust drops, and Beijing does not forget.')
         : hot ? o('hotline', 'Open the crisis hotline', 'Generals talk to generals: tension drops sharply. Buys no trust.')
         : o('allies', 'Rally the allies', 'A united front: lasting leverage over Beijing, and China slowed a little. Some trust lost.') ] },
@@ -295,14 +296,14 @@ function play(s, picks) {
   if (state === 'summit') {
     const met = s.asks.filter(a => ASKS[a].met(s, picks)).length, p = dealOdds(s, met);
     const tell = () => { s.known = [true, true]; return ' It will not sign unless ' + s.asks.map(a => ASKS[a].want).join('; and unless ') + '.'; };
-    if (vp === 'race' || !willing(s)) s.snub = t;
-    if (vp === 'race') add('bad', 'Beijing says no', 'State proposed a pause while the labs raced. Beijing did not take it seriously.');
+    if (vp !== 'hold' || !willing(s)) s.snub = t;
+    if (vp !== 'hold') add('bad', 'Beijing says no', 'State proposed a pause while the American labs kept training. Beijing did not take it seriously.');
     else if (!willing(s)) add('bad', 'Beijing says no', 'The labs said in public that they would not stop. Beijing does not believe Washington can deliver them.');
     else if (roll('summit') < p) {
       s.deal = true; s.dealT = t; signed = true; s.trust += 20; s.tension -= 25;
       add('good', 'Beijing says yes', 'Signed at 4:10 a.m., after the interpreters had been sent home twice. "Neither party will train a model beyond today\'s frontier." Washington met ' + ['none', 'half', 'all'][met] + ' of Beijing\'s price; a yes was ' + odds(p) + '. Now: is Beijing keeping its word?', 'Joint statement, Geneva');
     } else { s.snub = t; s.trust += 5; add('bad', 'Beijing says no', 'Washington met ' + ['none', 'half', 'all'][met] + ' of its price; a yes was ' + odds(p) + '.' + tell()); }
-    if (vp !== 'race' && willing(s)) tease('The delegations are in Geneva and the President has stopped the labs. Does Beijing sign?', p);
+    if (vp === 'hold' && willing(s)) tease('The delegations are in Geneva and the President has stopped the labs. Does Beijing sign?', p);
   }
   // President
   if (vp === 'race') breakDeal('America breaks out of the pause and races.');
