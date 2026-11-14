@@ -77,7 +77,7 @@ function view(s) {
   return {
     date: DATES[Math.min(s.turn, TUNE.turns - 1)], lo: s.lo, hi: s.hi,
     leadText: Math.abs(lead) < 1 ? 'Neck and neck' : months(lead) + (lead > 0 ? ' ahead' : ' behind'),
-    weights: s.seenHack ? 'hackers inside the labs' : 'break-in attempts', security: SECURITY[secLevel(s)],
+    weights: s.seenHack ? 'hackers inside the labs' : 'no hackers found inside', security: SECURITY[secLevel(s)],
     strait: s.blockade ? 'Blockaded' : s.warned ? 'Beijing is threatening' : s.tension < 35 ? 'Calm' : s.tension < 55 ? 'Tense' : 'Hot',
     labsText: s.national ? 'Nationalized' : s.labs < TUNE.labDefiant ? 'Defiant' : s.labs < TUNE.labInspect ? 'Would refuse any pause' : s.labs < TUNE.labWilling ? 'Would stop only with inspectors' : 'Would stop',
     eyesText: ['No source in Beijing', 'One source in Beijing', 'Two sources in Beijing'][s.eyes],
@@ -133,7 +133,7 @@ function play(s, r0) {
   if (r.intel) {
     s.eyes++;
     if (s.eyes === 1) { const d = s.us - s.cn; s.cnShown = s.cn; add('info', 'A source is in place', '"Their real frontier is ' + (Math.abs(d) < 1 ? 'level with ours' : months(d) + (d > 0 ? ' behind ours' : ' ahead of ours')) + '."', 'CIA source inside Beijing\'s program'); }
-    else add('info', 'A second source', ['"The General Secretary told the Politburo he could live with inspectors, if he had no better choice."', '"The General Secretary told the Politburo he could live with inspectors, if America paid for it in chips."', '"The General Secretary told the Politburo there will never be foreign inspectors on Chinese soil."'][s.floor] + ' ' + (s.bluff ? '"He will not risk a war."' : '"He will answer force with force."'), 'CIA source close to the Politburo');
+    else add('info', 'What Beijing would accept', '"' + ['Xi told the Politburo he would accept inspectors in China if that is what a pause takes.', 'Xi told the Politburo he would accept inspectors in China only if America gives something up in return.', 'Xi told the Politburo he will never accept foreign inspectors in China.'][s.floor] + ' On Taiwan, he said ' + (s.bluff ? 'he would not fire on American ships.' : 'he would fire on American ships that tried to break a blockade.') + '"', 'CIA source close to the Politburo');
   }
   if (r.deter) { s.deter++; s.trust -= 5; }
   s.hack = Math.max(0, s.hack - T.hunt * r.hunt);
@@ -212,7 +212,7 @@ function play(s, r0) {
       else { s.cnShown = s.cn; add('bad', 'The weights are stolen', '"They took the weights and the training code. Assume Beijing has it running within days."', 'Flash cable, NSA to the President', true); }
     } else if (s.hack >= 1 && !s.seenHack) { s.seenHack = true; add('warn', 'Hackers inside the labs', '"Beijing\'s hackers are inside two labs\' networks. They have not reached the weights. They are getting closer."', 'NSA advisory, eyes only'); }
   }
-  if (s.hack < 1) s.seenHack = false;
+  if (s.hack < 1 && s.seenHack) { s.seenHack = false; add('good', 'Hackers driven out', '"We have cleared Beijing\'s hackers from the labs\' networks. They will try again."', 'NSA advisory, eyes only'); }
   if (!s.crash && !s.deal && s.us - s.cn >= T.crashAt) { s.crash = true; add('warn', 'Beijing mobilizes', '"China will spare nothing to close the gap. Every chip in the country now serves one program."', 'People\'s Daily, front page'); }
 
   // is Beijing keeping the deal?
