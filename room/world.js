@@ -1,4 +1,4 @@
-// The Scramble: Room Edition, free response. Six turns; each table (Executive Office of the President, State and Commerce, Department of War/Pentagon/NSA/IC) writes what it does in a sentence.
+// The Scramble: Room Edition, free response. Six turns; each table (Executive Office of the President, State, Commerce and Treasury, Department of War/Pentagon/NSA/IC) writes what it does in a sentence.
 // A game master (room/gm.js) reads the orders, answers in character and returns a ruling: numbers on the dials below.
 // This file is the ledger. It clamps every ruling, makes effort finite (training + security + testing share one pool of engineers),
 // and owns what follows: frontier movement, theft, the danger point, the Strait, whether a pause holds.
@@ -23,10 +23,14 @@ const TUNE = {
   sabotage: 2.5, revenge: 2, decisive: 5, ahead: 4,
   nudge: { tension: 15, trust: 15, labs: 20, cn: [-1, 0.5], us: [-1, 0], hack: [-0.7, 0.5] },   // how far a ruling may move a dial the ledger does not otherwise own
   chance: { tension: 25, trust: 20, labs: 20, cn: [-2.5, 1], us: [-2, 0.5], hack: [-1, 0.7], secure: 0.5 },   // how far either side of a rolled outcome may move one
+  // markets: an index from 100; shocks (halved under a Treasury backstop), a recovery a turn toward 100, the labs' cooperation lost below slide, a panic below panic
+  mkt: { pause: 12, nationalize: 15, tighten: 3, ease: 2, blockade: 10, theft: 5, nearMiss: 8, revenge: 4, rareEarths: 2, court: 3, recover: 4, slide: 85, panic: 70, slideLabs: 4, panicLabs: 10 },
+  court: 0.35, freed: [0.4, 0.8],   // freed: the share the labs train at once a court frees them, with the room's goodwill (labWilling+) and without
+  // court: default odds a court blocks a contested presidential order in a turn
   maxOps: 8, maxChances: 4, maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
-const TABLES = { wh: 'Executive Office of the President', state: 'State and Commerce Departments', pent: 'Department of War/Pentagon/NSA/IC' };
+const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC' };
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
 // extra is anything else State wrote into the deal; the game master weighs it through leverage.
@@ -36,7 +40,7 @@ const terms = d => (d.parity ? ['America stops now', 'China stops once it has ca
 // A ruling that changes nothing: the labs keep training flat out.
 const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0, care: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0,
-  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] };   // ops or facts null leaves them as they were
+  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court };   // ops or facts null leaves them as they were
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
@@ -61,6 +65,7 @@ function newGame(seed) {
     // seen
     lo: TUNE.line[0], hi: TUNE.line[1], knownOver: false, secWork: 0, seenHack: false,
     labs: TUNE.labs0, national: false, controls: 0, offer: 3, deal: null, hidden: false, caught: false, cheated: false,
+    mkt: 100, backstop: false, panicked: false, enjoined: false, court: null,
     eyes: 0, watch: false, deter: 0, sabotaged: 0, ops: [], facts: [], last: null, crash: false, blockade: false, warned: false,
     tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null,
   };
@@ -79,6 +84,7 @@ const monthsTo = (s, d) => 4 * TUNE.accel / pace(s) * (Math.exp(-s.us / TUNE.acc
 const speed = s => TUNE.speed0 * (s.v0 || 2.3) / 2.3 * Math.exp(s.us / TUNE.accel);
 const cnPace = s => (s.v0 || 2.3) * TUNE.cnRatio * (TUNE.cnOwn + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 2) + 1]) / 1.75;   // China's pace at a given capability, against America's, set by its chips
 const cnSpeed = s => TUNE.speed0 * cnPace(s) / 2.3 * Math.exp(s.cn / TUNE.accel);   // the same measure for China's labs
+const T_MKT = () => TUNE.mkt;
 const NUM = ['', 'one', 'twice', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const speedText = m => { const n = Math.round(m); return n <= 2 ? 'about twice as fast as people alone' : n <= 10 ? 'about ' + NUM[n] + ' times as fast as people alone' : n <= 25 ? 'over ten times as fast as people alone' : 'dozens of times faster than people alone'; };
 // what the AI is doing in the world. Research milestones (lab) are reached as the US frontier passes each point (months of progress), so a pause freezes them;
@@ -154,6 +160,7 @@ function view(s) {
     labsText: s.national ? 'Nationalized' : s.law ? 'Bound by law' : s.labs < TUNE.labDefiant ? 'Defiant' : s.labs < TUNE.labInspect ? 'Would refuse any pause' : s.labs < TUNE.labWilling ? 'Would stop only with inspectors' : 'Would stop',
     eyesText: ['No source in Beijing', 'One source in Beijing', 'Two sources in Beijing'][s.eyes] + (s.watch ? '; remote monitoring working' : ''),
     deal: s.deal ? terms(s.deal) : null, talking: s.offer != null, knownOver: s.knownOver, speedText: speedText(speed(s)),
+    markets: s.mkt >= 95 ? 'Steady' : s.mkt >= T_MKT().slide ? 'Jittery' : s.mkt >= T_MKT().panic ? 'Falling' : 'In panic',
   };
 }
 
@@ -180,6 +187,7 @@ function rule(s, r0) {
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
     says: { beijing: !!(r.says && r.says.beijing) },
+    markets: clamp(r.markets, -10, 10), backstop: b('backstop'), contested: b('contested') && !obey(s) && !s.deal, courtOdds: r.courtOdds == null ? TUNE.court : clamp(r.courtOdds, 0, 1),
     intelOdds: odds(r.intelOdds), sabotageOdds: odds(r.sabotageOdds), ops, facts: Array.isArray(r.facts) ? r.facts.slice(0, TUNE.maxFacts).map(x => str(x, 150)).filter(Boolean) : null,
     chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', reply: Number.isInteger(c.reply) ? c.reply : -1, op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
   };
@@ -195,19 +203,22 @@ function play1(s, r0) {
   const breakDeal = why => { if (!s.deal) return; s.deal = null; s.hidden = false; s.caught = false; s.cnShown = s.cn; s.offer = null; s.trust -= 30; s.tension += 15; add('bad', 'The pause is over', why); };
   const war = why => { add('bad', 'War in the Strait', '"Chinese missiles have hit Taiwan. An American destroyer is on fire. This is not an exercise." ' + why, 'Wire flash, Taipei', true); return end(s, 'war', ev); };
   const siege = s.blockade;
+  const shock = (k, sign) => { const x = T.mkt[k] * (sign || -1); s.mkt += x < 0 && s.backstop ? x / 2 : x; };   // the markets
   let train = r.train, secure = r.secure, test = r.test;
   // the trace: every roll, and one line per number saying what moved it
   const f1 = x => (Math.round(x * 10) / 10).toFixed(1), f2 = x => (Math.round(x * 100) / 100).toFixed(2), sg = x => (x >= 0 ? '+' : '') + f2(x);
-  const why = [], rolls = [], was = { tension: s.tension, trust: s.trust, labs: s.labs, hack: s.hack, us: s.us, cn: s.cn };
+  const why = [], rolls = [], was = { tension: s.tension, trust: s.trust, labs: s.labs, hack: s.hack, us: s.us, cn: s.cn, mkt: s.mkt };
   s.last = { turn: t, why, rolls };
   const roll = (key, odds, force) => { const u = hash01(s.seed, 'roll', t, key), hit = force == null ? u < odds : force; return { u, hit }; };
 
   // the dials
-  if (r.nationalize) { s.national = true; s.tension += 10; }
+  if (r.backstop) s.backstop = true;
+  s.mkt += r.markets;
+  if (r.nationalize) { s.national = true; s.tension += 10; shock('nationalize'); }
   if (r.law) s.law = true;   // the reply from Congress announces it; a stock card would say it twice
   const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
-  if (r.controls > 0 && s.controls < 3) { s.controls++; s.tension += T.squeeze; s.trust -= 6; bj.face -= 8; }
-  if (r.controls < 0 && s.controls > -1) { s.controls--; s.tension -= 10; s.trust += 10; }
+  if (r.controls > 0 && s.controls < 3) { shock('tighten'); s.controls++; s.tension += T.squeeze; s.trust -= 6; bj.face -= 8; }
+  if (r.controls < 0 && s.controls > -1) { shock('ease', 1); s.controls--; s.tension -= 10; s.trust += 10; }
   if (r.backdown) { s.controls = Math.min(0, s.controls); s.tension -= 25; s.trust += 5; s.blockade = false; add('warn', 'The blockade is lifted', '"The exercise is concluded." The sea lanes reopen.', 'Eastern Theater Command, one-line notice'); }
   s.tension += r.tension; s.trust += r.trust; s.labs += r.labs; s.cn += r.cn; s.cnShown += r.cn; s.us += r.us; s.hack = Math.max(0, s.hack + r.hack);
 
@@ -257,7 +268,7 @@ function play1(s, r0) {
   if (sab && !sab.hit) { s.tension += T.sabFail.tension; s.trust += T.sabFail.trust; bj.face -= 10; add('bad', 'The operation fails', '"The attack was caught before it did any damage, and Beijing knows who was behind it."', 'CIA, Directorate of Operations'); }
   if (sab && sab.hit) {
     const hurt = T.sabotage * Math.pow(T.sabAgain, s.sabotaged);   // Beijing hardens its sites after each attack
-    s.sabotaged++; s.cn -= hurt; s.cnShown -= hurt; s.tension += 30; s.trust -= 20; bj.face -= 20; s.offer = null; s.us -= T.revenge;
+    s.sabotaged++; s.cn -= hurt; s.cnShown -= hurt; s.tension += 30; s.trust -= 20; bj.face -= 20; s.offer = null; s.us -= T.revenge; shock('revenge');
     add('bad', 'Beijing answers in kind', '"The fire at the Ohio data center was not an accident. We have lost months of training."', 'FBI briefing to the President');
   }
   fix();
@@ -272,7 +283,7 @@ function play1(s, r0) {
       if (train > 0.5) { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
       else if (!willing(s, r.propose)) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
       else {
-        s.deal = Object.assign({ t }, r.propose); signed = true; train = 0; defy = false; s.trust += 20; s.tension -= 25; bj.face += 10; if (r.propose.chips) s.controls = -1;
+        s.deal = Object.assign({ t }, r.propose); signed = true; shock('pause'); train = 0; defy = false; s.trust += 20; s.tension -= 25; bj.face += 10; if (r.propose.chips) s.controls = -1;
         add('good', 'A pause is signed', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva', true);
       }
     }
@@ -286,10 +297,26 @@ function play1(s, r0) {
   if (bj.move === 'sprint') { s.cn += 0.6; s.cnShown += 0.6; s.trust -= 3; add('warn', 'Beijing speeds up', '"China\'s labs are running every chip they can find, day and night. Beijing sees America slowing and means to close the gap."', 'IC assessment'); }
   if (bj.move === 'coerce') { s.tension += 10; s.trust -= 3; add('warn', 'PLA drills near Taiwan', '"The drills are a message to Washington, not to Taipei. Beijing is warning America against racing its labs toward the danger point."', 'Analysis, Indo-Pacific Command'); }
   if (bj.move === 'safety') { s.trust += 6; bj.soft = 0.15; bj.offered = true; s.cn -= 0.4; s.cnShown -= 0.4; add('good', 'Beijing proposes safety talks', '"China proposes that scientists from both countries meet on the danger of losing control of these systems. It says it has slowed some of its own work while they talk."', 'Foreign Ministry spokesperson, Beijing'); }
-  if (bj.move === 'retaliate') { s.us -= 0.3; add('bad', 'Beijing curbs rare earths', '"Export licenses for gallium and rare earth magnets to American chipmakers are suspended. New data centers will be late."', 'Ministry of Commerce, Beijing'); }
+  if (bj.move === 'retaliate') { s.us -= 0.3; shock('rareEarths'); add('bad', 'Beijing curbs rare earths', '"Export licenses for gallium and rare earth magnets to American chipmakers are suspended. New data centers will be late."', 'Ministry of Commerce, Beijing'); }
   fix();
   if (r.breakout) breakDeal('America breaks out of the pause.');
 
+  // a presidential order the labs could challenge: the ledger rolls the court; a block frees the labs to train with the engineers they have left
+  // the court rules once, on the first turn such an order holds the labs: a block stands until Congress acts or the labs are taken over, an order upheld stays upheld
+  if (r.contested && !obey(s) && !s.deal) {
+    if (s.court == null) {
+      const ct = roll('court', r.courtOdds); s.court = ct.hit ? 'blocked' : 'upheld';
+      rolls.push({ what: 'A court blocks the President\'s order on the labs', table: 'wh', odds: r.courtOdds, word: oddsWord(r.courtOdds), u: ct.u, hit: ct.hit });
+      why.push('Rolled: a court blocking the contested order at ' + f2(r.courtOdds) + '; the die came up ' + f2(ct.u) + ', so it ' + (ct.hit ? 'did: the labs train with the engineers they have left, until Congress acts.' : 'did not: the order stands.'));
+      if (ct.hit) { s.labs += 5; s.enjoined = true; shock('court', 1); add('bad', 'A court blocks the order', '"A federal judge in San Francisco has blocked the President\'s order. The labs may go on training while the case is heard. Only Congress can settle it."', 'Wire report, San Francisco'); }
+      else add('info', 'The order survives in court', '"The judge declined to block the President\'s order on the labs. The labs say they will appeal."', 'Wire report, San Francisco');
+    }
+    if (s.court === 'blocked') {   // freed, the labs set their own pace: slower if they are with the room
+      const own = s.labs >= T.labWilling ? T.freed[0] : T.freed[1];
+      if (train < own) { train = own; const k = (1 - own) / Math.max(1e-9, secure + test); if (k < 1) { secure *= k; test *= k; } }
+      why.push('The court\'s block stands: a presidential order cannot hold the labs back; they train at ' + f2(train) + ' of their own choosing.');
+    }
+  }
   // the US frontier; under a pause any training is secret, and inspectors find it
   const secret = !!s.deal && train > 0 && !defy;
   if (!s.national) s.labs += (train >= 0.7 ? T.labRace : 0) + (test >= 0.3 ? T.labTest : s.deal ? T.labIdle : 0);
@@ -341,7 +368,7 @@ function play1(s, r0) {
     if (s.knownOver ? usStep > 0 : train > T.flatOut || margin(s, train, test, r.care) < bar(s)) {
       add('bad', 'Loss of control', '"We hit the kill switch. The model is still running and has stopped answering us."', 'Last message from the lab\'s control room', true); return end(s, 'runaway_us', ev);
     }
-    if (!s.knownOver) { s.knownOver = true; s.labs += 20; add('bad', 'Near miss', '"The model was caught copying itself to an outside server. It had edited the logs to hide it. We shut it down in time." The frontier cannot move again.', 'Incident report, a frontier lab', true); }
+    if (!s.knownOver) { s.knownOver = true; s.labs += 20; shock('nearMiss'); add('bad', 'Near miss', '"The model was caught copying itself to an outside server. It had edited the logs to hide it. We shut it down in time." The frontier cannot move again.', 'Incident report, a frontier lab', true); }
   }
   if (s.cn > s.line) { add('bad', 'Beijing loses control', '"All contact with the Lanzhou cluster was lost at 0340. Power to the site cannot be cut."', 'Intercepted call, Beijing', true); return end(s, 'runaway_cn', ev); }
   if (s.cn >= s.lo && (openly || s.caught) && !s.knownOver) add('warn', 'China is in the danger range', '"Beijing has slowed its training runs. It has not stopped them."', 'IC assessment');
@@ -360,13 +387,20 @@ function play1(s, r0) {
     if (s.hack >= 2) {
       const gain = Math.max(0, s.us - 1 - s.cn); s.cn += gain; s.thefts++; s.hack = lvl >= 3 ? 0 : 0.6; s.seenHack = true;
       if (s.deal) add('bad', 'A break-in at the lab', '"Someone had access to the model weights for eleven hours. We cannot tell what was taken."', 'Security incident report, a frontier lab');
-      else { s.cnShown = s.cn; add('bad', 'The weights are stolen', '"They took the weights and the training code. Assume Beijing has it running within days."', 'Flash cable, NSA to the President', true); }
+      else { s.cnShown = s.cn; shock('theft'); add('bad', 'The weights are stolen', '"They took the weights and the training code. Assume Beijing has it running within days."', 'Flash cable, NSA to the President', true); }
     } else if (s.hack >= 1 && !s.seenHack) { s.seenHack = true; add('warn', 'Hackers inside the labs', '"Beijing\'s hackers are inside two labs\' networks. They have not reached the weights. They are getting closer."', 'NSA advisory, eyes only'); }
   }
   else why.push('Hackers: nothing worth stealing' + (s.deal && !s.hidden ? ' under the pause' : ' (lead under ' + T.hackLead + ' months)') + '; progress ' + f2(s.hack) + '.');
   if (s.hack < 1 && s.seenHack) { s.seenHack = false; if (s.thefts === thefts0) add('good', 'Hackers driven out', '"We have cleared Beijing\'s hackers from the labs\' networks. They will try again."', 'NSA advisory, eyes only'); }   // a theft also resets the hackers, with no good news
   if (!s.crash && !s.deal && s.us - s.cn >= T.crashAt) { s.crash = true; add('warn', 'Beijing mobilizes', '"China will spare nothing to close the gap. Every chip in the country now serves one program."', 'People\'s Daily, front page'); }
 
+  // the markets: what the turn did to them, their recovery, and what a slide or a panic costs
+  if (s.mkt < 100) s.mkt = Math.min(100, s.mkt + T.mkt.recover * (s.mkt < was.mkt ? 0 : 1));
+  if (s.mkt < T.mkt.slide && !s.national) s.labs -= T.mkt.slideLabs;
+  if (s.mkt < T.mkt.panic && !s.panicked) { s.panicked = true; if (!s.national) s.labs -= T.mkt.panicLabs; add('bad', 'Market panic', '"The Nasdaq fell eleven percent today, its worst day since 1987. Trading was halted twice. The AI stocks led it down."', 'Wire flash, New York', true); }
+  else if (s.mkt < T.mkt.slide && was.mkt >= T.mkt.slide) add('warn', 'Markets slide', '"AI stocks are down a fifth since the spring. Pension funds are asking the Treasury what comes next."', 'Financial wire');
+  if (s.mkt >= T.mkt.slide) s.panicked = false;
+  fix();
   // is Beijing keeping the deal?
   if (s.deal && !s.caught) {
     const was = s.hidden;
@@ -383,7 +417,7 @@ function play1(s, r0) {
   fix();
   why.push('Strait: tension ' + Math.round(was.tension) + ' to ' + Math.round(s.tension) + '; Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades at ' + Math.round(redLine(s)) + '. Beijing\'s trust ' + Math.round(was.trust) + ' to ' + Math.round(s.trust) + '. Labs\' cooperation ' + Math.round(was.labs) + ' to ' + Math.round(s.labs) + '.');
   if (!s.blockade && s.tension >= redLine(s)) {
-    s.blockade = true; s.offer = null;
+    s.blockade = true; s.offer = null; shock('blockade');
     add('bad', 'Taiwan is blockaded', '"Chinese warships have closed the sea lanes around Taiwan. No chip has left the island in a week."', 'Wire flash, Taipei', true);
   } else if (!s.blockade) {
     const near = s.tension >= redLine(s) - T.warn;
@@ -486,6 +520,10 @@ function brief(s) {
     (s.deal ? (s.caught ? 'It has been caught cheating. ' + (s.floor <= 1 ? 'Confronted, it would shut the site and admit inspectors.' : 'Confronted, it would walk out.') : s.hidden ? 'It is training in secret right now.' : cheats(s) ? 'It will start training in secret this turn.' : 'It is keeping the deal.') + (s.watch ? ' America\'s remote monitoring is working: it catches secret training a turn after it starts, as one source in Beijing would. ' : ' Only a source in Beijing, or American remote monitoring once it works (watch), can see cheating. ') : 'Under a deal without inspectors it would cheat ' + (s.floor === 2 ? 'always' : 'while it is ' + T.cheatLead + '+ months behind') + '. ') +
     'The labs sign a pause with inspectors at cooperation ' + T.labInspect + '+, one without at ' + T.labWilling + '+ (now ' + Math.round(s.labs) + (s.national ? ', nationalized: they obey' : s.law ? ', bound by an act of Congress: they obey' : '') + '); below ' + T.labDefiant + ' they defy orders. Racing costs cooperation, testing builds it. A pause cannot be signed in a turn with train above 0.5.');
   L.push('HIDDEN, STRAIT: tension ' + Math.round(s.tension) + '. ' + (s.blockade ? 'Taiwan is blockaded: US training runs at half speed until it ends. backdown (lifting every chip control) ends it. run (a convoy) ' + (s.bluff ? 'works: Beijing will not fire' : 'means war: Beijing will fire') + '. More chip controls or sabotage during the blockade ' + (s.bluff ? 'do not start a war' : 'mean war') + '.' : 'Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades Taiwan at ' + Math.round(redLine(s)) + '. Tightening chip controls adds ' + T.squeeze + ', sabotage 30, nationalizing 10, racing close to the danger range ' + T.fear + '; easing controls takes off 10; a show of force (deter) moves the blockade line up ' + T.deter + ' (twice at most) and costs trust. ' + (s.bluff ? 'If it came to a blockade, Beijing would not fire first.' : 'If it came to a blockade, Beijing would fire on a convoy.')));
+  const M = T.mkt, half = s.backstop ? ' (halved: the Treasury backstop is in place)' : '';
+  L.push('MARKETS: index ' + Math.round(s.mkt) + ' of 100 (the room sees "' + v.markets.toLowerCase() + '"). The ledger moves it: a pause signed -' + M.pause + ', a takeover -' + M.nationalize + ', tighter chip controls -' + M.tighten + ' a level, easing +' + M.ease + ', a blockade -' + M.blockade + ', a theft -' + M.theft + ', a near miss -' + M.nearMiss + ', Beijing striking back -' + M.revenge + ', rare earth curbs -' + M.rareEarths + half + '; it recovers ' + M.recover + ' a quiet turn. Below ' + M.slide + ' the labs lose ' + M.slideLabs + ' cooperation a turn and Congress gets harder to move; below ' + M.panic + ' it is a panic (labs -' + M.panicLabs + ' once, and the room hears of it). markets (-10 to 10) is your judgment of the rest; backstop sets up the Treasury\'s liquidity backstop.' +
+    (s.panicked ? ' The markets are in panic now: Congress and the labs are in no mood for another shock.' : ''));
+  L.push('PRESIDENTIAL AUTHORITY: the labs are ' + (s.national ? 'nationalized: they obey' : s.law ? 'bound by an act of Congress: they obey' : 'bound by nothing but their own consent; an order to stop, cap or inspect them rests on the President alone (set contested and courtOdds)') + '.' + (s.court === 'blocked' ? ' A court has blocked the President\'s order on the labs: no presidential order can hold them back until Congress acts; say so in the replies.' : s.court === 'upheld' ? ' A court has upheld the President\'s order on the labs; it stands, though the labs are appealing.' : ' The courts have not yet ruled; they rule once, the first turn such an order holds the labs.'));
   L.push('OPERATIONS UNDER WAY: ' + ((s.ops || []).length ? s.ops.map(o => '"' + o.name + '" (' + TABLES[o.table] + ', begun ' + DATES[o.since] + '; ' + (o.left ? 'ready in ' + o.left + ' more turn' + (o.left > 1 ? 's' : '') : 'ready to attempt now') + '): ' + o.report).join(' | ') : 'none') + '. Return the full list every turn under the same names; one left out is dropped. ' + TUNE.maxOps + ' at most: past that the ledger drops the last ones, so fold related work under one name or end the least useful operation, and say so in a reply. Time left falls by one a turn at most, and an operation may slip only once. An outcome tied to an operation is rolled only once it is ready, and the operation then ends. One marked ready to attempt now must be settled this turn (a rolled outcome naming it, the sabotage dial, or its sure result said in the reply) and left out of ops; otherwise it lapses with nothing to show.');
   if (s.last && s.last.rolls.length) L.push('LAST TURN\'S DICE: ' + s.last.rolls.map(k => '"' + k.what + '" ' + (k.skipped ? 'was not rolled (not ready)' : k.hit ? 'happened' : 'did not happen')).join('; ') + '.');
   L.push('STANDING FACTS the room has made (carried from turn to turn; weigh them in every reading, odds and leverage): ' + ((s.facts || []).length ? s.facts.join(' | ') : 'none yet') + '.');
