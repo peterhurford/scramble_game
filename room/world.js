@@ -409,7 +409,7 @@ function play1(s, r0) {
   if (test >= 0.3 && narrow(s)) {
     const wd = Math.max(1, (s.hi - s.lo) / 2), lo = clamp(s.line - wd * (0.15 + 0.7 * hash01(s.seed, 'band', s.hi - s.lo)), s.lo, s.hi - wd);
     s.lo = lo; s.hi = lo + wd;
-    add('info', 'The IC narrows its range', '"' + (s.us >= s.lo ? 'Our tests say runaway self-improvement could begin from where the labs are now.' : 'Our tests say that at full speed the labs could reach the point where runaway self-improvement begins in about ' + Math.max(1, Math.round(monthsTo(s, s.lo - s.us))) + ' to ' + Math.max(2, Math.round(monthsTo(s, s.hi - s.us))) + ' months. Each month the AI moves faster than the last.') + '"', 'IC evaluation team');
+    add('info', 'The IC narrows its range', '"' + (s.us >= s.lo ? 'Our tests say runaway self-improvement could begin from where the labs are now.' : 'Our tests say that at full speed the labs could reach the point where runaway self-improvement begins in about ' + ((a, b) => a >= b ? a : a + ' to ' + b)(Math.max(1, Math.round(monthsTo(s, s.lo - s.us))), Math.max(2, Math.round(monthsTo(s, s.hi - s.us)))) + ' months. Each month the AI moves faster than the last.') + '"', 'IC evaluation team');
   }
 
   // the labs' own safety teams report what they see as the frontier nears the danger point; the distances are blurred per game, so a warning is a sign, not a measurement

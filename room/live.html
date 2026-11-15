@@ -211,7 +211,7 @@ function track(g, v, reveal) {
   for (let e = Math.ceil(lo / 10) * 10; e <= hi; e += 10) h += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(e) + '" y2="' + Y(e) + '"/><text x="' + (L - 8) + '" y="' + (Y(e) + 5) + '" text-anchor="end">' + e + '</text>';
   h += '<text x="' + L + '" y="' + (Tp - 11) + '" font-weight="800" letter-spacing=".1em" font-size="13">AI CAPABILITY · EPOCH CAPABILITIES INDEX (ECI)</text>';
   const key2 = (x, cls, txt) => '<line class="' + cls + '" x1="' + x + '" x2="' + (x + 34) + '" y1="' + (Tp - 16) + '" y2="' + (Tp - 16) + '"/><text x="' + (x + 42) + '" y="' + (Tp - 11) + '" font-size="14">' + txt + '</text>';
-  h += reveal ? key2(560, 'cn real', 'China as the IC saw it') : proj.length > 1 ? key2(560, 'us proj', 'US if the labs keep this turn\'s pace') : '';
+  h += reveal ? key2(560, 'cn real', 'China as the IC saw it') : proj.length > 1 ? key2(560, 'us proj', E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? 'US if the labs keep this turn\'s pace' : 'US held flat while the labs stay stopped') : '';
   for (let t = 0; t <= T1; t += 4) h += '<line class="axis" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + (H - B) + '" y2="' + (H - B + 6) + '"/><text x="' + X(t) + '" y="' + (H - 9) + '" text-anchor="middle">' + (t === T1 ? 'Dec 2028' : monthName(t)) + '</text>';
   h += '<line class="axis" x1="' + X(0) + '" x2="' + X(0) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke-dasharray="3 5"/>';
   h += '<rect class="band" x="' + L + '" width="' + (W - L - R) + '" y="' + Y(E(g.hi)) + '" height="' + (Y(E(g.lo)) - Y(E(g.hi))) + '"/>';
@@ -220,6 +220,8 @@ function track(g, v, reveal) {
   h += '<g clip-path="url(#plot)">';
   h += line([[T0, E(p[0].us) - pre * 6], [0, E(p[0].us)]], 'us pre') + line([[T0, E(p[0].cn) - pre * 6], [0, E(p[0].cn)]], 'cn pre');
   if (proj.length > 1) h += line(proj.map(q => [q.t, E(q.us)]), 'us proj');
+  const pe = proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.find(q => q.t === n.t + 4) : null;   // where this turn's pace leaves the US by the end of the turn
+  if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/><text class="lab-us" font-size="14" x="' + (X(pe.t) + 10) + '" y="' + (Y(E(pe.us)) + 20) + '">' + f1(E(pe.us)) + ' by ' + monthName(pe.t) + '</text>';
   if (reveal) h += line(p.map(q => [q.t, E(q.cn)]), 'cn real');
   h += line(p.map(q => [q.t, E(q.us)]), 'us') + line(p.map(q => [q.t, E(q[key])]), 'cn');
   p.forEach((q, i) => { const last = i === p.length - 1; h += '<circle class="' + (last ? 'ring' : 'dot-us') + '" stroke="var(--us)" cx="' + X(q.t) + '" cy="' + Y(E(q.us)) + '" r="' + (last ? 8 : 5) + '"/><circle class="' + (last ? 'ring' : 'dot-cn') + '" stroke="var(--cn)" cx="' + X(q.t) + '" cy="' + Y(E(q[key])) + '" r="' + (last ? 8 : 5) + '"/>'; });
