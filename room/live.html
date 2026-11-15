@@ -231,7 +231,8 @@ function track(g, v, reveal) {
   if (Math.abs(d) >= 1) {
     const lead = d > 0, back = World.firstAt(p, lead ? 'us' : key, lead ? n[key] : n.us), yb = Y(lead ? cn : us), xb = X(Math.max(T0, back == null ? n.t : back)), m = Math.round(n.t - (back == null ? n.t : back));
     h += '<path class="gap" d="M' + x + ',' + Y(us) + 'V' + Y(cn) + 'M' + (x - 6) + ',' + Y(us) + 'h12M' + (x - 6) + ',' + Y(cn) + 'h12"/>';
-    if (m >= 1) { h += '<path class="gap" d="M' + x + ',' + yb + 'H' + xb + 'M' + xb + ',' + (yb - 6) + 'v12"/>'; ago = [(lead ? 'China is where America' : 'America is where China'), 'was ' + m + (m === 1 ? ' month' : ' months') + ' ago']; }
+    const held = p.length > 1 && Math.abs(n.us - p[p.length - 2].us) < 0.1;   // while America stands still the months-ago figure grows as the gap shrinks, so it is left off
+    if (m >= 1 && !held) { h += '<path class="gap" d="M' + x + ',' + yb + 'H' + xb + 'M' + xb + ',' + (yb - 6) + 'v12"/>'; ago = [(lead ? 'China is where America' : 'America is where China'), 'was ' + m + (m === 1 ? ' month' : ' months') + ' ago']; }
   }
   h += '</g>';
   const lx = W - R + 22, mid = Math.max(Tp + 30, Math.min(H - B - 50, (Y(us) + Y(cn)) / 2));
