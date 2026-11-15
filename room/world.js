@@ -34,7 +34,7 @@ const terms = d => (d.parity ? ['America stops now', 'China stops once it has ca
 // A ruling that changes nothing: the labs keep training flat out.
 const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0, care: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0,
-  intelOdds: 1, sabotageOdds: 1, watch: false, ops: null, facts: null, chances: [] };   // ops or facts null leaves them as they were
+  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] };   // ops or facts null leaves them as they were
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
@@ -47,13 +47,15 @@ const oddsWord = p => WORDS.find(w => p < w[0])[1];
 
 function newGame(seed) {
   seed = String(seed);
-  const h = k => hash01(seed, k), f = h('floor');
+  const h = k => hash01(seed, k), bw = {}; for (const k of GOALS) bw[k] = 0.6 + 0.8 * h('goal-' + k);
+  const hard = (bw.face + bw.race) / 2 - (bw.ctl + bw.rsi) / 2;   // a proud, race-minded Beijing is the hard-line one: it cheats more and resists inspectors
   return {
+    bj: { w: bw, face: 50, scared: 0, soft: 0, lastLead: null, closing: 0, move: null, offered: false, ask: null },
     seed, turn: 0, us: 0, cnShown: TUNE.cnStart,
     // hidden
     cn: TUNE.cnStart + TUNE.cnFog * (2 * h('cn') - 1), line: span(TUNE.line, h('line')),
     hack: span(TUNE.hack0, h('hack0')), hackRate: span(TUNE.hack, h('hack')),
-    floor: f < TUNE.floor[0] ? 0 : f < TUNE.floor[1] ? 1 : 2, red: span(TUNE.red, h('red')), bluff: h('bluff') < TUNE.bluff, bar: span(TUNE.bar, h('bar')),
+    floor: hard < -0.15 ? 0 : hard < 0.2 ? 1 : 2, red: span(TUNE.red, h('red')), bluff: h('bluff') < TUNE.bluff, bar: span(TUNE.bar, h('bar')),
     // seen
     lo: TUNE.line[0], hi: TUNE.line[1], knownOver: false, secWork: 0, seenHack: false,
     labs: TUNE.labs0, national: false, controls: 0, offer: 3, deal: null, hidden: false, caught: false, cheated: false,
@@ -68,16 +70,50 @@ const willing = (s, d) => obey(s) || s.labs >= (d.inspectors ? TUNE.labInspect :
 const fullStep = s => TUNE.full * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
 const narrow = s => !s.knownOver && s.hi - s.lo > 1.6;
 const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
-// What moves Beijing: a lead it cannot steal back, a chip squeeze, proof the danger is real. Heat in the Strait, hostility and a lead it has closed move it back.
-const proof = s => s.knownOver || s.cn >= s.lo || (s.hi - s.lo <= 1.6 && s.us >= s.lo - 1.5 * TUNE.full);
-function pressure(s) {
-  const lead = s.us - s.cn;
-  return (lead >= TUNE.leadFor && s.hack < 1 ? 1 : 0) + (s.controls >= TUNE.ctlFor ? 1 : 0) + (proof(s) ? 1 : 0)
-    - (s.tension >= TUNE.hot ? 1 : 0) - (s.trust < TUNE.cold ? 1 : 0) - (lead < TUNE.leadShort ? 1 : 0);
+// Beijing has five goals, each weighted per game (0.6 to 1.4): not losing the race to America (race), America not reaching runaway AI first (rsi),
+// not losing control of its own models (ctl), national pride (face), and a hard bargain (bargain: what waiting is worth, and the margin it holds back).
+// worries() reads each from the true state, 0 to 1. A pause is worth to Beijing the sum of what it does for those goals (dealWorth); it signs when that clears its margin.
+const GOALS = ['race', 'rsi', 'ctl', 'face', 'bargain'];
+function worries(s) {
+  const full = TUNE.full, lead = s.us - s.cn, bj = s.bj, pace = s.deal ? 0 : s.standing ? s.standing.train : 1;
+  const near = x => clamp(1 - (s.lo - x) / (2 * full), 0, 1);   // Beijing reads the same science as the IC: how close a frontier is to where the danger range starts
+  return {
+    race: clamp(0.8 * clamp(lead / 6, 0, 1) + 0.1 * clamp(s.controls, 0, 2), 0, 1),
+    rsi: clamp(near(s.us) * (0.4 + 0.6 * pace) + (s.knownOver ? 0.3 : 0), 0, 1),
+    ctl: clamp(near(s.cn) + (s.knownOver ? 0.3 : 0) + bj.scared, 0, 1),
+    shame: clamp((50 - bj.face) / 50, 0, 1),
+    wait: s.deal || pace >= 0.6 ? 0 : clamp(bj.closing / full, 0, 1),   // how fast it closed on an America that slowed with no deal: time on its side
+  };
 }
-// How many concessions Beijing needs to sign today (0 to 3). Nothing is a veto: its floor sets the price before leverage, inspectors cost a hard-line Beijing one more, and a ruling's leverage (-2 to 2) is the game master's judgment of everything else.
-const want = (s, leverage, d) => { const p = pressure(s); return s.blockade ? 3 : clamp(Math.max(p >= 2 ? 0 : 3 - p, s.floor) + (s.floor === 2 && d && d.inspectors ? 1 : 0) - (leverage || 0), 0, 3); };
-const signs = (s, d, leverage) => gives(d) >= want(s, leverage, d);
+const DEAL_WORDS = { rsi: 'stopping America short of runaway AI', ctl: 'its own fear of losing control', freeze: 'freezing while behind', chips: 'the chip controls lifted', inspectors: 'inspectors on Chinese soil', face: 'national pride', trust: 'trust in Washington', extra: 'the other terms, as you weigh them (leverage)', wait: 'what waiting would bring instead' };
+function dealWorth(s, d, leverage) {
+  const w = s.bj.w, x = worries(s), lead = s.us - s.cn, behind = clamp(lead / 6, 0, 1);
+  const parts = { rsi: 1.2 * w.rsi * x.rsi, ctl: 0.8 * w.ctl * x.ctl, freeze: -0.9 * w.race * behind * (d.parity ? 0.15 : 1),
+    chips: d.chips ? w.race * (0.25 + 0.2 * clamp(s.controls + 1, 0, 3)) : 0, inspectors: d.inspectors ? -0.35 * w.face - (lead >= TUNE.cheatLead ? 0.15 : 0) : 0,
+    face: 0.5 * w.face * (s.bj.face - 50) / 50, trust: (s.trust - 32) / 100, extra: 0.3 * (leverage || 0), wait: -0.5 * w.bargain * x.wait };
+  let total = 0; for (const k in parts) total += parts[k];
+  return { total, need: bjMargin(s), parts };
+}
+const bjMargin = s => Math.max(0, 0.1 + 0.15 * s.bj.w.bargain - s.bj.soft);
+const DEALS = [0, 1, 2, 3, 4, 5, 6, 7].map(m => ({ chips: !!(m & 1), inspectors: !(m & 2), parity: !!(m & 4) }));
+// The cheapest terms Beijing would sign today (fewest of the three concessions, then the most it gains), or null; pad asks for more than it needs, as a hard bargainer does.
+function cheapest(s, leverage, pad) {
+  const need = bjMargin(s) + (pad || 0), ok = DEALS.filter(d => dealWorth(s, d, leverage).total >= need);
+  return ok.sort((a, b) => gives(a) - gives(b) || dealWorth(s, b, leverage).total - dealWorth(s, a, leverage).total)[0] || null;
+}
+// How many of the three concessions Beijing needs today (3 when nothing would do). Kept for the bots in room/sim.js and the stock lines.
+const want = (s, leverage) => { if (s.blockade) return 3; const c = cheapest(s, leverage); return c ? gives(c) : 3; };
+const signs = (s, d, leverage) => !s.blockade && dealWorth(s, d, leverage).total >= bjMargin(s);
+// Each turn Beijing may act on its own: the move its goals score highest, if it scores 0.5 or more.
+function bjMoves(s, r) {
+  const w = s.bj.w, x = worries(s), lead = s.us - s.cn, M = [];
+  if (s.deal || s.blockade) return M;
+  if (lead > 1) M.push({ id: 'sprint', score: w.race * (1.5 * x.wait + (lead < 3 ? 0.3 : 0)) });
+  M.push({ id: 'coerce', score: w.rsi * x.rsi * (r.train >= 0.7 ? 1.6 : 0.4) });
+  M.push({ id: 'safety', score: 1.3 * w.ctl * x.ctl + (s.knownOver ? 0.4 : 0) - (s.bj.offered ? 0.6 : 0) });
+  if (r.controls > 0) M.push({ id: 'retaliate', score: 0.6 + 0.5 * w.face });
+  return M.filter(m => m.id !== s.bj.move).sort((a, b) => b.score - a.score);
+}
 // How well a crossing of the danger point is contained, on the whole: pace, testing, how well the point is located, the labs' good will, and the game master's judgment of the rest (care, -0.1 to 0.1). It holds at s.bar or above.
 const narrowed = s => s.hi - s.lo <= 1.6 ? 2 : s.hi - s.lo <= 3.1 ? 1 : 0;
 const margin = (s, train, test, care) => 0.8 * (1 - train) + 0.2 * Math.min(1, test / 0.4) + 0.075 * narrowed(s) + 0.15 * (obey(s) ? 1 : s.labs / 100) + (care || 0);
@@ -116,6 +152,7 @@ function rule(s, r0) {
     train: Math.min(clamp(r.train, 0, 1), 1 - secure - test), secure, test,
     nationalize: b('nationalize') && !s.national, law: b('law') && !s.law, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
     controls: Math.sign(clamp(r.controls, -1, 1)), propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
+    face: clamp(r.face, -15, 15), alarm: clamp(r.alarm, 0, 0.3),
     intel: b('intel') && s.eyes < 2, watch: b('watch') && !s.watch, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage'),
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
@@ -131,7 +168,7 @@ function play1(s, r0) {
   if (s.over) return [];
   const T = TUNE, r = rule(s, r0), ev = [], t = s.turn;
   const add = (tone, title, text, src, big) => ev.push({ tone, title, text, src: src || '', big: !!big });
-  const fix = () => { s.trust = clamp(s.trust, 0, 100); s.tension = clamp(s.tension, 0, 100); s.labs = clamp(s.labs, 0, 100); };
+  const fix = () => { s.bj.face = clamp(s.bj.face, 0, 100); s.trust = clamp(s.trust, 0, 100); s.tension = clamp(s.tension, 0, 100); s.labs = clamp(s.labs, 0, 100); };
   const breakDeal = why => { if (!s.deal) return; s.deal = null; s.hidden = false; s.caught = false; s.cnShown = s.cn; s.offer = null; s.trust -= 30; s.tension += 15; add('bad', 'The pause is over', why); };
   const war = why => { add('bad', 'War in the Strait', '"Chinese missiles have hit Taiwan. An American destroyer is on fire. This is not an exercise." ' + why, 'Wire flash, Taipei', true); return end(s, 'war', ev); };
   const siege = s.blockade;
@@ -145,7 +182,8 @@ function play1(s, r0) {
   // the dials
   if (r.nationalize) { s.national = true; s.tension += 10; }
   if (r.law) { s.law = true; add('good', 'Congress binds the labs', '"Every frontier lab now trains, tests and stops under one federal license. No lab can gain by ignoring it."', 'Conference report, U.S. Congress'); }
-  if (r.controls > 0 && s.controls < 3) { s.controls++; s.tension += T.squeeze; s.trust -= 6; }
+  const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
+  if (r.controls > 0 && s.controls < 3) { s.controls++; s.tension += T.squeeze; s.trust -= 6; bj.face -= 8; }
   if (r.controls < 0 && s.controls > -1) { s.controls--; s.tension -= 10; s.trust += 10; }
   if (r.backdown) { s.controls = Math.min(0, s.controls); s.tension -= 25; s.trust += 5; s.blockade = false; add('warn', 'The blockade is lifted', '"The exercise is concluded." The sea lanes reopen.', 'Eastern Theater Command, one-line notice'); }
   s.tension += r.tension; s.trust += r.trust; s.labs += r.labs; s.cn += r.cn; s.cnShown += r.cn; s.us += r.us; s.hack = Math.max(0, s.hack + r.hack);
@@ -188,34 +226,45 @@ function play1(s, r0) {
     if (s.eyes === 1) { const d = s.us - s.cn; s.cnShown = s.cn; add('info', 'A source is in place', '"Their real frontier is ' + (Math.abs(d) < 1 ? 'level with ours' : months(d) + (d > 0 ? ' behind ours' : ' ahead of ours')) + '."', 'CIA source inside Beijing\'s program'); }
     else add('info', 'What Beijing would accept', '"' + ['Xi told the Politburo he would accept inspectors in China if that is what a pause takes.', 'Xi told the Politburo he would accept inspectors in China only if America gives something up in return.', 'Xi told the Politburo he will never accept foreign inspectors in China.'][s.floor] + ' On Taiwan, he said ' + (s.bluff ? 'he would not fire on American ships.' : 'he would fire on American ships that tried to break a blockade.') + '"', 'CIA source close to the Politburo');
   }
-  if (r.deter) { s.deter++; s.trust -= 5; }
+  if (r.deter) { s.deter++; s.trust -= 5; bj.face -= 4; }
   const evict = Math.min(s.hack, T.hunt * Math.max(r.hunt, Math.min(1, 2 * secure))), hackNudge = s.hack - was.hack;
   s.hack -= evict;   // engineers rebuilding security also drive intruders out
   const sab = r.sabotage ? roll('sabotage', r.sabotageOdds) : null;
   if (sab) { rolls.push({ what: 'The covert attack on China\'s training sites', table: 'pent', odds: r.sabotageOdds, word: oddsWord(r.sabotageOdds), u: sab.u, hit: sab.hit }); why.push('Rolled: the covert attack at ' + f2(r.sabotageOdds) + '; the die came up ' + f2(sab.u) + ', so it ' + (sab.hit ? 'worked: China loses ' + f1(T.sabotage * Math.pow(T.sabAgain, s.sabotaged)) + ' months, Beijing hits back for ' + T.revenge + ', stops talking.' : 'failed and was traced to Washington.')); }
-  if (sab && !sab.hit) { s.tension += T.sabFail.tension; s.trust += T.sabFail.trust; add('bad', 'The operation fails', '"The attack was caught before it did any damage, and Beijing knows who was behind it."', 'CIA, Directorate of Operations'); }
+  if (sab && !sab.hit) { s.tension += T.sabFail.tension; s.trust += T.sabFail.trust; bj.face -= 10; add('bad', 'The operation fails', '"The attack was caught before it did any damage, and Beijing knows who was behind it."', 'CIA, Directorate of Operations'); }
   if (sab && sab.hit) {
     const hurt = T.sabotage * Math.pow(T.sabAgain, s.sabotaged);   // Beijing hardens its sites after each attack
-    s.sabotaged++; s.cn -= hurt; s.cnShown -= hurt; s.tension += 30; s.trust -= 20; s.offer = null; s.us -= T.revenge;
+    s.sabotaged++; s.cn -= hurt; s.cnShown -= hurt; s.tension += 30; s.trust -= 20; bj.face -= 20; s.offer = null; s.us -= T.revenge;
     add('bad', 'Beijing answers in kind', '"The fire at the Ohio data center was not an accident. We have lost months of training."', 'FBI briefing to the President');
   }
   fix();
 
   // a pause: the room names terms; Beijing signs anything at least as good for it as what it would take today
   let signed = false;
-  const w = want(s, r.leverage, r.propose);
-  if (r.propose) why.push('Pause: the terms give Beijing ' + gives(r.propose) + ' of the concessions it counts; today it needs ' + w + ' (pressure on Beijing ' + pressure(s) + ', its floor ' + s.floor + ', the game master\'s leverage ' + r.leverage + ').' + (r.sabotage ? ' The attack this turn rules out signing.' : ''));
+  const w = want(s, r.leverage);
+  if (r.propose) { const dw = dealWorth(s, r.propose, r.leverage); why.push('Pause: worth ' + f2(dw.total) + ' to Beijing against the ' + f2(dw.need) + ' it holds out for (' + Object.keys(dw.parts).filter(k => Math.abs(dw.parts[k]) >= 0.005).map(k => DEAL_WORDS[k] + ' ' + sg(dw.parts[k])).join(', ') + ').'); }
+  if (r.propose && r.sabotage) why.push('The attack this turn rules out signing.');
   if (r.propose && !r.sabotage) {
     if (signs(s, r.propose, r.leverage)) {
       if (train > 0.5) { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
       else if (!willing(s, r.propose)) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
       else {
-        s.deal = Object.assign({ t }, r.propose); signed = true; train = 0; defy = false; s.trust += 20; s.tension -= 25; if (r.propose.chips) s.controls = -1;
+        s.deal = Object.assign({ t }, r.propose); signed = true; train = 0; defy = false; s.trust += 20; s.tension -= 25; bj.face += 10; if (r.propose.chips) s.controls = -1;
         add('good', 'A pause is signed', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva', true);
       }
     }
-    if (!signed && !s.blockade) s.offer = w;
+    if (!signed && !s.blockade) { s.offer = w; bj.ask = cheapest(s, r.leverage, 0.12 * bj.w.bargain) || cheapest(s, r.leverage); }
   } else if (!s.deal && !s.blockade && s.offer != null && want(s) > s.offer) { s.offer = want(s); add('bad', 'Beijing raises its price', '"Circumstances have changed. What we could accept last season we cannot accept now."', 'Chinese delegation, Geneva'); }
+  bj.soft *= 0.5;
+  // Beijing acts on its own: the move its goals score highest this turn, if any is worth making
+  const mv = signed ? null : bjMoves(s, { train, controls: r.controls }).find(m => m.score >= 0.5);
+  bj.move = mv ? mv.id : null;
+  if (mv) why.push('Beijing\'s own move: ' + mv.id + ' (scored ' + f2(mv.score) + ').');
+  if (bj.move === 'sprint') { s.cn += 0.6; s.cnShown += 0.6; s.trust -= 3; add('warn', 'Beijing speeds up', '"China\'s labs are running every chip they can find, day and night. Beijing sees America slowing and means to close the gap."', 'IC assessment'); }
+  if (bj.move === 'coerce') { s.tension += 10; s.trust -= 3; add('warn', 'PLA drills near Taiwan', '"The drills are a message to Washington, not to Taipei. Beijing is warning America against racing its labs toward the danger point."', 'Analysis, Indo-Pacific Command'); }
+  if (bj.move === 'safety') { s.trust += 6; bj.soft = 0.15; bj.offered = true; s.cn -= 0.4; s.cnShown -= 0.4; add('good', 'Beijing proposes safety talks', '"China proposes that scientists from both countries meet on the danger of losing control of these systems. It says it has slowed some of its own work while they talk."', 'Foreign Ministry spokesperson, Beijing'); }
+  if (bj.move === 'retaliate') { s.us -= 0.3; add('bad', 'Beijing curbs rare earths', '"Export licenses for gallium and rare earth magnets to American chipmakers are suspended. New data centers will be late."', 'Ministry of Commerce, Beijing'); }
+  fix();
   if (r.breakout) breakDeal('America breaks out of the pause.');
 
   // the US frontier; under a pause any training is secret, and inspectors find it
@@ -343,6 +392,7 @@ function play1(s, r0) {
       'Chief executive of a frontier lab, letter to the President');
   }
 
+  if (s.bj.lastLead != null) s.bj.closing = s.bj.lastLead - (s.us - s.cn); s.bj.lastLead = s.us - s.cn;
   s.turn++;
   if (s.turn >= T.turns) return end(s, 'time', ev);
   return ev;
@@ -393,10 +443,15 @@ function brief(s) {
     'The range has been narrowed ' + (s.hi - s.lo <= 1.6 ? 'twice' : s.hi - s.lo <= 3.1 ? 'once' : 'not at all') + '; test 0.3 or more narrows it again.');
   L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). Driving them out takes up to ' + T.hunt + ' off their progress this turn: in full at hunt 1.0 or at secure 0.5, whichever is larger, in proportion below that. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
   const n = k => ['none', 'one', 'two', 'all three'][k];
-  L.push('HIDDEN, BEIJING: a pause can be on any terms America writes. Beijing counts three concessions: America lifts the chip controls (chips), no inspectors (inspectors false), and China stops only once it has caught up (parity). ' +
-    'To sign today it needs ' + n(want(s)) + ' of them' + (s.floor === 2 ? ', and one more if the deal has inspectors, which this Beijing deeply resists' : '') + '. leverage (-2 to 2) is your judgment of everything else and comes straight off that count: each +1 is worth one concession, each -1 costs one. Nothing is a veto. ' +
-    'Anything else the room puts in the deal (a joint lab, a guarantee over Taiwan, money) goes in extra; it counts toward leverage only if it costs America something real, and you charge that cost with the nudges. ' +
-    'What moves it toward better terms: a US lead of ' + T.leadFor + '+ months that its hackers cannot steal back, chip controls at level ' + T.ctlFor + '+, proof the danger is real (a near miss, or a twice-narrowed range close to the frontier). What moves it away: a hot Strait, hostility (trust is ' + Math.round(s.trust) + ', hostile below ' + T.cold + '), a US lead under ' + T.leadShort + ' months. ' +
+  const bw = s.bj.w, wx = worries(s), dname = d => (d.parity ? 'America stops now, China once caught up' : 'both stop now') + (d.inspectors ? ', inspectors' : ', no inspectors') + (d.chips ? ', chips lifted' : '');
+  const pad = 0.12 * bw.bargain, ask = cheapest(s, 0, pad) || cheapest(s, 0), mv = bjMoves(s, { train: s.standing ? s.standing.train : 1, controls: 0 });
+  L.push('HIDDEN, BEIJING: it has five goals, weighted in this world: not losing the race to America ' + f2(bw.race) + ', America not reaching runaway AI first ' + f2(bw.rsi) + ', not losing control of its own models ' + f2(bw.ctl) + ', national pride ' + f2(bw.face) + ', a hard bargain ' + f2(bw.bargain) + ' (1 is typical). ' +
+    'How much each weighs on it now (0 to 1): the race ' + f2(wx.race) + ', America\'s runaway ' + f2(wx.rsi) + ', its own loss of control ' + f2(wx.ctl) + ', wounded pride ' + f2(wx.shame) + ' (pride ' + Math.round(s.bj.face) + ' of 100, 50 is normal), time on its side ' + f2(wx.wait) + '. Play Beijing from these: what it says and does serves them. ' +
+    'A pause can be on any terms America writes. Beijing weighs a deal as a whole and signs when it is worth at least ' + f2(bjMargin(s)) + ' to it. What each set of terms is worth today at leverage 0: ' + DEALS.map(d => dname(d) + ' ' + f2(dealWorth(s, d, 0).total)).join('; ') + '. Each point of leverage (-2 to 2) adds 0.30: it is your judgment of everything else, the extra terms and how the room has dealt with Beijing. ' +
+    'Anything else the room puts in the deal (a joint lab, a guarantee over Taiwan, money, staged easing) goes in extra; it counts toward leverage only if it costs America something real, and you charge that cost with the nudges. Your reply must agree with these numbers: if the terms clear the bar it says it will sign, if not it refuses. ' +
+    'It bargains hard. Refusing, it ' + (wx.wait >= 0.35 && bw.bargain >= 1 ? 'takes its time and names nothing, since time is on its side.' : ask ? 'names its own terms: ' + dname(ask) + ' (more than it needs; the least it would take is ' + dname(cheapest(s, 0) || ask) + ').' : 'says no terms would do while things stand as they are, and says why.') + ' ' +
+    'Its pride falls with public pressure and rises with respect: face (-15 to 15) is your judgment of this turn\'s conduct beyond what the ledger counts (tighter controls, sabotage and shows of force already cost pride; a signing restores it). alarm (0 to 0.3) is how far evidence it believes this turn frightens it about its own models. ' +
+    'If nothing is signed, the ledger makes Beijing\'s own move this turn, the highest scoring of: ' + (mv.length ? mv.map(m => ({ sprint: 'sprint (runs its labs harder to catch an America that slowed)', coerce: 'drills near Taiwan (against America racing toward the danger point; scores higher if the labs train at 0.7 or more)', safety: 'proposes safety talks itself and slows a little (its own fear)', retaliate: 'curbs rare earths (if America tightens controls)' }[m.id] + ' ' + f2(m.score))).join(', ') : 'none') + ', if any scores 0.5 or more. ' +
     (s.deal ? (s.caught ? 'It has been caught cheating. ' + (s.floor <= 1 ? 'Confronted, it would shut the site and admit inspectors.' : 'Confronted, it would walk out.') : s.hidden ? 'It is training in secret right now.' : cheats(s) ? 'It will start training in secret this turn.' : 'It is keeping the deal.') + (s.watch ? ' America\'s remote monitoring is working: it catches secret training a turn after it starts, as one source in Beijing would. ' : ' Only a source in Beijing, or American remote monitoring once it works (watch), can see cheating. ') : 'Under a deal without inspectors it would cheat ' + (s.floor === 2 ? 'always' : 'while it is ' + T.cheatLead + '+ months behind') + '. ') +
     'The labs sign a pause with inspectors at cooperation ' + T.labInspect + '+, one without at ' + T.labWilling + '+ (now ' + Math.round(s.labs) + (s.national ? ', nationalized: they obey' : s.law ? ', bound by an act of Congress: they obey' : '') + '); below ' + T.labDefiant + ' they defy orders. Racing costs cooperation, testing builds it. A pause cannot be signed in a turn with train above 0.5.');
   L.push('HIDDEN, STRAIT: tension ' + Math.round(s.tension) + '. ' + (s.blockade ? 'Taiwan is blockaded: US training runs at half speed until it ends. backdown (lifting every chip control) ends it. run (a convoy) ' + (s.bluff ? 'works: Beijing will not fire' : 'means war: Beijing will fire') + '. More chip controls or sabotage during the blockade ' + (s.bluff ? 'do not start a war' : 'mean war') + '.' : 'Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades Taiwan at ' + Math.round(redLine(s)) + '. Tightening chip controls adds ' + T.squeeze + ', sabotage 30, nationalizing 10, racing close to the danger range ' + T.fear + '; easing controls takes off 10; a show of force (deter) moves the blockade line up ' + T.deter + ' (twice at most) and costs trust. ' + (s.bluff ? 'If it came to a blockade, Beijing would not fire first.' : 'If it came to a blockade, Beijing would fire on a convoy.')));
@@ -408,6 +463,6 @@ function brief(s) {
   return L.join('\n');
 }
 
-const api = { oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, pressure, secLevel, ENDINGS, hash01, months };
+const api = { oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.World = api;
 })(typeof window !== 'undefined' ? window : globalThis);
