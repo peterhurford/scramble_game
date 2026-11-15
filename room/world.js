@@ -314,11 +314,11 @@ function play1(s, r0) {
     rolls.push({ what: 'Congress passes the halt bill', table: 'wh', odds: p, word: oddsWord(p), u: lr.u, hit: lr.hit });
     why.push('Rolled: the halt bill at ' + f2(p) + ' (Congress\'s fear ' + Math.round(s.fear.cg) + '); the die came up ' + f2(lr.u) + ', so it ' + (lr.hit ? 'passed.' : 'failed.'));
     if (lr.hit) { s.law = true; const y = 51 + Math.round(18 * p); add('good', 'Congress passes the halt bill', '"The Senate passed the emergency halt power ' + y + ' to ' + (98 - y) + ' tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }
-    else { s.lawTries = (s.lawTries || 0) + 1; const no = Math.round(50 - 12 * p) + 1;
+    else { s.lawTries = (s.lawTries || 0) + 1; const yes = 49 - Math.round(12 * (1 - p)), no = 98 - yes;   // a likely bill fails narrowly
       add('bad', 'The halt bill fails', '"' + (s.fear.cg < 35 ? 'The halt bill never reached the floor. The leaders say most members still hear about AI as jobs and growth, not danger, and the labs\' lobbyists are in every office.'
-        : p > 0.7 ? 'In an upset, the halt bill fell ' + (no - 49) + ' votes short after senators who had promised their support switched overnight. Each had been offered a new data center for their state.'
-        : (s.support == null ? 50 : s.support) < 45 ? 'The halt bill failed ' + (98 - no) + ' to ' + no + '. Members of both parties said they would not hand this White House a power they did not trust it to use.'
-        : s.lawTries > 1 ? 'The halt bill failed again, ' + (98 - no) + ' to ' + no + '. The leaders say more members are moving each month, and not yet enough.'
+        : p > 0.7 ? 'In an upset, the halt bill fell ' + ['one vote', 'two votes', 'three votes', 'four votes'][Math.min(3, 49 - yes)] + ' short after senators who had promised their support switched overnight. Each had been offered a new data center for their state.'
+        : (s.support == null ? 50 : s.support) < 45 ? 'The halt bill failed ' + yes + ' to ' + no + '. Members of both parties said they would not hand this White House a power they did not trust it to use.'
+        : s.lawTries > 1 ? 'The halt bill failed again, ' + yes + ' to ' + no + '. The leaders say more members are moving each month, and not yet enough.'
         : 'The halt bill fell short on the floor. Senators from the data-center states joined the labs\' lobbyists against it.') + '"', 'Wire report, the Capitol'); }
   }
   const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
