@@ -202,7 +202,8 @@ function track(g, v, reveal) {
 function facts(g, v) {
   const sc = v.strait === 'Calm' ? 'good' : v.strait === 'Tense' ? 'warn' : 'bad';
   return '<div class="facts"><span>US lead' + (g.deal && !g.caught ? ', by Beijing\'s account' : '') + ': <b>' + v.leadText.toLowerCase() + '</b></span>' +
-    '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span></div>';
+    '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span>' +
+    '<span>AI research: <b>' + v.speedText + '</b></span></div>';
 }
 // Who each table is dealing with, shown over its box.
 function lock(g, v, id) {
@@ -225,7 +226,7 @@ function topbar(g) {
 
 function draw() {
   const g = st.game; let h = '';
-  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">The lab CEOs are warning that runaway recursive self-improvement may be less than a year of progress away. The IC agrees.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><button class="btn" id="b-start">Start</button></div>';
+  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">The lab CEOs are warning that runaway recursive self-improvement may be less than a year of progress away. The IC agrees.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><button class="btn" id="b-start">Start</button></div>';
   else {
     const v = World.view(g);
     h = topbar(g) + '<div class="panel">' + track(g, v, st.screen === 'end') + facts(g, v) + '</div>';
