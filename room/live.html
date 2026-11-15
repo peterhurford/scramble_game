@@ -336,7 +336,7 @@ function ending(g) {
   const o = g.over, e = o.epi && !o.epi.failed ? o.epi : null, grade = e ? e.grade : o.grade;
   askEpi(g);
   return '<div class="panel end"><div class="grade ' + grade[0] + '">' + esc(grade) + '</div><div><div class="lbl">' + (g.turn >= World.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.log[g.log.length - 1].date) + '</div><h1>' + esc(e ? e.title : o.title) + '</h1>' +
-    (e ? e.text.split(/\n+/).map(p => '<p>' + esc(p) + '</p>').join('') : '<p>' + esc(o.text) + '</p>' + (o.epi ? '' : '<p class="muted">Writing what the next six months bring...</p>')) + '</div></div>' +
+    (e ? e.text.split(/\n+/).map(p => '<p>' + esc(p) + '</p>').join('') : '<p>' + esc(o.text) + '</p>' + (!o.epi ? '<p class="muted">Writing what the next six months bring...</p>' : o.epi.failed ? '<p class="muted">The story of the next six months did not arrive. <button class="ghost" id="b-epi">Try again</button></p>' : '')) + '</div></div>' +
     '<div class="go"><button class="btn" id="b-again">New game</button><button class="ghost" id="b-same">Replay (seed ' + esc(g.seed) + ')</button></div>';
 }
 
@@ -345,6 +345,7 @@ function wire() {
   on('b-start', () => start(seedFromHash())); on('b-ask', ask); on('b-go', go); on('b-next', next); on('b-undo', undo);
   on('b-back', () => { keep(); st.answer = null; st.screen = 'orders'; draw(); });
   on('b-new', () => { st = { screen: 'intro', game: null, past: [], orders: {}, events: [] }; draw(); });
+  on('b-epi', () => { const g = st.game; g.over.epi = null; g.over.asked = false; draw(); });
   on('b-again', () => start(String(Math.floor(Math.random() * 1e6)))); on('b-same', () => start(st.game.seed));
 }
 document.addEventListener('keydown', e => {

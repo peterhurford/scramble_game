@@ -345,7 +345,8 @@ function epiPrompt(s) {
 async function epilogue(s) {
   if (!s || !s.over) throw new Error('the game is not over');
   if (BACKEND === 'mock' || VOICE_MODEL === 'off') return { grade: s.over.grade, title: s.over.title, text: s.over.text };
-  const j = await voiceCall(epiPrompt(s), EPI_SYSTEM, EPI_SCHEMA), letter = s.over.grade[0];
+  let j; try { j = await voiceCall(epiPrompt(s), EPI_SYSTEM, EPI_SCHEMA); } catch (e) { console.error('epilogue: ' + e.message + '; trying once more'); j = await voiceCall(epiPrompt(s), EPI_SYSTEM, EPI_SCHEMA); }   // one retry: a stalled call should not cost the room its ending
+  const letter = s.over.grade[0];
   const g = String(j.grade).trim(), ok = letter !== 'F' && new RegExp('^' + letter + '[+-]?$').test(g) && !(s.over.crash && ['A-', 'A', 'A+'].includes(g));
   const grade = ok ? g : s.over.grade;   // the letter is the ledger's, and an F stays as it is
   return { grade, title: String(j.title || s.over.title).slice(0, 60), text: String(j.text || s.over.text).slice(0, 1400) };
