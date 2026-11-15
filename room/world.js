@@ -25,6 +25,8 @@ const TUNE = {
   chance: { tension: 25, trust: 20, labs: 20, cn: [-2.5, 1], us: [-2, 0.5], hack: [-1, 0.7], secure: 0.5 },   // how far either side of a rolled outcome may move one
   // markets: an index from 100; shocks (halved under a Treasury backstop), a recovery a turn toward 100, the labs' cooperation lost below slide, a panic below panic
   mkt: { pause: 12, nationalize: 15, tighten: 3, ease: 2, blockade: 10, theft: 5, nearMiss: 8, revenge: 4, rareEarths: 2, court: 3, recover: 4, slide: 85, panic: 70, slideLabs: 4, panicLabs: 10 },
+  econ: [[2, 0.3], [5, 0], [8, 0]],   // Beijing's trade war, by rung: markets hit and US months lost; each turn it lasts bleeds the rung off the markets
+  caCourt: [0.6, 1.4],   // California defending a federal order multiplies the court's odds by the first, joining the labs' suit by the second
   court: 0.35, freed: [0.4, 0.8],   // freed: the share the labs train at once a court frees them, with the room's goodwill (labWilling+) and without
   // court: default odds a court blocks a contested presidential order in a turn
   maxOps: 8, maxChances: 4, maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
@@ -40,7 +42,7 @@ const terms = d => (d.parity ? ['America stops now', 'China stops once it has ca
 // A ruling that changes nothing: the labs keep training flat out.
 const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0, care: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0,
-  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court };   // ops or facts null leaves them as they were
+  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court , pressure: false, california: 0 };   // ops or facts null leaves them as they were
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
@@ -65,7 +67,7 @@ function newGame(seed) {
     // seen
     lo: TUNE.line[0], hi: TUNE.line[1], knownOver: false, secWork: 0, seenHack: false,
     labs: TUNE.labs0, national: false, controls: 0, offer: 3, deal: null, hidden: false, caught: false, cheated: false,
-    mkt: 100, backstop: false, panicked: false, enjoined: false, court: null,
+    mkt: 100, backstop: false, panicked: false, enjoined: false, court: null, econ: 0, ca: 0, caLaw: false,
     eyes: 0, watch: false, deter: 0, sabotaged: 0, ops: [], facts: [], last: null, crash: false, blockade: false, warned: false,
     tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null,
   };
@@ -140,7 +142,7 @@ function bjMoves(s, r) {
   if (lead > 1) M.push({ id: 'sprint', score: w.race * (1.5 * x.wait + (lead < 3 ? 0.3 : 0)) });
   M.push({ id: 'coerce', score: w.rsi * x.rsi * (r.train >= 0.7 ? 1.6 : 0.4) });
   M.push({ id: 'safety', score: 1.3 * w.ctl * x.ctl + (s.knownOver ? 0.4 : 0) - (s.bj.offered ? 0.6 : 0) });
-  if (r.controls > 0) M.push({ id: 'retaliate', score: 0.6 + 0.5 * w.face });
+  if ((r.controls > 0 || r.pressure) && s.econ < 3) M.push({ id: 'retaliate', score: 0.6 + 0.5 * w.face + 0.2 * s.econ });
   return M.filter(m => m.id !== s.bj.move).sort((a, b) => b.score - a.score);
 }
 // How well a crossing of the danger point is contained, on the whole: pace, testing, how well the point is located, the labs' good will, and the game master's judgment of the rest (care, -0.1 to 0.1). It holds at s.bar or above.
@@ -187,6 +189,7 @@ function rule(s, r0) {
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
     says: { beijing: !!(r.says && r.says.beijing) },
+    pressure: b('pressure'), california: Math.round(clamp(r.california, -1, 1)),
     markets: clamp(r.markets, -10, 10), backstop: b('backstop'), contested: b('contested') && !obey(s) && !s.deal, courtOdds: r.courtOdds == null ? TUNE.court : clamp(r.courtOdds, 0, 1),
     intelOdds: odds(r.intelOdds), sabotageOdds: odds(r.sabotageOdds), ops, facts: Array.isArray(r.facts) ? r.facts.slice(0, TUNE.maxFacts).map(x => str(x, 150)).filter(Boolean) : null,
     chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', reply: Number.isInteger(c.reply) ? c.reply : -1, op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
@@ -291,17 +294,38 @@ function play1(s, r0) {
   } else if (!s.deal && !s.blockade && s.offer != null && want(s) > s.offer) { s.offer = want(s); add('bad', 'Beijing raises its price', '"Circumstances have changed. What we could accept last season we cannot accept now."', 'Chinese delegation, Geneva'); }
   bj.soft *= 0.5;
   // Beijing acts on its own: the move its goals score highest this turn, if any is worth making
-  const mv = signed ? null : bjMoves(s, { train, controls: r.controls }).find(m => m.score >= 0.5);
+  const mv = signed ? null : bjMoves(s, { train, controls: r.controls, pressure: r.pressure }).find(m => m.score >= 0.5);
   bj.move = mv ? mv.id : null;
   if (mv) why.push('Beijing\'s own move: ' + mv.id + ' (scored ' + f2(mv.score) + ').');
   if (bj.move === 'sprint') { s.cn += 0.6; s.cnShown += 0.6; s.trust -= 3; add('warn', 'Beijing speeds up', '"China\'s labs are running every chip they can find, day and night. Beijing sees America slowing and means to close the gap."', 'IC assessment'); }
   if (bj.move === 'coerce') { s.tension += 10; s.trust -= 3; add('warn', 'PLA drills near Taiwan', '"The drills are a message to Washington, not to Taipei. Beijing is warning America against racing its labs toward the danger point."', 'Analysis, Indo-Pacific Command'); }
   if (bj.move === 'safety') { s.trust += 6; bj.soft = 0.15; bj.offered = true; s.cn -= 0.4; s.cnShown -= 0.4; add('good', 'Beijing proposes safety talks', '"China proposes that scientists from both countries meet on the danger of losing control of these systems. It says it has slowed some of its own work while they talk."', 'Foreign Ministry spokesperson, Beijing'); }
-  if (bj.move === 'retaliate') { s.us -= 0.3; shock('rareEarths'); add('bad', 'Beijing curbs rare earths', '"Export licenses for gallium and rare earth magnets to American chipmakers are suspended. New data centers will be late."', 'Ministry of Commerce, Beijing'); }
+  if (bj.move === 'retaliate') {   // the trade war climbs a rung: rare earths, then a blacklist of American firms, then Treasuries
+    s.econ++; const [hit, months] = T.econ[s.econ - 1]; s.us -= months; s.mkt -= s.backstop ? hit / 2 : hit;
+    if (s.econ === 1) add('bad', 'Beijing curbs rare earths', '"Export licenses for gallium and rare earth magnets to American chipmakers are suspended. New data centers will be late."', 'Ministry of Commerce, Beijing');
+    else if (s.econ === 2) add('bad', 'Beijing blacklists American firms', '"Three American chipmakers are on Beijing\'s unreliable entity list, and state firms are told to stop buying American phones and cloud services."', 'Ministry of Commerce, Beijing');
+    else add('bad', 'Beijing sells Treasuries', '"China sold two hundred billion dollars of Treasuries this week. Yields jumped half a point and the dollar fell."', 'Financial wire', true);
+  }
+  if (s.econ && bj.move !== 'retaliate') {
+    if (signed || r.controls < 0) { s.econ = signed ? 0 : s.econ - 1; add('good', 'Beijing eases its trade measures', '"' + (s.econ ? 'Beijing has lifted its newest measures against American firms. The rest stay.' : 'Beijing has restored the export licenses and lifted its measures against American firms.') + '"', 'Ministry of Commerce, Beijing'); }
+    else s.mkt -= (s.backstop ? 0.5 : 1) * s.econ;   // a trade war that lasts bleeds the markets
+  }
   fix();
   if (r.breakout) breakDeal('America breaks out of the pause.');
 
   // a presidential order the labs could challenge: the ledger rolls the court; a block frees the labs to train with the engineers they have left
+  // California: its goodwill toward the room (ca, -2 to 2, moved by the game master's california judgment), and at most one move of its own a turn
+  s.ca = clamp(s.ca + r.california, -2, 2);
+  let caMoved = false; const caAdd = (tone, title, text) => { add(tone, title, text, 'Office of the Governor, Sacramento'); caMoved = true; };
+  if (r.contested && !obey(s) && !s.deal && s.court == null && s.ca !== 0) {
+    if (s.ca > 0) { r.courtOdds *= T.caCourt[0]; caAdd('good', 'California backs the order', '"California will defend the President\'s order in court. Our Attorney General has filed in support this morning."'); }
+    else { r.courtOdds = Math.min(1, r.courtOdds * T.caCourt[1]); caAdd('warn', 'California joins the labs\' suit', '"Washington did not ask us before giving orders to companies in our state. Our Attorney General has joined the labs\' suit."'); }
+  }
+  if (!caMoved && r.nationalize) { s.ca = clamp(s.ca - 1, -2, 2); s.mkt -= 2; caAdd('bad', 'California sues over the takeover', '"California is suing to stop the federal seizure of companies headquartered in our state."'); }
+  if (!caMoved && !s.caLaw && t >= 1 && ((s.alarm || 0) >= 2 || s.knownOver || (s.ms & 4))) {
+    s.caLaw = true; s.labs -= s.ca > 0 ? 2 : 4;
+    caAdd('warn', 'California passes its own AI law', '"Sacramento has passed a law of its own: no frontier lab in California may train past a state compute limit without a license, and every lab must keep a working off switch. ' + (s.ca > 0 ? 'The Governor says it is built to match whatever Washington decides.' : 'The labs say they will challenge it.') + '"');
+  }
   // the court rules once, on the first turn such an order holds the labs: a block stands until Congress acts or the labs are taken over, an order upheld stays upheld
   if (r.contested && !obey(s) && !s.deal) {
     if (s.court == null) {
@@ -523,6 +547,8 @@ function brief(s) {
   const M = T.mkt, half = s.backstop ? ' (halved: the Treasury backstop is in place)' : '';
   L.push('MARKETS: index ' + Math.round(s.mkt) + ' of 100 (the room sees "' + v.markets.toLowerCase() + '"). The ledger moves it: a pause signed -' + M.pause + ', a takeover -' + M.nationalize + ', tighter chip controls -' + M.tighten + ' a level, easing +' + M.ease + ', a blockade -' + M.blockade + ', a theft -' + M.theft + ', a near miss -' + M.nearMiss + ', Beijing striking back -' + M.revenge + ', rare earth curbs -' + M.rareEarths + half + '; it recovers ' + M.recover + ' a quiet turn. Below ' + M.slide + ' the labs lose ' + M.slideLabs + ' cooperation a turn and Congress gets harder to move; below ' + M.panic + ' it is a panic (labs -' + M.panicLabs + ' once, and the room hears of it). markets (-10 to 10) is your judgment of the rest; backstop sets up the Treasury\'s liquidity backstop.' +
     (s.panicked ? ' The markets are in panic now: Congress and the labs are in no mood for another shock.' : ''));
+  L.push('TRADE WAR: ' + (s.econ ? 'Beijing is on rung ' + s.econ + ' of 3 (rare earths; then a blacklist of American firms; then selling Treasuries); each turn it lasts costs the markets ' + s.econ + '. Easing chip controls or a signed pause walks it back.' : 'none yet.') + ' Beijing answers tighter chip controls or other economic pressure (pressure: tariffs, sanctions, entity listings) by climbing a rung, if that is its move this turn.');
+  L.push('CALIFORNIA: goodwill toward the room ' + s.ca + ' (-2 to 2; california, -1 to 1, is your judgment of how the room treated California this turn: consulted, courted and given a role raises it; ignored, overridden or threatened lowers it). ' + (s.caLaw ? 'It has passed its own law: a state license to train past a compute limit, and a required off switch.' : 'It has not passed a law of its own yet; it will after a serious lab warning or when office jobs start to go.') + ' Its moves the ledger makes: backing (goodwill above 0) or suing over (below 0) a contested federal order on the labs, which moves the court\'s odds; suing over a takeover; its own law.');
   L.push('PRESIDENTIAL AUTHORITY: the labs are ' + (s.national ? 'nationalized: they obey' : s.law ? 'bound by an act of Congress: they obey' : 'bound by nothing but their own consent; an order to stop, cap or inspect them rests on the President alone (set contested and courtOdds)') + '.' + (s.court === 'blocked' ? ' A court has blocked the President\'s order on the labs: no presidential order can hold them back until Congress acts; say so in the replies.' : s.court === 'upheld' ? ' A court has upheld the President\'s order on the labs; it stands, though the labs are appealing.' : ' The courts have not yet ruled; they rule once, the first turn such an order holds the labs.'));
   L.push('OPERATIONS UNDER WAY: ' + ((s.ops || []).length ? s.ops.map(o => '"' + o.name + '" (' + TABLES[o.table] + ', begun ' + DATES[o.since] + '; ' + (o.left ? 'ready in ' + o.left + ' more turn' + (o.left > 1 ? 's' : '') : 'ready to attempt now') + '): ' + o.report).join(' | ') : 'none') + '. Return the full list every turn under the same names; one left out is dropped. ' + TUNE.maxOps + ' at most: past that the ledger drops the last ones, so fold related work under one name or end the least useful operation, and say so in a reply. Time left falls by one a turn at most, and an operation may slip only once. An outcome tied to an operation is rolled only once it is ready, and the operation then ends. One marked ready to attempt now must be settled this turn (a rolled outcome naming it, the sabotage dial, or its sure result said in the reply) and left out of ops; otherwise it lapses with nothing to show.');
   if (s.last && s.last.rolls.length) L.push('LAST TURN\'S DICE: ' + s.last.rolls.map(k => '"' + k.what + '" ' + (k.skipped ? 'was not rolled (not ready)' : k.hit ? 'happened' : 'did not happen')).join('; ') + '.');
