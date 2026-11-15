@@ -13,7 +13,7 @@ const TUNE = {
   // v0 (months a turn at the start of all-out training) is hidden and drawn per game; a flat-out race crosses the danger point in turn 2 to 4.
   takeoff: [1.4, 3.2], accel: 8, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, diffuse: 1.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
-  eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [0.7, 1.4] },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
+  eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [0.7, 1.4], blur: 0.25 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: [6.2, 12.2], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
   hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
@@ -197,8 +197,10 @@ const bar = s => s.bar == null ? 0.55 : s.bar;
 const cheats = s => s.deal && !s.deal.inspectors && !s.cheated && (s.deal.parity ? s.floor === 2 && s.cn >= s.us - 0.6 : s.floor === 2 || s.us - s.cn >= TUNE.cheatLead);
 
 // The US frontier month by month to Dec 2028 if the labs keep this turn's training share: the chart's dashed line.
+// the IC's guess at the hidden takeoff speed, as a multiple of the truth: off by up to blur at the start, exact by the end as the frontier's own climb shows it
+const paceGuess = s => 1 + TUNE.eci.blur * (2 * hash01(s.seed, 'paceGuess') - 1) * (1 - s.turn / TUNE.turns);
 function project(s, k) {
-  const out = [], v = pace(s) * (k || 1), f = s.over ? 0 : s.lastTrain == null ? 1 : s.lastTrain; let x = s.us;
+  const out = [], v = pace(s) * paceGuess(s) * (k || 1), f = s.over ? 0 : s.lastTrain == null ? 1 : s.lastTrain; let x = s.us;
   for (let t = trail(s).slice(-1)[0].t; t <= 4 * TUNE.turns; t++) { out.push({ t, us: x }); x = reach(x, f / 4, v); if (x > s.hi + 12) { out.push({ t: t + 1, us: x }); break; } }
   return out;
 }
@@ -279,7 +281,7 @@ function play1(s, r0) {
     rolls.push({ what: 'Congress passes the halt bill', table: 'wh', odds: p, word: oddsWord(p), u: lr.u, hit: lr.hit });
     why.push('Rolled: the halt bill at ' + f2(p) + ' (Congress\'s fear ' + Math.round(s.fear.cg) + '); the die came up ' + f2(lr.u) + ', so it ' + (lr.hit ? 'passed.' : 'failed.'));
     if (lr.hit) { s.law = true; const y = Math.round(52 + 40 * Math.min(1, s.fear.cg / 100)); add('good', 'Congress passes the halt bill', '"The Senate passed the emergency halt power ' + y + ' to ' + (98 - y) + ' tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }
-    else add('bad', 'The halt bill fails', '"' + (s.fear.cg < 35 ? 'The halt bill never reached the floor. The leaders say the votes are not there while the labs\' warnings stay private and the jobs keep coming.' : 'The halt bill fell short on the floor. Senators from the data-center states joined the labs\' lobbyists against it.') + '"', 'Wire report, the Capitol');
+    else add('bad', 'The halt bill fails', '"' + (s.fear.cg < 35 ? 'The halt bill never reached the floor. The leaders say most members still hear about AI as jobs and growth, not danger, and the labs\' lobbyists are in every office.' : 'The halt bill fell short on the floor. Senators from the data-center states joined the labs\' lobbyists against it.') + '"', 'Wire report, the Capitol');
   }
   const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
   if (r.controls > 0 && s.controls < 3) { shock('tighten'); s.controls++; s.tension += T.squeeze; s.trust -= 6; bj.face -= 8; }
