@@ -420,6 +420,7 @@ function play1(s, r0) {
 
   // the markets: what the turn did to them, their recovery, and what a slide or a panic costs
   if (s.mkt < 100) s.mkt = Math.min(100, s.mkt + T.mkt.recover * (s.mkt < was.mkt ? 0 : 1));
+  else s.mkt = Math.max(100, s.mkt - T.mkt.recover);   // good news fades too, so a shock always shows
   if (s.mkt < T.mkt.slide && !s.national) s.labs -= T.mkt.slideLabs;
   if (s.mkt < T.mkt.panic && !s.panicked) { s.panicked = true; if (!s.national) s.labs -= T.mkt.panicLabs; add('bad', 'Market panic', '"The Nasdaq fell eleven percent today, its worst day since 1987. Trading was halted twice. The AI stocks led it down."', 'Wire flash, New York', true); }
   else if (s.mkt < T.mkt.slide && was.mkt >= T.mkt.slide) add('warn', 'Markets slide', '"AI stocks are down a fifth since the spring. Pension funds are asking the Treasury what comes next."', 'Financial wire');
