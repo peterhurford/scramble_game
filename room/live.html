@@ -52,6 +52,7 @@ button{font:inherit;color:inherit}
 .chart text.bandl{fill:var(--bad);font-weight:800;letter-spacing:.08em;font-size:14px}
 .chart .us{stroke:var(--us);fill:none;stroke-width:4} .chart .cn{stroke:var(--cn);fill:none;stroke-width:4}
 .chart .pre{stroke-dasharray:2 6;stroke-linecap:round;stroke-width:3} .chart .proj{stroke-dasharray:10 7;stroke-width:3;opacity:.8} .chart .real{stroke-dasharray:6 6;stroke-width:3}
+.chart .unc-us{fill:var(--us);opacity:.14} .chart .unc-cn{fill:var(--cn);opacity:.16} .chart .fan{fill:var(--us);opacity:.1}
 .chart .dot-us{fill:var(--us)} .chart .dot-cn{fill:var(--cn)} .chart .ring{fill:var(--sheet);stroke-width:3.5}
 .chart .gap{stroke:var(--ink);stroke-width:2.5;fill:none}
 .chart text.gapb{fill:var(--ink);font-weight:900;font-size:21px} .chart text.gaps{fill:var(--ink);font-size:16px}
@@ -209,9 +210,10 @@ function track(g, v, reveal) {
   h += '<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="var(--bad)" opacity=".08"/><line x1="0" y1="0" x2="0" y2="10" stroke="var(--bad)" stroke-width="4" opacity=".22"/></pattern><clipPath id="plot"><rect x="' + L + '" y="' + Tp + '" width="' + (W - L - R) + '" height="' + (H - Tp - B) + '"/></clipPath></defs>';
   if (!g.over) h += '<rect class="now" x="' + X(n.t) + '" y="' + Tp + '" width="' + (X(n.t + 4) - X(n.t)) + '" height="' + (H - Tp - B) + '"/>';
   for (let e = Math.ceil(lo / 10) * 10; e <= hi; e += 10) h += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(e) + '" y2="' + Y(e) + '"/><text x="' + (L - 8) + '" y="' + (Y(e) + 5) + '" text-anchor="end">' + e + '</text>';
-  h += '<text x="' + L + '" y="' + (Tp - 11) + '" font-weight="800" letter-spacing=".1em" font-size="13">AI CAPABILITY · EPOCH CAPABILITIES INDEX (ECI)</text>';
+  h += '<text x="' + L + '" y="' + (Tp - 11) + '" font-weight="800" letter-spacing=".1em" font-size="13">AI CAPABILITY ESTIMATES · EPOCH CAPABILITIES INDEX</text>';
   const key2 = (x, cls, txt) => '<line class="' + cls + '" x1="' + x + '" x2="' + (x + 34) + '" y1="' + (Tp - 16) + '" y2="' + (Tp - 16) + '"/><text x="' + (x + 42) + '" y="' + (Tp - 11) + '" font-size="14">' + txt + '</text>';
-  h += reveal ? key2(560, 'cn real', 'China as the IC saw it') : proj.length > 1 ? key2(560, 'us proj', E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? 'US if the labs keep this turn\'s pace' : 'US held flat while the labs stay stopped') : '';
+  h += reveal ? key2(600, 'cn real', 'China as the IC saw it') : proj.length > 1 ? key2(600, 'us proj', E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? 'US if the labs keep this turn\'s pace' : 'US held flat while the labs stay stopped') : '';
+  if (!reveal) h += '<rect class="unc-cn" x="' + (W - R + 22) + '" y="' + (Tp - 24) + '" width="34" height="14"/><text x="' + (W - R + 64) + '" y="' + (Tp - 11) + '" font-size="14">shading: likely range</text>';
   for (let t = 0; t <= T1; t += 4) h += '<line class="axis" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + (H - B) + '" y2="' + (H - B + 6) + '"/><text x="' + X(t) + '" y="' + (H - 9) + '" text-anchor="middle">' + (t === T1 ? 'Dec 2028' : monthName(t)) + '</text>';
   h += '<line class="axis" x1="' + X(0) + '" x2="' + X(0) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke-dasharray="3 5"/>';
   h += '<rect class="band" x="' + L + '" width="' + (W - L - R) + '" y="' + Y(E(g.hi)) + '" height="' + (Y(E(g.lo)) - Y(E(g.hi))) + '"/>';
@@ -219,9 +221,15 @@ function track(g, v, reveal) {
   else h += '<line class="truth" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(E(g.line)) + '" y2="' + Y(E(g.line)) + '"/><text class="truthl" x="' + (L + 10) + '" y="' + (Y(E(g.line)) - 8) + '">RUNAWAY RSI WAS POSSIBLE FROM HERE</text>';
   h += '<g clip-path="url(#plot)">';
   h += line([[T0, E(p[0].us) - pre * 6], [0, E(p[0].us)]], 'us pre') + line([[T0, E(p[0].cn) - pre * 6], [0, E(p[0].cn)]], 'cn pre');
+  // how unsure each line is: a band around each frontier (wide for China unless the room has a source or monitoring), and a fan on the projection for the unknown takeoff speed
+  const area = (top, bot, cls) => '<path class="' + cls + '" d="M' + top.map(([t, e]) => X(t).toFixed(1) + ',' + Y(e).toFixed(1)).join('L') + 'L' + bot.slice().reverse().map(([t, e]) => X(t).toFixed(1) + ',' + Y(e).toFixed(1)).join('L') + 'Z"/>';
+  const eu = World.TUNE.eci.usErr, fan = World.TUNE.eci.fan, plo = g.over ? [] : World.project(g, fan[0]), phi = g.over ? [] : World.project(g, fan[1]);
+  if (proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2) { const top = phi.map(q => [q.t, Math.min(hi + 20, E(q.us))]); h += area(top, plo.map(q => [q.t, E(q.us)]), 'fan'); }
+  h += area(p.map(q => [q.t, E(q.us) + eu]), p.map(q => [q.t, E(q.us) - eu]), 'unc-us');
+  if (!reveal) h += area(p.map(q => [q.t, E(q.cn) + q.err]), p.map(q => [q.t, E(q.cn) - q.err]), 'unc-cn');
   if (proj.length > 1) h += line(proj.map(q => [q.t, E(q.us)]), 'us proj');
   const pe = proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.find(q => q.t === n.t + 4) : null;   // where this turn's pace leaves the US by the end of the turn
-  if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/><text class="lab-us" font-size="14" x="' + (X(pe.t) + 10) + '" y="' + (Y(E(pe.us)) + 20) + '">' + f1(E(pe.us)) + ' by ' + monthName(pe.t) + '</text>';
+  if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/><text class="lab-us" font-size="14" x="' + (X(pe.t) + 10) + '" y="' + (Y(E(pe.us)) + 20) + '">about ' + Math.round(E(pe.us)) + ' by ' + monthName(pe.t) + ' (' + Math.round(E((plo.find(q => q.t === pe.t) || pe).us)) + ' to ' + Math.round(E((phi.find(q => q.t === pe.t) || phi[phi.length - 1]).us)) + ')</text>';
   if (reveal) h += line(p.map(q => [q.t, E(q.cn)]), 'cn real');
   h += line(p.map(q => [q.t, E(q.us)]), 'us') + line(p.map(q => [q.t, E(q[key])]), 'cn');
   p.forEach((q, i) => { const last = i === p.length - 1; h += '<circle class="' + (last ? 'ring' : 'dot-us') + '" stroke="var(--us)" cx="' + X(q.t) + '" cy="' + Y(E(q.us)) + '" r="' + (last ? 8 : 5) + '"/><circle class="' + (last ? 'ring' : 'dot-cn') + '" stroke="var(--cn)" cx="' + X(q.t) + '" cy="' + Y(E(q[key])) + '" r="' + (last ? 8 : 5) + '"/>'; });
@@ -237,8 +245,9 @@ function track(g, v, reveal) {
   h += '</g>';
   const lx = W - R + 22, mid = Math.max(Tp + 30, Math.min(H - B - 50, (Y(us) + Y(cn)) / 2));
   h += '<line class="axis" stroke-dasharray="2 4" x1="' + (x + 10) + '" x2="' + (lx - 8) + '" y1="' + (Y(us) + Y(cn)) / 2 + '" y2="' + (mid - 10) + '"/>';
-  h += '<text class="gapb" x="' + lx + '" y="' + (mid - 4) + '">' + (Math.abs(d) < 1 ? 'Neck and neck' : (d > 0 ? 'US' : 'China') + ' ahead by ' + f1(Math.abs(d)) + ' ECI') + '</text>';
-  h += '<text class="gaps" x="' + lx + '" y="' + (mid + 19) + '">' + monthName(n.t) + ': US ' + f1(us) + ', China ' + f1(cn) + '</text>';
+  h += '<text class="gapb" x="' + lx + '" y="' + (mid - 4) + '">' + (Math.abs(d) < 1 ? 'Neck and neck' : (d > 0 ? 'US' : 'China') + ' ahead by about ' + Math.round(Math.abs(d)) + ' ECI') + '</text>';
+  const spread = reveal ? 0 : n.err + eu, rlo = Math.round(d - spread), rhi = Math.round(d + spread), side = x => x === 0 ? 'level' : (x > 0 ? 'US +' : 'China +') + Math.abs(x);
+  h += '<text class="gaps" x="' + lx + '" y="' + (mid + 19) + '">' + (reveal ? monthName(n.t) + ': US ' + f1(us) + ', China ' + f1(cn) : 'Likely range: ' + side(rlo) + ' to ' + side(rhi)) + '</text>';
   const more = (ago || []).concat(!reveal && g.deal && !g.caught ? ['China\'s figure is Beijing\'s', 'own account'] : []);
   more.forEach((t, i) => { h += '<text class="gaps" x="' + lx + '" y="' + (mid + 40 + 20 * i) + '">' + t + '</text>'; });
   h += '<text class="lab-us" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].us)) - 12) + '" text-anchor="end">US</text><text class="lab-cn" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].cn)) + 24) + '" text-anchor="end">CHINA</text>';
@@ -253,7 +262,8 @@ function facts(g, v) {
 // Who each table is dealing with, shown over its box.
 function lock(g, v, id) {
   const L = (label, c, txt, more) => '<div class="lock"><i>' + label + ': </i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
-  if (id === 'wh') return L('The labs', g.national || g.law || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase()) + L('Their security', 'warn', v.security);
+  const fc = x => x === 'calm' || x === 'uneasy' ? '' : 'warn';
+  if (id === 'wh') return L('Congress', fc(v.congress), v.congress) + L('California', fc(v.california), v.california) + L('The labs', g.national || g.law || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase()) + L('Their security', 'warn', v.security);
   if (id === 'state') {
     const mk = L('Markets', v.markets === 'Steady' ? 'good' : v.markets === 'Jittery' ? 'warn' : 'bad', v.markets.toLowerCase());
     if (g.deal) return L('A pause is signed', g.caught ? 'bad' : 'good', g.caught ? 'and Beijing is cheating' : 'and holding', '<br>' + v.deal.map(x => '<span class="pill">' + esc(x) + '</span>').join('')) + mk;
