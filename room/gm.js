@@ -319,7 +319,7 @@ const EPI_SYSTEM = `You write the closing card of a tabletop exercise about Amer
 Write what the next six months bring, January to June 2029, as the room would read it in a history written a year later. Extrapolate honestly from the hidden truth: a pause that held and was verified buys time, though the problems the labs kept reporting are still there; a pause Beijing was breaking unravels; a race near the danger point may cross it; a model that kept gaming its tests may do something worse; a China that caught up keeps going; a lab whose model ran away does not get it back. If the verdict is a loss of control, say plainly what the AI does and that people lost the ability to stop it. Reveal one or two things the room could not see that decided the outcome. Never contradict the verdict.
 
 Rules:
-- The grade's letter is fixed. You may add + or - to it (never to F) when the details make this outcome better or worse than the usual one of its kind; otherwise keep it as given. The worst outcomes are losing control of AI, then losing the race to China or a war, then a market crash.
+- The grade's letter is fixed. You may add or change a single + or - (never on an F) when the details make this outcome better or worse than the usual one of its kind; otherwise keep it as given. A grade knocked down by a market crash stays between D- and B+. The worst outcomes are losing control of AI (F--), then losing the race to China or a war (F), then a market crash.
 - The title is three to six words, specific to this game, plain, no pun.
 - The text is 110 to 160 words, two short paragraphs, ordinary words heard by non-specialists. No percentages; time in months or seasons. No words like turn, round, ledger, dial, game. No slogans, no closing moral, no dashes or semicolons.`;
 const EPI_SCHEMA = { type: 'object', additionalProperties: false, required: ['grade', 'title', 'text'], properties: { grade: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' } } };
@@ -338,7 +338,8 @@ async function epilogue(s) {
   if (!s || !s.over) throw new Error('the game is not over');
   if (BACKEND === 'mock' || VOICE_MODEL === 'off') return { grade: s.over.grade, title: s.over.title, text: s.over.text };
   const j = await voiceCall(epiPrompt(s), EPI_SYSTEM, EPI_SCHEMA), letter = s.over.grade[0];
-  const grade = letter === 'F' ? 'F' : new RegExp('^' + letter + '[+-]?$').test(String(j.grade).trim()) ? String(j.grade).trim() : s.over.grade;   // the letter is the ledger's
+  const g = String(j.grade).trim(), ok = letter !== 'F' && new RegExp('^' + letter + '[+-]?$').test(g) && !(s.over.crash && ['A-', 'A', 'A+'].includes(g));
+  const grade = ok ? g : s.over.grade;   // the letter is the ledger's, and an F stays as it is
   return { grade, title: String(j.title || s.over.title).slice(0, 60), text: String(j.text || s.over.text).slice(0, 1400) };
 }
 

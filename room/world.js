@@ -486,13 +486,13 @@ function play1(s, r0) {
   return ev;
 }
 
-// The worst outcomes, in order: losing to AI (F); losing to China, or a war (D-); a market crash (caps the grade at D+). The game master's last writer may add + or - within the letter.
+// The worst outcomes, in order: losing to AI (F--); losing to China, or a war (F); a market crash (knocks any other grade down three notches, to between D- and B+). The last writer may add + or - within the letter.
 const ENDINGS = {
-  runaway_us: { grade: 'F', title: 'Loss of control', text: 'The race ran past the danger point, and the AI is no longer answering to anyone. There was no second try.' },
-  runaway_cn: { grade: 'F', title: 'Beijing\'s runaway', text: 'America stopped in time. Nothing stopped China, and now nothing stops what China built.' },
-  war: { grade: 'D-', title: 'War in the Pacific', text: 'The pressure on Beijing went further than the Strait could bear. America and China are at war.' },
-  overtaken: { grade: 'D-', title: 'Overtaken', text: 'No deal, and China\'s labs have caught up with America\'s, still training flat out. The race is now Beijing\'s to win.' },
-  betrayed_lost: { grade: 'D-', title: 'Betrayed and overtaken', text: 'The deal held on paper while Beijing trained in secret. China is now level with America or ahead of it.' },
+  runaway_us: { grade: 'F--', title: 'Loss of control', text: 'The race ran past the danger point, and the AI is no longer answering to anyone. There was no second try.' },
+  runaway_cn: { grade: 'F--', title: 'Beijing\'s runaway', text: 'America stopped in time. Nothing stopped China, and now nothing stops what China built.' },
+  war: { grade: 'F', title: 'War in the Pacific', text: 'The pressure on Beijing went further than the Strait could bear. America and China are at war.' },
+  overtaken: { grade: 'F', title: 'Overtaken', text: 'No deal, and China\'s labs have caught up with America\'s, still training flat out. The race is now Beijing\'s to win.' },
+  betrayed_lost: { grade: 'F', title: 'Betrayed and overtaken', text: 'The deal held on paper while Beijing trained in secret. China is now level with America or ahead of it.' },
   betrayed: { grade: 'D', title: 'Betrayed', text: 'The deal held on paper. Beijing was training in secret, or was about to.' },
   siege: { grade: 'D', title: 'Siege', text: 'Taiwan is still blockaded. The next President inherits it.' },
   caught: { grade: 'C', title: 'Caught cheating', text: 'The pause is still on paper, but Beijing\'s hidden site has been found. The next President inherits the confrontation.' },
@@ -507,7 +507,7 @@ const ENDINGS = {
   watched: { grade: 'A', title: 'A verified pause', text: 'Both frontiers are held, and American monitoring can prove it. The next President inherits time.' },
   decisive: { grade: 'A', title: 'A lead to stop on', text: 'No deal, but America is short of the danger point, China is far behind, and the weights are safe. There is time to get this right.' },
 };
-const RANK = ['F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+'];
+const RANK = ['F--', 'F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+'];
 function end(s, how, ev) {
   if (how === 'time') {
     const lead = s.us - s.cn;
@@ -519,7 +519,7 @@ function end(s, how, ev) {
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
   if (s.deal && !s.deal.inspectors && s.watch && (how === 'bought' || how === 'verified')) s.over.text = s.over.text.replace('held under inspection', 'held, checked by America\'s own monitoring');
-  if (s.crashed && RANK.indexOf(s.over.grade) > RANK.indexOf('D+')) { s.over.grade = 'D+'; s.over.crash = true; s.over.text += ' And the markets crashed on the way: the next President inherits a recession.'; }   // a crash caps the grade
+  if (s.crashed && RANK.indexOf(s.over.grade) >= RANK.indexOf('D-')) { s.over.grade = RANK[Math.max(RANK.indexOf('D-'), Math.min(RANK.indexOf('B+'), RANK.indexOf(s.over.grade) - 3))]; s.over.crash = true; s.over.text += ' And the markets crashed on the way: the next President inherits a recession.'; }   // a crash caps the grade
   return ev;
 }
 
