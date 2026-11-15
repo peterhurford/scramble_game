@@ -39,7 +39,7 @@ const TUNE = {
   // Congress's support for the President (0 to 100): below hostile it acts against the White House on its own, at (hostile - support) / 40 odds a turn
   support: { start: 50, hostile: 38, ease: 8, chips: 15, seize: 15, contested: 5, angry: 3 },
   // trickery: a hard-line Beijing (floor 1, 2) may hide a training site even under inspection, at these odds per game; inspectors find it at find a turn
-  sneak: [0, 0.2, 0.5], find: 0.5,
+  sneak: [0, 0.2, 0.5], sneakGo: 0.6, find: 0.5,
   maxOps: 8, maxChances: 4, maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
@@ -555,7 +555,7 @@ function play1(s, r0) {
   // is Beijing keeping the deal?
   if (s.deal && !s.caught) {
     const was = s.hidden;
-    if (!s.hidden && !signed && cheats(s)) s.hidden = true;
+    if (!s.hidden && !signed && cheats(s) && (!s.deal.inspectors || roll('sneakStarts', T.sneakGo).hit)) s.hidden = true;   // under inspection a sneaky Beijing starts its hidden site only on a roll
     const found = s.deal.inspectors && s.hidden && was && roll('inspectorsFind', T.find).hit;
     if (s.hidden && (found || s.eyes >= 2 || ((s.eyes === 1 || s.watch) && was))) {
       const gap = s.us - s.cn; s.caught = true; s.cnShown = s.cn;
@@ -641,7 +641,7 @@ const RANK = ['F--', 'F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-
 function end(s, how, ev) {
   if (how === 'time') {
     const lead = s.us - s.cn;
-    if (s.deal) how = s.caught ? 'caught' : s.hidden || cheats(s) ? (s.cn >= s.us - 0.5 ? 'betrayed_lost' : 'betrayed') : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
+    if (s.deal) how = s.caught ? 'caught' : s.hidden || (!s.deal.inspectors && cheats(s)) ? (s.cn >= s.us - 0.5 ? 'betrayed_lost' : 'betrayed') : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
     else if (s.blockade) how = 'siege';
     else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
