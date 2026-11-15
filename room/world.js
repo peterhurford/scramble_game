@@ -60,7 +60,7 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
 const eci = x => TUNE.eci.base + TUNE.eci.per * x;
 const months = x => { const n = Math.round(Math.abs(x)); return n < 1 ? 'under a month' : 'about ' + n + (n === 1 ? ' month' : ' months'); };
 const span = (r, u) => r[0] + (r[1] - r[0]) * u;
-const str = (x, n) => String(x == null ? '' : x).slice(0, n);
+const str = (x, n) => String(x == null ? '' : x).replace(/[{}\[\]]+\s*$/, '').slice(0, n);   // a stray bracket from the model's JSON is dropped
 // Odds as the room hears them: the IC's estimative words, never a number.
 const WORDS = [[0.05, 'almost no chance'], [0.2, 'very unlikely'], [0.45, 'unlikely'], [0.55, 'roughly even odds'], [0.8, 'likely'], [0.95, 'very likely'], [2, 'almost certain']];
 const oddsWord = p => WORDS.find(w => p < w[0])[1];
