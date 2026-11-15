@@ -491,7 +491,7 @@ const ENDINGS = {
   runaway_us: { grade: 'F--', title: 'Loss of control', text: 'The race ran past the danger point, and the AI is no longer answering to anyone. There was no second try.' },
   runaway_cn: { grade: 'F--', title: 'Beijing\'s runaway', text: 'America stopped in time. Nothing stopped China, and now nothing stops what China built.' },
   war: { grade: 'F', title: 'War in the Pacific', text: 'The pressure on Beijing went further than the Strait could bear. America and China are at war.' },
-  overtaken: { grade: 'F', title: 'Overtaken', text: 'No deal, and China\'s labs have caught up with America\'s, still training flat out. The race is now Beijing\'s to win.' },
+  overtaken: { grade: 'F', title: 'Overtaken', text: 'No deal, and China\'s labs have caught up with America\'s or passed them, still training flat out. The race is now Beijing\'s to win.' },
   betrayed_lost: { grade: 'F', title: 'Betrayed and overtaken', text: 'The deal held on paper while Beijing trained in secret. China is now level with America or ahead of it.' },
   betrayed: { grade: 'D', title: 'Betrayed', text: 'The deal held on paper. Beijing was training in secret, or was about to.' },
   siege: { grade: 'D', title: 'Siege', text: 'Taiwan is still blockaded. The next President inherits it.' },
@@ -500,6 +500,7 @@ const ENDINGS = {
   parity: { grade: 'C', title: 'A pause at parity', text: 'Both frontiers are held, level. The lead was the price.' },
   countdown: { grade: 'C', title: 'Countdown', text: 'China is inside the danger range and still training. No one knows how long that can last.' },
   brink: { grade: 'C', title: 'Ahead, on the brink', text: 'America is ahead. Beijing is one provocation from closing the Strait.' },
+  neck: { grade: 'D', title: 'Neck and neck', text: 'No deal, and America is barely ahead. China closes the last weeks of the gap unless something changes.' },
   racing: { grade: 'C', title: 'Still racing', text: 'No one has lost control yet. No one has agreed to stop, and China is close behind.' },
   bought: { grade: 'B', title: 'A pause, paid for', text: 'Both frontiers are held under inspection. America paid Beijing to sign.' },
   ahead: { grade: 'B', title: 'Ahead', text: 'No deal. America is still ahead, but not by enough to stop.' },
@@ -515,7 +516,7 @@ function end(s, how, ev) {
     else if (s.blockade) how = 'siege';
     else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
-    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'overtaken';
+    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : lead >= 0.5 ? 'neck' : 'overtaken';   // overtaken: China level or ahead
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
   if (s.deal && !s.deal.inspectors && s.watch && (how === 'bought' || how === 'verified')) s.over.text = s.over.text.replace('held under inspection', 'held, checked by America\'s own monitoring');
