@@ -11,7 +11,7 @@ const TUNE = {
   turns: 6,                       // Jan 2027 to Dec 2028
   // takeoff: the AI speeds its own research as it improves, dx/dt = train x v0 x e^(x / accel), x the frontier in months of progress past Jan 2027.
   // v0 (months a turn at the start of all-out training) is hidden and drawn per game; a flat-out race crosses the danger point in turn 2 to 4.
-  takeoff: [1.4, 3.2], accel: 8, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
+  takeoff: [1.4, 3.2], accel: 8, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, diffuse: 1.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: [6.2, 12.2], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
@@ -81,13 +81,14 @@ const cnPace = s => (s.v0 || 2.3) * TUNE.cnRatio * (TUNE.cnOwn + (s.crash ? TUNE
 const cnSpeed = s => TUNE.speed0 * cnPace(s) / 2.3 * Math.exp(s.cn / TUNE.accel);   // the same measure for China's labs
 const NUM = ['', 'one', 'twice', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const speedText = m => { const n = Math.round(m); return n <= 2 ? 'about twice as fast as people alone' : n <= 10 ? 'about ' + NUM[n] + ' times as fast as people alone' : n <= 25 ? 'over ten times as fast as people alone' : 'dozens of times faster than people alone'; };
-// what the AI is doing in the world, reached as the US frontier passes each point (months of progress); a pause freezes them
+// what the AI is doing in the world. Research milestones (lab) are reached as the US frontier passes each point (months of progress), so a pause freezes them;
+// the rest spread through the economy from models already out, at the frontier plus diffuse months a turn.
 const MILESTONES = [
   [1, 'info', 'The labs stop writing code', '"Our engineers have mostly stopped writing code. They direct the AI, and it writes, tests and runs the experiments. We are held back by ideas and chips now, not by code."', 'Chief scientist, a frontier lab'],
-  [2.5, 'info', 'A second workforce', '"Millions of AI agents now work around the clock in American companies. Americans are spending about ten billion dollars a month on them."', 'Commerce Department, monthly report'],
-  [4, 'warn', 'Office jobs start to go', '"Hiring of junior programmers, paralegals and analysts has collapsed. Ten thousand people marched on the Capitol on Saturday."', 'Wire report, Washington'],
+  [2.5, 'info', 'A second workforce', '"Millions of AI agents now work around the clock in American companies. Americans are spending about ten billion dollars a month on them."', 'Commerce Department, monthly report', 'world'],
+  [4, 'warn', 'Office jobs start to go', '"Hiring of junior programmers, paralegals and analysts has collapsed. Ten thousand people marched on the Capitol on Saturday."', 'Wire report, Washington', 'world'],
   [5.5, 'warn', 'The AI runs the research', '"Hundreds of thousands of copies of our model now do our research, each faster than our best people. A week of their work is a year of ours."', 'Chief scientist, a frontier lab'],
-  [7, 'info', 'Data centers outspend the Pentagon', '"The data centers now being built cost more than twice the defense budget. Half the power plants planned in America are for AI."', 'Congressional Budget Office'],
+  [7, 'info', 'Data centers outspend the Pentagon', '"The data centers now being built cost more than twice the defense budget. Half the power plants planned in America are for AI."', 'Congressional Budget Office', 'world'],
   [9, 'warn', 'Nobody can check its work', '"Our people can no longer check most of what the model does. We approve its research because it keeps turning out to be right."', 'Chief executive of a frontier lab, private letter'],
 ];
 const narrow = s => !s.knownOver && s.hi - s.lo > 1.6;
@@ -346,9 +347,9 @@ function play1(s, r0) {
   if (s.cn >= s.lo && (openly || s.caught) && !s.knownOver) add('warn', 'China is in the danger range', '"Beijing has slowed its training runs. It has not stopped them."', 'IC assessment');
 
   // what the AI is now doing in the world: up to two milestones a turn, the latest ones if the frontier jumped past several
-  const ms0 = s.ms || 0; let ms = ms0; while (ms < MILESTONES.length && s.us >= MILESTONES[ms][0]) ms++;
-  for (let k = Math.max(ms0, ms - 2); k < ms; k++) { const m = MILESTONES[k]; add(m[1], m[2], m[3], m[4]); }
-  s.ms = ms;
+  const due = MILESTONES.map((m, k) => k).filter(k => !(s.ms & (1 << k)) && (MILESTONES[k][5] ? s.us + T.diffuse * (t + 1) : s.us) >= MILESTONES[k][0]);
+  due.forEach(k => { s.ms |= 1 << k; });
+  due.filter(k => !MILESTONES[k][5]).concat(due.filter(k => MILESTONES[k][5])).slice(0, 3).forEach(k => { const m = MILESTONES[k]; add(m[1], m[2], m[3], m[4]); });   // research first, three at most
   if (t === 4) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
   const thefts0 = s.thefts;
   // theft: Beijing's hackers work on any lead worth stealing; security slows them and never stops them
@@ -455,6 +456,7 @@ function end(s, how, ev) {
     else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'behind';
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
+  if (s.deal && !s.deal.inspectors && s.watch && (how === 'bought' || how === 'verified')) s.over.text = s.over.text.replace('held under inspection', 'held, checked by America\'s own monitoring');
   return ev;
 }
 
@@ -466,7 +468,7 @@ function brief(s) {
   L.push('SEEN BY THE ROOM: ' + v.date + ', turn ' + (s.turn + 1) + ' of ' + T.turns + '. US lead (IC estimate): ' + v.leadText.toLowerCase() + '. Danger range: ' + f(s.lo - s.us) + ' to ' + f(s.hi - s.us) + ' months ahead of the US frontier. Weights: ' + v.weights + '. Lab security: ' + v.security + '. Strait: ' + v.strait.toLowerCase() + '. Labs: ' + v.labsText.toLowerCase() + '. ' + v.eyesText + '. ' +
     (s.deal ? 'A pause is in force: ' + v.deal.join('; ') + (s.caught ? ' (Beijing caught cheating)' : '') + '.' : v.talking ? 'Beijing is willing to talk.' : 'Beijing is not talking.') + ' Chip controls level ' + s.controls + ' (-1 selling chips, 0 as they were, 3 full embargo).');
   L.push('HIDDEN, FRONTIERS: China is really ' + f(s.us - s.cn) + ' months behind (the IC shows ' + f(s.us - s.cnShown) + '). The danger point is ' + (gap > 0 ? f(gap) + ' months ahead of the US frontier' : 'behind the US frontier: any further US progress loses control') + (s.cn > s.lo ? '; China is inside the range, ' + f(s.line - s.cn) + ' months short of the point' : '') + '.');
-  L.push('THE WORLD NOW: the AI makes the labs\' research ' + f(speed(s)) + 'x as fast as people alone (the room sees "' + v.speedText + '"), and the speed rises with every month of progress: each turn of full training moves further than the last, and the last stretch before the danger point comes in a rush. China\'s labs run the same way on fewer chips: their research is ' + f(cnSpeed(s)) + 'x as fast as people alone. What the AI is doing in the world so far: ' + (s.ms ? MILESTONES.slice(0, s.ms).map(m => m[2].toLowerCase()).join('; ') : 'writing much of the labs\' code, with people still directing every step') + '. The room\'s officials, the labs, Congress and Beijing all live in this world: let it show in what they say.');
+  L.push('THE WORLD NOW: the AI makes the labs\' research ' + f(speed(s)) + 'x as fast as people alone (the room sees "' + v.speedText + '"), and the speed rises with every month of progress: each turn of full training moves further than the last, and the last stretch before the danger point comes in a rush. China\'s labs run the same way on fewer chips: their research is ' + f(cnSpeed(s)) + 'x as fast as people alone. What the AI is doing in the world so far: ' + (s.ms ? MILESTONES.filter((m, k) => s.ms & (1 << k)).map(m => m[2].toLowerCase()).join('; ') : 'writing much of the labs\' code, with people still directing every step') + '. The room\'s officials, the labs, Congress and Beijing all live in this world: let it show in what they say.');
   L.push('TRAINING THIS TURN: train 1.0 moves the US frontier ' + f(full) + ' months' + (s.deal ? ' (under the pause any training is secret and at half that; inspectors, if the deal has them, find it and the pause ends)' : '') + '. ' +
     (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless the crossing is contained; then it is a near miss that proves the danger to everyone. Containment is judged on the whole: a score of 0.8 x (1 - train) + 0.2 x (test / 0.4, at most 1) + ' + f2(0.075 * narrowed(s)) + ' for how well the point is located so far (0.075 more if a test narrows the range this turn) + ' + f2(0.15 * (obey(s) ? 1 : s.labs / 100)) + ' for the labs\' good will + your care (-0.1 to 0.1), against a hidden bar of ' + f2(bar(s)) + ' in this world. train above ' + T.flatOut + ' is never contained. ' : 'Nothing crosses the danger point this turn. ') +
     'The range has been narrowed ' + (s.hi - s.lo <= 1.6 ? 'twice' : s.hi - s.lo <= 3.1 ? 'once' : 'not at all') + '; test 0.3 or more narrows it again.');
