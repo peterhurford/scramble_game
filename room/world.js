@@ -229,7 +229,7 @@ const cheats = s => s.deal && !s.cheated && s.deal.inspectors ? sneaky(s) && s.c
 // the IC's guess at the hidden takeoff speed, as a multiple of the truth: off by up to blur at the start, exact by the end as the frontier's own climb shows it
 const paceGuess = s => 1 + TUNE.eci.blur * (2 * hash01(s.seed, 'paceGuess') - 1) * (1 - s.turn / TUNE.turns);
 function project(s, k) {
-  const out = [], v = pace(s) * paceGuess(s) * (k || 1), f = s.over ? 0 : s.lastTrain == null ? 1 : s.lastTrain; let x = s.us;
+  const out = [], v = pace(s) * paceGuess(s) * (k || 1), f = s.over || s.knownOver ? 0 : s.lastTrain == null ? 1 : s.lastTrain; let x = s.us;
   for (let t = trail(s).slice(-1)[0].t; t <= 4 * TUNE.turns; t++) { out.push({ t, us: x }); x = reach(x, f / 4, v); if (x > s.hi + 12) { out.push({ t: t + 1, us: x }); break; } }
   return out;
 }
@@ -314,7 +314,12 @@ function play1(s, r0) {
     rolls.push({ what: 'Congress passes the halt bill', table: 'wh', odds: p, word: oddsWord(p), u: lr.u, hit: lr.hit });
     why.push('Rolled: the halt bill at ' + f2(p) + ' (Congress\'s fear ' + Math.round(s.fear.cg) + '); the die came up ' + f2(lr.u) + ', so it ' + (lr.hit ? 'passed.' : 'failed.'));
     if (lr.hit) { s.law = true; const y = 51 + Math.round(18 * p); add('good', 'Congress passes the halt bill', '"The Senate passed the emergency halt power ' + y + ' to ' + (98 - y) + ' tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }
-    else add('bad', 'The halt bill fails', '"' + (s.fear.cg < 35 ? 'The halt bill never reached the floor. The leaders say most members still hear about AI as jobs and growth, not danger, and the labs\' lobbyists are in every office.' : 'The halt bill fell short on the floor. Senators from the data-center states joined the labs\' lobbyists against it.') + '"', 'Wire report, the Capitol');
+    else { s.lawTries = (s.lawTries || 0) + 1; const no = Math.round(50 - 12 * p) + 1;
+      add('bad', 'The halt bill fails', '"' + (s.fear.cg < 35 ? 'The halt bill never reached the floor. The leaders say most members still hear about AI as jobs and growth, not danger, and the labs\' lobbyists are in every office.'
+        : p > 0.7 ? 'In an upset, the halt bill fell ' + (no - 49) + ' votes short after senators who had promised their support switched overnight. Each had been offered a new data center for their state.'
+        : (s.support == null ? 50 : s.support) < 45 ? 'The halt bill failed ' + (98 - no) + ' to ' + no + '. Members of both parties said they would not hand this White House a power they did not trust it to use.'
+        : s.lawTries > 1 ? 'The halt bill failed again, ' + (98 - no) + ' to ' + no + '. The leaders say more members are moving each month, and not yet enough.'
+        : 'The halt bill fell short on the floor. Senators from the data-center states joined the labs\' lobbyists against it.') + '"', 'Wire report, the Capitol'); }
   }
   const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
   if (r.controls > 0 && s.controls < 3) { shock('tighten'); s.controls++; s.tension += T.squeeze; s.trust -= 6; bj.face -= 8; }
