@@ -20,7 +20,7 @@ const RULING = {
   run: bool('During a blockade only: the Navy escorts a convoy through.'),
   propose: bool('America puts a pause to Beijing this turn, on the terms in the next four fields.'),
   inspectors: bool('The proposed pause has inspectors in both countries.'),
-  chips: bool('Under the proposed pause America lifts its chip controls.'),
+  chips: bool('Under the proposed pause America lifts its chip controls in full when it takes effect. Easing that is staged, partial or conditional is not this: put it in extra and weigh it in leverage, never both.'),
   parity: bool('Under the proposed pause America stops now and China stops only once it has caught up.'),
   extra: { type: 'string', description: 'Any other term the room wrote into the proposed pause, as a short plain phrase the screen can show: "A joint safety lab in Singapore". Empty if none.' },
   leverage: { type: 'integer', enum: [-2, -1, 0, 1, 2], description: 'Your judgment of how everything beyond chips, inspectors and parity moves Beijing toward signing: the extra terms, how the room has dealt with Beijing all game, whether its threats and promises are believable, what Congress and the labs are visibly doing. Each +1 is worth one concession. +1 for something real that costs America; +2 only for a package that changes Beijing\'s whole position; negative for insults, broken promises, empty threats. Usually 0.' },
@@ -223,7 +223,7 @@ Hold to these:
 - No percentages. Time in months, seasons or dates. Never the words turn, round, period, level, dial, ruling, game.
 - Two to four sentences. 60 words is a hard limit for each line; count them, and cut detail before you go over.
 - The room hears the replies first, then the outcomes listed after them, then the two updates last. The drafts of the updates were written before those outcomes were known. Rewrite each update so it fits everything the room has just heard: if a pause was signed, a law passed, an attack failed, a warning came from a lab's safety team or Beijing's position changed, the speaker speaks as someone who knows it, in their own way, and never as if it had not happened. Do not repeat an outcome's news; react to it. Keep the rest of the draft's substance.
-- A reply was written before its outcome was rolled. It may sound hopeful about something that then failed; leave that, since it was the honest expectation. But a reply must not state as done something an outcome then says did not happen.
+- A reply was written before its outcome was rolled. It may sound hopeful about something that then failed; leave that, since it was the honest expectation. But if a reply states as a present fact something an outcome below contradicts (nothing found, then a finding; a thing done, then not done), rewrite that clause so it no longer claims it, keeping the reply's tone and how likely things sound.
 - Do not reuse a phrase from last turn's updates.
 Return, in the order given, each statement and its line, then the Beijing update and the labs update if there were any (empty strings if not).`;
 const VOICE_SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'beijing', 'labs'], properties: { replies: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['did', 'quote'], properties: { did: { type: 'string' }, quote: { type: 'string' } } } }, beijing: { type: 'string' }, labs: { type: 'string' } } };
