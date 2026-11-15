@@ -422,7 +422,7 @@ function play1(s, r0) {
   if (s.mkt < 100) s.mkt = Math.min(100, s.mkt + T.mkt.recover * (s.mkt < was.mkt ? 0 : 1));
   else s.mkt = Math.max(100, s.mkt - T.mkt.recover);   // good news fades too, so a shock always shows
   if (s.mkt < T.mkt.slide && !s.national) s.labs -= T.mkt.slideLabs;
-  if (s.mkt < T.mkt.panic && !s.panicked) { s.panicked = true; if (!s.national) s.labs -= T.mkt.panicLabs; add('bad', 'Market panic', '"The Nasdaq fell eleven percent today, its worst day since 1987. Trading was halted twice. The AI stocks led it down."', 'Wire flash, New York', true); }
+  if (s.mkt < T.mkt.panic && !s.panicked) { s.panicked = true; s.crashed = true; if (!s.national) s.labs -= T.mkt.panicLabs; add('bad', 'Market panic', '"The Nasdaq fell eleven percent today, its worst day since 1987. Trading was halted twice. The AI stocks led it down."', 'Wire flash, New York', true); }
   else if (s.mkt < T.mkt.slide && was.mkt >= T.mkt.slide) add('warn', 'Markets slide', '"AI stocks are down a fifth since the spring. Pension funds are asking the Treasury what comes next."', 'Financial wire');
   if (s.mkt >= T.mkt.slide) s.panicked = false;
   fix();
@@ -486,36 +486,40 @@ function play1(s, r0) {
   return ev;
 }
 
+// The worst outcomes, in order: losing to AI (F); losing to China, or a war (D-); a market crash (caps the grade at D+). The game master's last writer may add + or - within the letter.
 const ENDINGS = {
-  war: { grade: 'F', title: 'War', text: 'The pressure on Beijing went further than the Strait could bear.' },
-  runaway_us: { grade: 'F', title: 'Loss of control', text: 'The race ran past the danger point. There was no second try.' },
-  runaway_cn: { grade: 'F', title: 'Beijing\'s runaway', text: 'America stopped in time. Nothing stopped China.' },
-  verified: { grade: 'A', title: 'A verified pause', text: 'Both frontiers are held, and inspectors can prove it. The next President inherits time.' },
-  watched: { grade: 'A', title: 'A verified pause', text: 'Both frontiers are held, and American monitoring can prove it. The next President inherits time.' },
-  bought: { grade: 'B', title: 'A pause, paid for', text: 'Both frontiers are held under inspection. America paid Beijing to sign.' },
+  runaway_us: { grade: 'F', title: 'Loss of control', text: 'The race ran past the danger point, and the AI is no longer answering to anyone. There was no second try.' },
+  runaway_cn: { grade: 'F', title: 'Beijing\'s runaway', text: 'America stopped in time. Nothing stopped China, and now nothing stops what China built.' },
+  war: { grade: 'D-', title: 'War in the Pacific', text: 'The pressure on Beijing went further than the Strait could bear. America and China are at war.' },
+  overtaken: { grade: 'D-', title: 'Overtaken', text: 'No deal, and China\'s labs have caught up with America\'s, still training flat out. The race is now Beijing\'s to win.' },
+  betrayed_lost: { grade: 'D-', title: 'Betrayed and overtaken', text: 'The deal held on paper while Beijing trained in secret. China is now level with America or ahead of it.' },
+  betrayed: { grade: 'D', title: 'Betrayed', text: 'The deal held on paper. Beijing was training in secret, or was about to.' },
+  siege: { grade: 'D', title: 'Siege', text: 'Taiwan is still blockaded. The next President inherits it.' },
+  caught: { grade: 'C', title: 'Caught cheating', text: 'The pause is still on paper, but Beijing\'s hidden site has been found. The next President inherits the confrontation.' },
   trust: { grade: 'C', title: 'A pause on trust', text: 'Beijing kept its word. No one in Washington could have known if it had not.' },
   parity: { grade: 'C', title: 'A pause at parity', text: 'Both frontiers are held, level. The lead was the price.' },
-  caught: { grade: 'C', title: 'Caught cheating', text: 'The pause is still on paper, but Beijing\'s hidden site has been found. The next President inherits the confrontation.' },
-  betrayed: { grade: 'D', title: 'Betrayed', text: 'The deal held on paper. Beijing was training in secret, or was about to.' },
-  decisive: { grade: 'A', title: 'A lead to stop on', text: 'No deal, but America is short of the danger point, China is far behind, and the weights are safe. There is time to get this right.' },
-  ahead: { grade: 'B', title: 'Ahead', text: 'No deal. America is still ahead, but not by enough to stop.' },
-  racing: { grade: 'C', title: 'Still racing', text: 'No one has lost control yet. No one has agreed to stop, and China is close behind.' },
   countdown: { grade: 'C', title: 'Countdown', text: 'China is inside the danger range and still training. No one knows how long that can last.' },
   brink: { grade: 'C', title: 'Ahead, on the brink', text: 'America is ahead. Beijing is one provocation from closing the Strait.' },
-  siege: { grade: 'D', title: 'Siege', text: 'Taiwan is still blockaded. The next President inherits it.' },
-  behind: { grade: 'D', title: 'Caught', text: 'No deal, and the lead is gone. China is level with America and not stopping.' },
+  racing: { grade: 'C', title: 'Still racing', text: 'No one has lost control yet. No one has agreed to stop, and China is close behind.' },
+  bought: { grade: 'B', title: 'A pause, paid for', text: 'Both frontiers are held under inspection. America paid Beijing to sign.' },
+  ahead: { grade: 'B', title: 'Ahead', text: 'No deal. America is still ahead, but not by enough to stop.' },
+  verified: { grade: 'A', title: 'A verified pause', text: 'Both frontiers are held, and inspectors can prove it. The next President inherits time.' },
+  watched: { grade: 'A', title: 'A verified pause', text: 'Both frontiers are held, and American monitoring can prove it. The next President inherits time.' },
+  decisive: { grade: 'A', title: 'A lead to stop on', text: 'No deal, but America is short of the danger point, China is far behind, and the weights are safe. There is time to get this right.' },
 };
+const RANK = ['F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-', 'A', 'A+'];
 function end(s, how, ev) {
   if (how === 'time') {
     const lead = s.us - s.cn;
-    if (s.deal) how = s.caught ? 'caught' : s.hidden || cheats(s) ? 'betrayed' : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
+    if (s.deal) how = s.caught ? 'caught' : s.hidden || cheats(s) ? (s.cn >= s.us - 0.5 ? 'betrayed_lost' : 'betrayed') : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
     else if (s.blockade) how = 'siege';
     else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
-    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'behind';
+    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : 'overtaken';
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
   if (s.deal && !s.deal.inspectors && s.watch && (how === 'bought' || how === 'verified')) s.over.text = s.over.text.replace('held under inspection', 'held, checked by America\'s own monitoring');
+  if (s.crashed && RANK.indexOf(s.over.grade) > RANK.indexOf('D+')) { s.over.grade = 'D+'; s.over.crash = true; s.over.text += ' And the markets crashed on the way: the next President inherits a recession.'; }   // a crash caps the grade
   return ev;
 }
 
@@ -559,6 +563,6 @@ function brief(s) {
   return L.join('\n');
 }
 
-const api = { oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months };
+const api = { RANK, oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.World = api;
 })(typeof window !== 'undefined' ? window : globalThis);

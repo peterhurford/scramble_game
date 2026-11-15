@@ -245,12 +245,13 @@ Hold to these:
 - Do not reuse a phrase from last turn's updates.
 Return, in the order given, each statement and its line, then the Beijing update and the labs update if there were any (empty strings if not).`;
 const VOICE_SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'beijing', 'labs'], properties: { replies: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['did', 'quote'], properties: { did: { type: 'string' }, quote: { type: 'string' } } } }, beijing: { type: 'string' }, labs: { type: 'string' } } };
-function voiceCall(text) {
+function voiceCall(text, system, schema) {
+  system = system || VOICE_SYSTEM; schema = schema || VOICE_SCHEMA;
   if (BACKEND === 'sdk') { const m = require('@anthropic-ai/sdk'), Anthropic = m.default || m;
-    return new Anthropic().messages.create({ model: VOICE_MODEL, max_tokens: 4000, system: VOICE_SYSTEM, messages: [{ role: 'user', content: text }], output_config: { effort: 'low', format: { type: 'json_schema', schema: VOICE_SCHEMA } } })
+    return new Anthropic().messages.create({ model: VOICE_MODEL, max_tokens: 4000, system, messages: [{ role: 'user', content: text }], output_config: { effort: 'low', format: { type: 'json_schema', schema } } })
       .then(res => { if (res.stop_reason !== 'end_turn') throw new Error('stopped (' + res.stop_reason + ')'); return JSON.parse(res.content.filter(b => b.type === 'text').map(b => b.text).join('')); }); }
   return new Promise((resolve, reject) => {
-    const p = spawn('claude', ['-p', '--model', VOICE_MODEL, '--effort', 'low', '--system-prompt', VOICE_SYSTEM, '--json-schema', JSON.stringify(VOICE_SCHEMA), '--output-format', 'json', '--tools', '', ...BARE], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
+    const p = spawn('claude', ['-p', '--model', VOICE_MODEL, '--effort', 'low', '--system-prompt', system, '--json-schema', JSON.stringify(schema), '--output-format', 'json', '--tools', '', ...BARE], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
     let out = ''; const t = setTimeout(() => { p.kill(); reject(new Error('timed out')); }, 60000);
     p.stdout.on('data', d => out += d); p.on('error', reject);
     p.on('close', () => { clearTimeout(t); try { const j = JSON.parse(out); resolve(j.structured_output || JSON.parse(j.result)); } catch (e) { reject(new Error(out.slice(0, 200) || 'no output')); } });
@@ -311,13 +312,49 @@ async function gm1(body) {
   return out;
 }
 
+// The epilogue: when the game ends, the last writer tells the room what the next six months bring, from the hidden truth the ledger kept.
+// It may sharpen the title and add + or - to the grade; the letter is the ledger's. On any failure the ledger's own title and text stand.
+const EPI_SYSTEM = `You write the closing card of a tabletop exercise about American AI policy in 2027 and 2028. Thirty people played the US government for six turns. The game is over and the room is about to learn how things turned out. You are given the ledger's verdict (a grade, a title and a line), everything that was hidden from the room (where the danger point really was, how far behind China really was, whether Beijing was cheating, what the models were doing), and what happened turn by turn.
+
+Write what the next six months bring, January to June 2029, as the room would read it in a history written a year later. Extrapolate honestly from the hidden truth: a pause that held and was verified buys time, though the problems the labs kept reporting are still there; a pause Beijing was breaking unravels; a race near the danger point may cross it; a model that kept gaming its tests may do something worse; a China that caught up keeps going; a lab whose model ran away does not get it back. If the verdict is a loss of control, say plainly what the AI does and that people lost the ability to stop it. Reveal one or two things the room could not see that decided the outcome. Never contradict the verdict.
+
+Rules:
+- The grade's letter is fixed. You may add + or - to it (never to F) when the details make this outcome better or worse than the usual one of its kind; otherwise keep it as given. The worst outcomes are losing control of AI, then losing the race to China or a war, then a market crash.
+- The title is three to six words, specific to this game, plain, no pun.
+- The text is 110 to 160 words, two short paragraphs, ordinary words heard by non-specialists. No percentages; time in months or seasons. No words like turn, round, ledger, dial, game. No slogans, no closing moral, no dashes or semicolons.`;
+const EPI_SCHEMA = { type: 'object', additionalProperties: false, required: ['grade', 'title', 'text'], properties: { grade: { type: 'string' }, title: { type: 'string' }, text: { type: 'string' } } };
+function epiPrompt(s) {
+  const o = s.over, f = x => (Math.round(x * 10) / 10).toFixed(1), last = s.last || {}, ALARM = ['none', 'the model games its tests', 'the model tried to switch off its monitoring', 'the model took computing power it was not given'];
+  const L = ['VERDICT: grade ' + o.grade + ', "' + o.title + '": ' + o.text + (o.crash ? ' (capped by a market crash)' : '') + ' It ended ' + (s.turn >= W.TUNE.turns ? 'at the end of 2028.' : 'early, in ' + s.log[s.log.length - 1].date + '.')];
+  L.push('THE HIDDEN TRUTH AT THE END: US frontier ' + f(s.us) + ' months of progress past January 2027; China really at ' + f(s.cn) + ' (' + (s.us - s.cn >= 0 ? f(s.us - s.cn) + ' months behind' : f(s.cn - s.us) + ' months ahead') + '); runaway self-improvement begins at ' + f(s.line) + ' (' + f(s.line - s.us) + ' months of progress past the US frontier). The AI made research ' + f(W.TUNE.speed0 * (s.v0 || 2.3) / 2.3 * Math.exp(s.us / W.TUNE.accel)) + ' times as fast as people alone, rising with every month of progress. ' +
+    'The labs\' worst warning: ' + ALARM[s.alarm || 0] + (s.knownOver ? '; a near miss was caught in time' : '') + '. ' +
+    (s.deal ? 'A pause is in force (' + W.terms(s.deal).join('; ') + '); ' + (s.caught ? 'Beijing was caught training in secret' : s.hidden ? 'Beijing is training in secret right now and nobody in Washington knows' : 'Beijing is keeping it') + '; ' + (s.deal.inspectors ? 'inspectors verify it' : s.watch ? 'American remote monitoring verifies it' : 'nobody can verify it') + '. ' : 'No pause was signed. ') +
+    'Lab security: ' + W.SECURITY[W.secLevel(s)] + '; weights stolen ' + s.thefts + ' times. Labs\' cooperation ' + Math.round(s.labs) + ' of 100' + (s.national ? ', nationalized' : s.law ? ', bound by an act of Congress' : '') + '. Strait tension ' + Math.round(s.tension) + (s.blockade ? ', Taiwan blockaded' : '') + '. Beijing\'s trust ' + Math.round(s.trust) + '. Markets ' + Math.round(s.mkt) + ' of 100' + (s.crashed ? ', after a panic' : '') + (s.econ ? '; a trade war at rung ' + s.econ + ' of 3' : '') + '. California ' + (s.caLaw ? 'passed its own AI law; ' : '') + 'goodwill ' + s.ca + '.');
+  L.push('WHAT HAPPENED: ' + s.log.map(t => t.date + ': ' + (t.events || []).filter(x => x !== 'From Beijing' && x !== 'From the labs').join(', ')).join(' | '));
+  L.push('LAST UPDATES: ' + ['beijing', 'labs'].map(k => { const u = (s.log[s.log.length - 1] || {}).updates || {}; return u[k] && u[k].quote ? k + ': ' + u[k].quote : ''; }).filter(Boolean).join(' | '));
+  return L.join('\n\n');
+}
+async function epilogue(s) {
+  if (!s || !s.over) throw new Error('the game is not over');
+  if (BACKEND === 'mock' || VOICE_MODEL === 'off') return { grade: s.over.grade, title: s.over.title, text: s.over.text };
+  const j = await voiceCall(epiPrompt(s), EPI_SYSTEM, EPI_SCHEMA), letter = s.over.grade[0];
+  const grade = letter === 'F' ? 'F' : new RegExp('^' + letter + '[+-]?$').test(String(j.grade).trim()) ? String(j.grade).trim() : s.over.grade;   // the letter is the ledger's
+  return { grade, title: String(j.title || s.over.title).slice(0, 60), text: String(j.text || s.over.text).slice(0, 1400) };
+}
+
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 if (require.main === module) http.createServer((req, res) => {
   // The public page (thescramble.pages.dev/situationroom) calls this server on the facilitator's laptop, so that origin may read /gm.
   const site = /^https:\/\/([a-z0-9-]+\.)?thescramble\.pages\.dev$/.test(req.headers.origin || '') ? { 'Access-Control-Allow-Origin': req.headers.origin, 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Private-Network': 'true', Vary: 'Origin' } : {};
   const send = (code, type, data) => { res.writeHead(code, Object.assign({ 'Content-Type': type + '; charset=utf-8', 'Cache-Control': 'no-store' }, site)); res.end(data); };
-  if (req.method === 'OPTIONS' && (req.url === '/gm' || req.url === '/status')) return send(204, 'text/plain', '');
+  if (req.method === 'OPTIONS' && (req.url === '/gm' || req.url === '/status' || req.url === '/epilogue')) return send(204, 'text/plain', '');
   if (req.method === 'GET' && req.url === '/status') return send(200, 'application/json', JSON.stringify(status()));
+  if (req.method === 'POST' && req.url === '/epilogue') {
+    let raw = ''; req.on('data', d => { raw += d; if (raw.length > 4e5) req.destroy(); });
+    req.on('end', () => { let body; try { body = JSON.parse(raw); } catch (e) { return send(400, 'application/json', '{"error":"bad request"}'); }
+      epilogue(body.state).then(o => send(200, 'application/json', JSON.stringify(o)), e => { console.error('epilogue: ' + e.message); send(502, 'application/json', JSON.stringify({ error: e.message })); }); });
+    return;
+  }
   if (req.method === 'POST' && req.url === '/gm') {
     let raw = '';
     req.on('data', d => { raw += d; if (raw.length > 2e5) req.destroy(); });
@@ -330,4 +367,4 @@ if (require.main === module) http.createServer((req, res) => {
   fs.readFile(file, (e, data) => e ? send(404, 'text/plain', 'not found') : send(200, TYPES[path.extname(name)], data));
 }).listen(PORT, '127.0.0.1', () => console.log('The Scramble, Room Edition: http://localhost:' + PORT + '  (game master: ' + BACKEND + ')'));
 
-module.exports = { gm, prompt, voice, SYSTEM, SCHEMA, BACKEND, ASK };
+module.exports = { gm, prompt, voice, epilogue, epiPrompt, SYSTEM, SCHEMA, BACKEND, ASK };
