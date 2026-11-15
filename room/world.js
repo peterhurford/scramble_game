@@ -280,7 +280,7 @@ function play1(s, r0) {
     const p = lawOdds(s), lr = roll('law', p);
     rolls.push({ what: 'Congress passes the halt bill', table: 'wh', odds: p, word: oddsWord(p), u: lr.u, hit: lr.hit });
     why.push('Rolled: the halt bill at ' + f2(p) + ' (Congress\'s fear ' + Math.round(s.fear.cg) + '); the die came up ' + f2(lr.u) + ', so it ' + (lr.hit ? 'passed.' : 'failed.'));
-    if (lr.hit) { s.law = true; const y = Math.round(52 + 40 * Math.min(1, s.fear.cg / 100)); add('good', 'Congress passes the halt bill', '"The Senate passed the emergency halt power ' + y + ' to ' + (98 - y) + ' tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }
+    if (lr.hit) { s.law = true; const y = 51 + Math.round(18 * p); add('good', 'Congress passes the halt bill', '"The Senate passed the emergency halt power ' + y + ' to ' + (98 - y) + ' tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }
     else add('bad', 'The halt bill fails', '"' + (s.fear.cg < 35 ? 'The halt bill never reached the floor. The leaders say most members still hear about AI as jobs and growth, not danger, and the labs\' lobbyists are in every office.' : 'The halt bill fell short on the floor. Senators from the data-center states joined the labs\' lobbyists against it.') + '"', 'Wire report, the Capitol');
   }
   const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
