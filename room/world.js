@@ -181,7 +181,7 @@ function play1(s, r0) {
 
   // the dials
   if (r.nationalize) { s.national = true; s.tension += 10; }
-  if (r.law) { s.law = true; add('good', 'Congress binds the labs', '"Every frontier lab now trains, tests and stops under one federal license. No lab can gain by ignoring it."', 'Conference report, U.S. Congress'); }
+  if (r.law) s.law = true;   // the reply from Congress announces it; a stock card would say it twice
   const bj = s.bj; bj.face += r.face; bj.scared = Math.min(0.5, 0.7 * bj.scared + r.alarm);
   if (r.controls > 0 && s.controls < 3) { s.controls++; s.tension += T.squeeze; s.trust -= 6; bj.face -= 8; }
   if (r.controls < 0 && s.controls > -1) { s.controls--; s.tension -= 10; s.trust += 10; }

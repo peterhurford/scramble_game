@@ -135,7 +135,7 @@ How to write the replies.
 - by: who and where, short. For example "Chief executive of a frontier lab, by phone", "Director, NSA", "Vice Foreign Minister's office, Beijing". A place such as Geneva only once talks there are on record.
 - Each speaker knows only what they would: Beijing knows what is public, what was offered to it, and an operation against it that failed or was traced; nobody mentions hackers inside the labs before the room has been told of them.
 - Speak to the present: a lab that has stopped does not say it cannot stop alone; Congress answers only the bill it was asked for.
-- A reply never claims the result of an operation that is not ready, and never says a law has passed unless law is set this turn (the ledger announces the law itself). intel is set only when a recruitment effort is ready to try.
+- A reply never claims the result of an operation that is not ready, and never says a law has passed unless law is set this turn; when it is, the reply from Congress is where the room hears it. intel is set only when a recruitment effort is ready to try.
 - An operation continues until it completes or the room cancels it; when one ends, a reply says so. Its report changes every turn as the work moves, and never says turn or period.`;
 
 // The turn as the game master reads it: the ledger's brief, what was said before, and the three orders.
