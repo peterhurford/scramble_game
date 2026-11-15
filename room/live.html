@@ -108,6 +108,7 @@ button{font:inherit;color:inherit}
 @keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.ev,.ev.big{animation:none}}
 
+.letter{font-family:var(--f-body);font-size:1.25em;line-height:1.35;border:2px solid var(--rule);border-left:6px solid var(--bad);padding:14px 22px;margin:.4em 0 1em;max-width:40em} .letter .lbl{color:var(--bad)} .letter p{margin:.45em 0} .letter .sig{font-style:italic;color:var(--muted)}
 .intro{max-width:62rem;margin:auto;padding:2vh 0} .intro h1{font-size:4em;font-weight:900;letter-spacing:-.02em;margin:0 0 4px} .intro .lede{font-family:var(--f-body);font-size:1.7em;line-height:1.3;margin:.3em 0 .7em;max-width:38em}
 .end{flex:1 1 auto;align-content:center;display:grid;grid-template-columns:auto 1fr;gap:10px 28px;align-items:center}
 .grade{font-size:7em;font-weight:900;line-height:1;width:1.5em;height:1.5em;display:grid;place-items:center;border:6px solid currentColor}
@@ -263,7 +264,7 @@ function facts(g, v) {
 function lock(g, v, id) {
   const L = (label, c, txt, more) => '<div class="lock"><i>' + label + ': </i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
   const fc = x => x === 'calm' || x === 'uneasy' ? '' : 'warn';
-  if (id === 'wh') return L('Congress', fc(v.congress), v.congress + ', ' + v.support, '') + L('California', fc(v.california), v.california) + L('The labs', g.national || g.law || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase()) + L('Their security', 'warn', v.security);
+  if (id === 'wh') return L('Congress', fc(v.congress), v.congress + ', ' + v.support, '') + L('California', fc(v.california), v.california) + L('The CEOs\' letter', v.letterText === 'Public' ? 'bad' : 'warn', v.letterText.toLowerCase().replace('congress', 'Congress')) + L('The labs', g.national || g.law || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase().replace('china', 'China')) + L('Their security', 'warn', v.security);
   if (id === 'state') {
     const mk = L('Markets', v.markets === 'Steady' ? 'good' : v.markets === 'Jittery' ? 'warn' : 'bad', v.markets.toLowerCase());
     if (g.deal) return L('A pause is signed', g.caught ? 'bad' : 'good', g.caught ? 'and Beijing is cheating' : 'and holding', '<br>' + v.deal.map(x => '<span class="pill">' + esc(x) + '</span>').join('')) + mk;
@@ -282,7 +283,7 @@ function topbar(g) {
 
 function draw() {
   const g = st.game; let h = '';
-  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">The lab CEOs are warning that runaway recursive self-improvement may be less than a year of progress away. The IC agrees.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><button class="btn" id="b-start">Start</button></div>';
+  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">On New Year\'s Eve the chief executives of every American frontier lab sent you a private joint letter.</p><div class="letter"><div class="lbl">Top secret · Eyes only</div><p>To the President:</p><p>We are losing confidence that we can control the systems we are building. Our models now do most of our research, faster than our people can check it, and runaway self-improvement may be less than a year of progress away.</p><p>China\'s labs are close behind us, and they are taking fewer precautions than we are. None of us can stop alone.</p><p>We ask you to secure a halt that binds every frontier lab, here and in China, and that can be verified. We will not stand down for less.</p><p class="sig">The chief executives of the American frontier labs</p></div><p class="lede">The letter is classified. Congress, California and the public do not know. The IC agrees with it.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><button class="btn" id="b-start">Start</button></div>';
   else {
     const v = World.view(g);
     h = topbar(g) + '<div class="panel">' + track(g, v, st.screen === 'end') + facts(g, v) + '</div>';
