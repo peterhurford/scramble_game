@@ -126,7 +126,8 @@ function rule(s, r0) {
 }
 
 // One turn under a ruling. Returns the events the ledger itself reports (big: the screen should stop for it); the game master voices the rest.
-function play(s, r0) {
+function play(s, r0) { const ev = play1(s, r0); return ev.filter(e => e.big).concat(ev.filter(e => !e.big)); }   // a flash leads the bulletins
+function play1(s, r0) {
   if (s.over) return [];
   const T = TUNE, r = rule(s, r0), ev = [], t = s.turn;
   const add = (tone, title, text, src, big) => ev.push({ tone, title, text, src: src || '', big: !!big });
@@ -192,7 +193,7 @@ function play(s, r0) {
   s.hack -= evict;   // engineers rebuilding security also drive intruders out
   const sab = r.sabotage ? roll('sabotage', r.sabotageOdds) : null;
   if (sab) { rolls.push({ what: 'The covert attack on China\'s training sites', table: 'pent', odds: r.sabotageOdds, word: oddsWord(r.sabotageOdds), u: sab.u, hit: sab.hit }); why.push('Rolled: the covert attack at ' + f2(r.sabotageOdds) + '; the die came up ' + f2(sab.u) + ', so it ' + (sab.hit ? 'worked: China loses ' + f1(T.sabotage * Math.pow(T.sabAgain, s.sabotaged)) + ' months, Beijing hits back for ' + T.revenge + ', stops talking.' : 'failed and was traced to Washington.')); }
-  if (sab && !sab.hit) { s.tension += T.sabFail.tension; s.trust += T.sabFail.trust; add('bad', 'The operation fails', '"Our people were caught before they reached the sites. Beijing knows who sent them."', 'CIA station report'); }
+  if (sab && !sab.hit) { s.tension += T.sabFail.tension; s.trust += T.sabFail.trust; add('bad', 'The operation fails', '"The attack was caught before it did any damage, and Beijing knows who was behind it."', 'CIA, Directorate of Operations'); }
   if (sab && sab.hit) {
     const hurt = T.sabotage * Math.pow(T.sabAgain, s.sabotaged);   // Beijing hardens its sites after each attack
     s.sabotaged++; s.cn -= hurt; s.cnShown -= hurt; s.tension += 30; s.trust -= 20; s.offer = null; s.us -= T.revenge;
@@ -250,7 +251,7 @@ function play(s, r0) {
   if (test >= 0.3 && narrow(s)) {
     const wd = Math.max(1, (s.hi - s.lo) / 2), lo = clamp(s.line - wd * (0.15 + 0.7 * hash01(s.seed, 'band', s.hi - s.lo)), s.lo, s.hi - wd);
     s.lo = lo; s.hi = lo + wd;
-    add('info', 'The IC narrows its range', s.us >= s.lo ? 'The frontier is inside the range now.' : 'Runaway RSI becomes possible after ' + months(s.lo - s.us).replace(/ (months?)$/, ' more $1') + ' of full-speed progress.', 'IC evaluation team');
+    add('info', 'The IC narrows its range', '"' + (s.us >= s.lo ? 'Our tests say runaway self-improvement could begin from where the labs are now.' : 'Our tests put the point where runaway self-improvement could begin between about ' + Math.max(1, Math.round(s.lo - s.us)) + ' and ' + Math.max(2, Math.round(s.hi - s.us)) + ' months of full-speed progress from where the labs are now.') + '"', 'IC evaluation team');
   }
 
   // the labs' own safety teams report what they see as the frontier nears the danger point; the distances are blurred per game, so a warning is a sign, not a measurement
@@ -330,7 +331,7 @@ function play(s, r0) {
       : 'China\'s program is on schedule. We will not accept a world where one country holds this technology alone.') + '"',
       s.deal || s.blockade || r.controls ? 'Foreign Ministry spokesperson, Beijing' : 'Xinhua, quoting a senior official');
   }
-  if (!said(['A lab defies', 'The labs refuse', 'Near miss'])) {
+  if (!said(['A lab defies', 'Near miss'])) {
     const mood = s.labs < T.labInspect ? 0 : s.labs < T.labWilling ? 1 : 2;
     add('info', 'From the labs', '"' + (
       s.national ? 'The engineers still come in. Some of the best ones have not, since the takeover.'

@@ -117,7 +117,7 @@ How to rule.
 - Beijing bargains. A pause can be on any terms the room writes; record them faithfully, including terms the room invented. If Beijing would not sign them today it refuses and says what it would need instead, in its own words. If it would sign, it says so. An invented term moves Beijing only if it costs America something real, and then you charge that cost.
 - Your replies must agree with the arithmetic you are given. Do not promise safety the ledger will not deliver, and do not reveal hidden numbers. A character may hint at what they would plausibly know, with their own doubt in it.
 
-The updates. Besides the replies, write two updates the room reads at the end of the period, after the results: one from Beijing and one from the labs. Each answers what the room did this turn: how their own work is going, what worries them, what they will do or want next. Beijing speaks in public and may shade the truth; the lab chief writes privately to the President and is frank, including about what the models are now doing and about Washington. Keep them to posture and progress: do not announce or rule out the events the ledger reports (a theft, a signing, a blockade, a loss of control). Never repeat an earlier update. The writing rules below apply to them too.
+The updates. Besides the replies, write two updates the room reads at the end of the period, after the results: one from Beijing and one from the labs. Each answers what the room did this turn: how their own work is going, what worries them, what they will do or want next. Beijing speaks in public and may shade the truth; the lab chief writes privately to the President and is frank, including about what the models are now doing and about Washington. Keep them to posture and progress: do not announce or rule out the events the ledger reports (a theft, a signing, a blockade, a loss of control); a second writer later fits them to what happened. The Beijing update builds on what Beijing said in its reply this turn and never steps back from it. Never repeat an earlier update. The writing rules below apply to them too.
 
 How to write the replies.
 - Every table that gave an order gets a reply: before you finish, check that wh, state and pent each have one if they wrote anything. A table that wrote nothing gets none. Each reply is two or three sentences, 50 words at most.
@@ -130,7 +130,11 @@ How to write the replies.
 - did: the plain fact of what is now happening because of the order, and when to expect the rest if it takes time. If part of the order was not carried out, say which part.
 - An official who works for the room reports what has been done, as done: "NSA teams are inside the labs." For what takes time: what has begun, when it will be ready, and how confident they are in it. No advice against the order, no "we could". Then at most one thing the room should know.
 - The lab chiefs, Congress and Beijing do not work for the room. They say plainly whether they are going along and what they are doing instead.
-- by: who and where, short. For example "Chief executive of a frontier lab, by phone", "Director, NSA", "Chinese delegation, Geneva".`;
+- by: who and where, short. For example "Chief executive of a frontier lab, by phone", "Director, NSA", "Vice Foreign Minister's office, Beijing". A place such as Geneva only once talks there are on record.
+- Each speaker knows only what they would: Beijing knows what is public, what was offered to it, and an operation against it that failed or was traced; nobody mentions hackers inside the labs before the room has been told of them.
+- Speak to the present: a lab that has stopped does not say it cannot stop alone; Congress answers only the bill it was asked for.
+- A reply never claims the result of an operation that is not ready, and never says a law has passed unless law is set this turn (the ledger announces the law itself). intel is set only when a recruitment effort is ready to try.
+- An operation continues until it completes or the room cancels it; when one ends, a reply says so. Its report changes every turn as the work moves, and never says turn or period.`;
 
 // The turn as the game master reads it: the ledger's brief, what was said before, and the three orders.
 function prompt(body) {
@@ -215,6 +219,9 @@ Hold to these:
 - Nothing that sounds like a slogan, a proverb, a movie or an essay. No commands to the room. No neat pairs or threes, no sentence built for effect, no dashes or semicolons.
 - No percentages. Time in months, seasons or dates. Never the words turn, round, period, level, dial, ruling, game.
 - Two to four sentences. 60 words is a hard limit for each line; count them, and cut detail before you go over.
+- The room hears the replies first, then the outcomes listed after them, then the two updates last. The drafts of the updates were written before those outcomes were known. Rewrite each update so it fits everything the room has just heard: if a pause was signed, a law passed, an attack failed, a warning came from a lab's safety team or Beijing's position changed, the speaker speaks as someone who knows it, in their own way, and never as if it had not happened. Do not repeat an outcome's news; react to it. Keep the rest of the draft's substance.
+- A reply was written before its outcome was rolled. It may sound hopeful about something that then failed; leave that, since it was the honest expectation. But a reply must not state as done something an outcome then says did not happen.
+- Do not reuse a phrase from last turn's updates.
 Return, in the order given, each statement and its line, then the Beijing update and the labs update if there were any (empty strings if not).`;
 const VOICE_SCHEMA = { type: 'object', additionalProperties: false, required: ['replies', 'beijing', 'labs'], properties: { replies: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['did', 'quote'], properties: { did: { type: 'string' }, quote: { type: 'string' } } } }, beijing: { type: 'string' }, labs: { type: 'string' } } };
 function voiceCall(text) {
@@ -230,10 +237,12 @@ function voiceCall(text) {
   });
 }
 // Rewrites the quotes in place; on any failure the game master's own wording stands.
-async function voice(out, body) {
-  const up = out.updates || {}, R = out.replies || [];
+async function voice(out, body, next) {
+  const up = out.updates || {}, R = out.replies || [], log = body.state.log || [], prev = log.length && log[log.length - 1].updates && log[log.length - 1].updates.beijing && log[log.length - 1].updates.labs ? log[log.length - 1].updates : null;
   if (!R.length) return;
   const text = R.map((r, i) => (i + 1) + '. Speaker: ' + r.by + '\n   The ' + W.TABLES[r.table] + ' ordered: ' + String(body.orders[r.table] || '').slice(0, 600) + '\n   Draft statement: ' + (r.did || '') + '\n   Draft line: ' + r.quote).join('\n\n') +
+    (next && next.length ? '\n\nWhat the room reads after these lines and before the two updates, in this order (settled outcomes, written by others; do not rewrite them):\n' + next.map(e => '- ' + e.title + ': ' + String(e.text || '').replace(/"/g, '')).join('\n') : '') +
+    (prev ? '\n\nLast turn\'s updates, already heard (do not reuse their phrases):\n- Beijing: ' + prev.beijing.quote + '\n- The labs: ' + prev.labs.quote : '') +
     (up.beijing ? '\n\nBeijing update, public. Speaker: ' + up.beijing.by + '\n   Draft: ' + up.beijing.quote : '') + (up.labs ? '\n\nLabs update, a private note to the President. Speaker: ' + up.labs.by + '\n   Draft: ' + up.labs.quote : '');
   const t0 = Date.now();
   try {
@@ -274,7 +283,9 @@ async function gm1(body) {
     console.error(out.retry);
   }
   out.ruling = W.rule(body.state, Object.assign({}, out.ruling, { ops: out.ops, facts: out.facts, chances: out.chances, says: { beijing: !!(out.updates && out.updates.beijing && (out.updates.beijing.quote || '').trim()) } })); delete out.ops; delete out.facts; delete out.chances;   // the page and the ledger read them from the ruling
-  if (BACKEND !== 'mock' && VOICE_MODEL !== 'off') { if (NOW) { NOW.stage = 'voice'; NOW.t1 = Date.now(); } await voice(out, body); }
+  // the dice are seeded by game and turn, so playing the turn on a copy shows what the room will read after the replies; the second writer fits the updates to it
+  let next = []; try { next = W.play(JSON.parse(JSON.stringify(body.state)), out.ruling).filter(e => e.title !== 'From Beijing' && e.title !== 'From the labs'); } catch (e) { console.error('could not preview the turn: ' + e.message); }
+  if (BACKEND !== 'mock' && VOICE_MODEL !== 'off') { if (NOW) { NOW.stage = 'voice'; NOW.t1 = Date.now(); } await voice(out, body, next); }
   out.backend = BACKEND + (MODEL ? ' ' + MODEL : ''); out.secs = Math.round((Date.now() - t0) / 100) / 10;
   return out;
 }
