@@ -311,10 +311,10 @@ function play(s, r0) {
     s.warned = near;
   }
 
-  // every briefing carries word from Beijing and from the labs; an event that already speaks for one of them stands in for the stock line,
-  // but never for an update the game master wrote (r.says.beijing), which answers what the room did
-  const said = list => ev.some(e => list.some(x => e.title.startsWith(x)));
-  if (r.says.beijing || !said(['Beijing', 'A pause is signed', 'The pause is over', 'Taiwan is blockaded', 'The blockade is lifted', 'China is in'])) {
+  // every briefing carries word from Beijing and from the labs. An outcome the ledger rolls (a signing, a pause ending, a blockade) stands in for any Beijing update,
+  // since the game master writes its update before knowing it; any other bulletin about Beijing stands in only for the stock line, not for an update the game master wrote (r.says.beijing)
+  const said = list => ev.some(e => list.some(x => e.title.startsWith(x))), outcome = ['A pause is signed', 'The pause is over', 'Taiwan is blockaded', 'The blockade is lifted', 'War in the Strait'];
+  if (!said(outcome) && (r.says.beijing || !said(['Beijing', 'China is in']))) {
     const seen = s.us - s.cnShown, w = want(s);
     add('info', 'From Beijing', '"' + (
       s.deal && s.caught ? 'The site in Gansu is a weather research center. China is keeping its word.'
