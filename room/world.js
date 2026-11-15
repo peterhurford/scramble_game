@@ -13,6 +13,7 @@ const TUNE = {
   // v0 (months a turn at the start of all-out training) is hidden and drawn per game; a flat-out race crosses the danger point in turn 2 to 4.
   takeoff: [1.4, 3.2], accel: 8, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, diffuse: 1.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
+  eci: { base: 177, per: 2, trend: 24.5 },   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: [6.2, 12.2], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
   hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
@@ -46,6 +47,7 @@ const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, 
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
+const eci = x => TUNE.eci.base + TUNE.eci.per * x;
 const months = x => { const n = Math.round(Math.abs(x)); return n < 1 ? 'under a month' : 'about ' + n + (n === 1 ? ' month' : ' months'); };
 const span = (r, u) => r[0] + (r[1] - r[0]) * u;
 const str = (x, n) => String(x == null ? '' : x).slice(0, n);
@@ -57,7 +59,7 @@ function newGame(seed) {
   seed = String(seed);
   const h = k => hash01(seed, k), bw = {}; for (const k of GOALS) bw[k] = 0.6 + 0.8 * h('goal-' + k);
   const hard = (bw.face + bw.race) / 2 - (bw.ctl + bw.rsi) / 2;   // a proud, race-minded Beijing is the hard-line one: it cheats more and resists inspectors
-  return {
+  const g = {
     bj: { w: bw, face: 50, scared: 0, soft: 0, lastLead: null, closing: 0, move: null, offered: false, ask: null },
     seed, turn: 0, us: 0, cnShown: TUNE.cnStart, v0: span(TUNE.takeoff, h('takeoff')), ms: 0,
     // hidden
@@ -69,9 +71,33 @@ function newGame(seed) {
     labs: TUNE.labs0, national: false, controls: 0, offer: 3, deal: null, hidden: false, caught: false, cheated: false,
     mkt: 100, backstop: false, panicked: false, enjoined: false, court: null, econ: 0, ca: 0, caLaw: false,
     eyes: 0, watch: false, deter: 0, sabotaged: 0, ops: [], facts: [], last: null, crash: false, blockade: false, warned: false,
-    tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null,
+    tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null, lastTrain: 1,
   };
+  g.path = [{ t: 0, us: 0, cn: g.cnShown, real: g.cn }];
+  return g;
 }
+
+// Both frontiers at the start of each turn (t calendar months past Jan 2027; cn as the room saw it, real as it was), and now.
+function trail(s) {
+  const p = (s.path || []).slice(), now = { t: 4 * Math.min(s.turn + (s.over && s.over.how !== 'time' ? 1 : 0), TUNE.turns), us: s.us, cn: s.cnShown, real: s.cn };
+  if (!p.length) p.push({ t: 0, us: 0, cn: TUNE.cnStart, real: s.cn });
+  if (p[p.length - 1].t === now.t) p[p.length - 1] = now; else p.push(now);
+  return p;
+}
+// the calendar month a frontier (key us, cn or real) first reached level x; before 2027 both climbed at the 2026 pace
+function firstAt(p, key, x) {
+  const pre = TUNE.eci.trend / 12 / TUNE.eci.per;
+  if (x <= p[0][key]) return (x - p[0][key]) / pre;
+  for (let i = 1; i < p.length; i++) if (p[i][key] >= x) { const a = p[i - 1], b = p[i]; return a.t + (b.t - a.t) * (x - a[key]) / Math.max(1e-9, b[key] - a[key]); }
+  return null;
+}
+// how many months ago the leader stood where the other stands now: positive if America leads
+function lagMonths(s, key) {
+  const p = trail(s), n = p[p.length - 1], c = n[key || 'cn'];
+  if (n.us >= c) return n.t - firstAt(p, 'us', c);
+  return -(n.t - firstAt(p, key || 'cn', n.us));
+}
+
 
 const secLevel = s => TUNE.secAt.filter(x => s.secWork >= x - 1e-9).length;
 const obey = s => s.national || s.law;   // a takeover or a law binding every lab: the labs do as they are told
@@ -151,12 +177,20 @@ const margin = (s, train, test, care) => 0.8 * (1 - train) + 0.2 * Math.min(1, t
 const bar = s => s.bar == null ? 0.55 : s.bar;
 const cheats = s => s.deal && !s.deal.inspectors && !s.cheated && (s.deal.parity ? s.floor === 2 && s.cn >= s.us - 0.6 : s.floor === 2 || s.us - s.cn >= TUNE.cheatLead);
 
+// The US frontier month by month to Dec 2028 if the labs keep this turn's training share: the chart's dashed line.
+function project(s) {
+  const out = [], v = pace(s), f = s.over ? 0 : s.lastTrain == null ? 1 : s.lastTrain; let x = s.us;
+  for (let t = trail(s).slice(-1)[0].t; t <= 4 * TUNE.turns; t++) { out.push({ t, us: x }); x = reach(x, f / 4, v); if (x > s.hi + 12) { out.push({ t: t + 1, us: x }); break; } }
+  return out;
+}
+
 // What the room can see.
 function view(s) {
   const lead = s.us - s.cnShown;
   return {
     date: DATES[Math.min(s.turn, TUNE.turns - 1)], lo: s.lo, hi: s.hi,
-    leadText: Math.abs(lead) < 1 ? 'Neck and neck' : months(lead) + (lead > 0 ? ' ahead' : ' behind'),
+    leadText: Math.abs(lead) < 0.5 ? 'Neck and neck' : (lead * TUNE.eci.per).toFixed(1).replace('-', '') + ' ECI ' + (lead > 0 ? 'ahead' : 'behind'),
+    eci: eci(s.us), eciCn: eci(s.cnShown),
     weights: s.seenHack ? 'hackers inside the labs' : 'no hackers found inside', security: SECURITY[secLevel(s)],
     strait: s.blockade ? 'Blockaded' : s.warned ? 'Beijing is threatening' : s.tension < 35 ? 'Calm' : s.tension < 55 ? 'Tense' : 'Hot',
     labsText: s.national ? 'Nationalized' : s.law ? 'Bound by law' : s.labs < TUNE.labDefiant ? 'Defiant' : s.labs < TUNE.labInspect ? 'Would refuse any pause' : s.labs < TUNE.labWilling ? 'Would stop only with inspectors' : 'Would stop',
@@ -260,7 +294,7 @@ function play1(s, r0) {
   if (spy && !spy.hit) add('warn', 'No source yet', '"The recruitment did not take. We are trying another way in."', 'CIA, Directorate of Operations');
   if (spy && spy.hit) {
     s.eyes++;
-    if (s.eyes === 1) { const d = s.us - s.cn; s.cnShown = s.cn; add('info', 'A source is in place', '"Their real frontier is ' + (Math.abs(d) < 1 ? 'level with ours' : months(d) + (d > 0 ? ' behind ours' : ' ahead of ours')) + '."', 'CIA source inside Beijing\'s program'); }
+    if (s.eyes === 1) { const d = s.us - s.cn; s.cnShown = s.cn; add('info', 'A source is in place', '"Their real frontier is ' + (Math.abs(d) < 0.5 ? 'level with ours' : (Math.abs(d) * TUNE.eci.per).toFixed(1) + ' ECI ' + (d > 0 ? 'behind ours' : 'ahead of ours')) + '."', 'CIA source inside Beijing\'s program'); }
     else add('info', 'What Beijing would accept', '"' + ['Xi told the Politburo he would accept inspectors in China if that is what a pause takes.', 'Xi told the Politburo he would accept inspectors in China only if America gives something up in return.', 'Xi told the Politburo he will never accept foreign inspectors in China.'][s.floor] + ' On Taiwan, he said ' + (s.bluff ? 'he would not fire on American ships.' : 'he would fire on American ships that tried to break a blockade.') + '"', 'CIA source close to the Politburo');
   }
   if (r.deter) { s.deter++; s.trust -= 5; bj.face -= 4; }
@@ -346,7 +380,7 @@ function play1(s, r0) {
   if (!s.national) s.labs += (train >= 0.7 ? T.labRace : 0) + (test >= 0.3 ? T.labTest : s.deal ? T.labIdle : 0);
   fix();
   const flat = fullStep(s), usStep = reach(s.us, train * (s.deal ? 0.5 : 1), pace(s)) - s.us;
-  s.us += usStep; s.secWork += secure;
+  s.us += usStep; s.secWork += secure; s.lastTrain = train * (s.deal ? 0.5 : 1);
   const lvl = secLevel(s);
   why.push('Engineers: train ' + f2(train) + ', secure ' + f2(secure) + ', test ' + f2(test) + (defy ? ' (the labs defied the order and kept training)' : '') + '. US frontier ' + sg(s.us - was.us) + ' months (' + f1(flat) + ' at flat out, research ' + f1(speed(s)) + 'x people alone' + (s.us - was.us - usStep ? ', ' + sg(s.us - was.us - usStep) + ' from rulings, rolls and retaliation' : '') + '). Security work so far ' + f2(s.secWork) + ' turns: "' + SECURITY[lvl] + '".');
   if (defy) {
@@ -432,7 +466,7 @@ function play1(s, r0) {
     if (!s.hidden && !signed && cheats(s)) s.hidden = true;
     if (s.hidden && (s.eyes >= 2 || ((s.eyes === 1 || s.watch) && was))) {
       const gap = s.us - s.cn; s.caught = true; s.cnShown = s.cn;
-      add('bad', 'Beijing is cheating', '"There is a hidden training site in Gansu. It has been running for weeks." China is really ' + (Math.abs(gap) < 1 ? 'level with us' : months(gap) + (gap > 0 ? ' behind' : ' ahead')) + '.', s.eyes ? 'CIA source inside Beijing\'s program' : 'NSA, from remote monitoring');
+      add('bad', 'Beijing is cheating', '"There is a hidden training site in Gansu. It has been running for weeks." China is really ' + (Math.abs(gap) < 0.5 ? 'level with us' : (Math.abs(gap) * TUNE.eci.per).toFixed(1) + ' ECI ' + (gap > 0 ? 'behind' : 'ahead')) + '.', s.eyes ? 'CIA source inside Beijing\'s program' : 'NSA, from remote monitoring');
     }
   }
 
@@ -482,6 +516,7 @@ function play1(s, r0) {
 
   if (s.bj.lastLead != null) s.bj.closing = s.bj.lastLead - (s.us - s.cn); s.bj.lastLead = s.us - s.cn;
   s.turn++;
+  (s.path = s.path || []).push({ t: 4 * s.turn, us: s.us, cn: s.cnShown, real: s.cn });
   if (s.turn >= T.turns) return end(s, 'time', ev);
   return ev;
 }
@@ -516,7 +551,7 @@ function end(s, how, ev) {
     else if (s.blockade) how = 'siege';
     else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
-    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : lead >= 0.5 ? 'neck' : 'overtaken';   // overtaken: China level or ahead
+    else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : lead >= 0.5 ? 'neck' : 'overtaken';   // in ECI (2 a month of progress): decisive 10+, ahead 8+, racing 3+, neck 1+, overtaken under 1, the same gap the room's chart shows
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
   if (s.deal && !s.deal.inspectors && s.watch && (how === 'bought' || how === 'verified')) s.over.text = s.over.text.replace('held under inspection', 'held, checked by America\'s own monitoring');
@@ -529,7 +564,7 @@ function brief(s) {
   const T = TUNE, f = x => (Math.round(x * 10) / 10).toFixed(1), v = view(s), lvl = secLevel(s), full = fullStep(s), gap = s.line - s.us;
   const rate = s.hackRate * (1 + T.hackCtl * Math.max(0, s.controls)), stealing = (!s.deal || s.hidden) && s.us - s.cn >= T.hackLead - full;
   const L = [], f2 = x => x.toFixed(2);
-  L.push('SEEN BY THE ROOM: ' + v.date + ', turn ' + (s.turn + 1) + ' of ' + T.turns + '. US lead (IC estimate): ' + v.leadText.toLowerCase() + '. Danger range: ' + f(s.lo - s.us) + ' to ' + f(s.hi - s.us) + ' months ahead of the US frontier. Weights: ' + v.weights + '. Lab security: ' + v.security + '. Strait: ' + v.strait.toLowerCase() + '. Labs: ' + v.labsText.toLowerCase() + '. ' + v.eyesText + '. ' +
+  L.push('SEEN BY THE ROOM: ' + v.date + ', turn ' + (s.turn + 1) + ' of ' + T.turns + '. US lead (IC estimate): ' + v.leadText.toLowerCase() + ' (the room\'s chart shows the frontiers on Epoch\'s Capabilities Index, ECI: America ' + f(eci(s.us)) + ', China ' + f(eci(s.cnShown)) + '; when anyone sizes the lead, they use ECI points, never months). Danger range: ' + f(s.lo - s.us) + ' to ' + f(s.hi - s.us) + ' months of progress ahead of the US frontier (ECI ' + Math.round(eci(s.lo)) + ' to ' + Math.round(eci(s.hi)) + '). Weights: ' + v.weights + '. Lab security: ' + v.security + '. Strait: ' + v.strait.toLowerCase() + '. Labs: ' + v.labsText.toLowerCase() + '. ' + v.eyesText + '. ' +
     (s.deal ? 'A pause is in force: ' + v.deal.join('; ') + (s.caught ? ' (Beijing caught cheating)' : '') + '.' : v.talking ? 'Beijing is willing to talk.' : 'Beijing is not talking.') + ' Chip controls level ' + s.controls + ' (-1 selling chips, 0 as they were, 3 full embargo).');
   L.push('HIDDEN, FRONTIERS: China is really ' + f(s.us - s.cn) + ' months behind (the IC shows ' + f(s.us - s.cnShown) + '). The danger point is ' + (gap > 0 ? f(gap) + ' months ahead of the US frontier' : 'behind the US frontier: any further US progress loses control') + (s.cn > s.lo ? '; China is inside the range, ' + f(s.line - s.cn) + ' months short of the point' : '') + '.');
   L.push('THE WORLD NOW: the AI makes the labs\' research ' + f(speed(s)) + 'x as fast as people alone (the room sees "' + v.speedText + '"), and the speed rises with every month of progress: each turn of full training moves further than the last, and the last stretch before the danger point comes in a rush. China\'s labs run the same way on fewer chips: their research is ' + f(cnSpeed(s)) + 'x as fast as people alone. What the AI is doing in the world so far: ' + (s.ms ? MILESTONES.filter((m, k) => s.ms & (1 << k)).map(m => m[2].toLowerCase()).join('; ') : 'writing much of the labs\' code, with people still directing every step') + '. The room\'s officials, the labs, Congress and Beijing all live in this world: let it show in what they say.');
@@ -566,6 +601,6 @@ function brief(s) {
   return L.join('\n');
 }
 
-const api = { RANK, oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months };
+const api = { RANK, oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months, eci, trail, firstAt, lagMonths, project };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.World = api;
 })(typeof window !== 'undefined' ? window : globalThis);

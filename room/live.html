@@ -43,19 +43,20 @@ button{font:inherit;color:inherit}
 :is(.btn,.ghost,.opt):focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .panel{background:var(--sheet);border:1px solid var(--rule);padding:.9rem 1.2rem;margin-top:12px}
 
-/* the race track: months of frontier progress, -6 to 22 */
-.track{position:relative;height:7.38rem;margin:0.25rem 3.5rem 0}
-.rail{position:absolute;left:0;right:0;top:3.38rem;height:0.625rem;background:var(--sheet2);border:1px solid var(--rule)}
-.band{position:absolute;top:1.62rem;height:4.12rem;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--bad) 30%,transparent) 0 0.375rem,color-mix(in srgb,var(--bad) 10%,transparent) 0.375rem 0.75rem);border-left:2px solid var(--bad);border-right:2px solid var(--bad);transition:left .8s,width .8s}
-.band span{position:absolute;left:50%;top:-1.38rem;transform:translateX(-50%);white-space:nowrap;font-size:.85em;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--bad)}
-.truth{position:absolute;top:1.12rem;height:5.12rem;width:0;border-left:3px solid var(--ink)}
-.truth span{position:absolute;top:-1.25rem;left:-3px;white-space:nowrap;font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-.tick{position:absolute;top:4.12rem;width:1px;height:0.5rem;background:var(--faint)} .tick span{position:absolute;top:2.25rem;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:.85em;color:var(--muted);white-space:nowrap}
-.mk{position:absolute;transform:translateX(-50%);transition:left .9s cubic-bezier(.3,.7,.3,1);font-weight:900;font-size:.95em;letter-spacing:.06em;color:#fff;padding:3px 0.562rem;white-space:nowrap}
-.mk::after{content:"";position:absolute;left:50%;margin-left:-0.375rem;border:0.375rem solid transparent}
-.mk.us{top:1.4rem;background:var(--us);color:var(--accent-ink)} .mk.us::after{top:100%;border-top-color:var(--us)}
-.mk.cn{top:4.38rem;background:var(--cn);color:var(--accent-ink)} .mk.cn::after{bottom:100%;border-bottom-color:var(--cn)}
-@media (prefers-reduced-motion:reduce){.mk,.band{transition:none}}
+/* the race chart: both frontiers on Epoch's Capabilities Index over the calendar, with the danger band across it */
+.chart{display:block;width:100%;height:auto;margin-top:.2rem;font-family:var(--f-ui)}
+.chart text{fill:var(--muted);font-size:15px;paint-order:stroke;stroke:var(--sheet);stroke-width:5px;stroke-linejoin:round}
+.chart .grid{stroke:var(--rule);stroke-width:1} .chart .axis{stroke:var(--faint);stroke-width:1.5}
+.chart .now{fill:var(--accent-soft);opacity:.55}
+.chart .band{fill:url(#hatch);stroke:var(--bad);stroke-width:1.5}
+.chart text.bandl{fill:var(--bad);font-weight:800;letter-spacing:.08em;font-size:14px}
+.chart .us{stroke:var(--us);fill:none;stroke-width:4} .chart .cn{stroke:var(--cn);fill:none;stroke-width:4}
+.chart .pre{stroke-dasharray:2 6;stroke-linecap:round;stroke-width:3} .chart .proj{stroke-dasharray:10 7;stroke-width:3;opacity:.8} .chart .real{stroke-dasharray:6 6;stroke-width:3}
+.chart .dot-us{fill:var(--us)} .chart .dot-cn{fill:var(--cn)} .chart .ring{fill:var(--sheet);stroke-width:3.5}
+.chart .gap{stroke:var(--ink);stroke-width:2.5;fill:none}
+.chart text.gapb{fill:var(--ink);font-weight:900;font-size:21px} .chart text.gaps{fill:var(--ink);font-size:16px}
+.chart text.lab-us{fill:var(--us);font-weight:900;font-size:17px;letter-spacing:.06em} .chart text.lab-cn{fill:var(--cn);font-weight:900;font-size:17px;letter-spacing:.06em}
+.chart .truth{stroke:var(--ink);stroke-width:3} .chart text.truthl{fill:var(--ink);font-weight:800;font-size:14px;letter-spacing:.06em}
 
 .facts{display:flex;flex-wrap:wrap;gap:6px 2.4rem;margin-top:.6rem;font-size:1.3em;color:var(--muted)} .facts b{color:var(--ink)}
 .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
@@ -191,17 +192,58 @@ function next() {
 }
 function undo() { if (!st.past.length) return; st.game = JSON.parse(st.past.pop()); st.screen = 'orders'; st.orders = st.game.log.length ? {} : st.orders; st.answer = null; st.events = []; st.error = ''; st.turnT0 = Date.now(); draw(); }
 
-const X0 = -6, X1 = 22, pos = x => Math.max(0, Math.min(100, (x - X0) / (X1 - X0) * 100)) + '%';
+// The race chart: America and China on Epoch's Capabilities Index, Jul 2026 to Dec 2028. Dots are the start of each turn; before 2027 both climb at the 2026 pace (dotted);
+// the dashed US line is where this turn's training leads by Dec 2028. The gap is read off the latest dots: ECI points up, and back to when the leader stood there.
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthName = t => { const m = Math.min(t, 23.99); return MON[((Math.floor(m) % 12) + 12) % 12] + ' ' + (2027 + Math.floor(m / 12)); };
 function track(g, v, reveal) {
-  let h = '<div class="track"><div class="rail"></div>';
-  h += '<div class="band" style="left:' + pos(v.lo) + ';width:calc(' + pos(v.hi) + ' - ' + pos(v.lo) + ')">' + (reveal ? '' : '<span>IC suggests runaway RSI possible in this range</span>') + '</div>';
-  for (let x = X0; x <= X1; x += 2) h += '<div class="tick" style="left:' + pos(x) + '">' + (x % 6 === 0 ? '<span>' + (x === 0 ? 'Jan 2027 frontier' : (x > 0 ? '+' : '-') + Math.abs(x) + ' months') + '</span>' : '') + '</div>';
-  if (reveal) h += '<div class="truth" style="left:' + pos(g.line) + '"><span>Runaway RSI was possible from here</span></div>';
-  return h + '<div class="mk us" style="left:' + pos(g.us) + '">US</div><div class="mk cn" style="left:' + pos(reveal ? g.cn : g.cnShown) + '">CHINA</div></div>';
+  const T0 = -6, T1 = 24, E = World.eci, pre = World.TUNE.eci.trend / 12, W = 1200;
+  const H = Math.round(Math.max(270, Math.min(430, 1200 * 0.34 * innerHeight / Math.max(600, Math.min(innerWidth, 1800) - 60))));
+  const L = 62, R = 330, Tp = 30, B = 34;
+  const p = World.trail(g), n = p[p.length - 1], key = reveal ? 'real' : 'cn', proj = g.over ? [] : World.project(g);
+  const pts = p.map(q => [E(q.us), E(q[key]), E(q.cn)]).flat().concat([E(p[0].us) - pre * 6, E(p[0].cn) - pre * 6]);
+  const lo = Math.floor((Math.min(...pts) - 1) / 10) * 10, hi = Math.ceil((Math.max(E(g.hi) + 6, Math.max(...pts) + 6)) / 10) * 10;
+  const X = t => L + (t - T0) / (T1 - T0) * (W - L - R), Y = e => Tp + (hi - e) / (hi - lo) * (H - Tp - B), f1 = x => x.toFixed(1);
+  const line = (q, cls) => '<polyline class="' + cls + '" points="' + q.map(([t, e]) => X(t).toFixed(1) + ',' + Y(e).toFixed(1)).join(' ') + '"/>';
+  let h = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('AI capability (Epoch Capabilities Index): America ' + f1(E(n.us)) + ', China ' + f1(E(n[key])) + ', ' + monthName(n.t)) + '">';
+  h += '<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="var(--bad)" opacity=".08"/><line x1="0" y1="0" x2="0" y2="10" stroke="var(--bad)" stroke-width="4" opacity=".22"/></pattern><clipPath id="plot"><rect x="' + L + '" y="' + Tp + '" width="' + (W - L - R) + '" height="' + (H - Tp - B) + '"/></clipPath></defs>';
+  if (!g.over) h += '<rect class="now" x="' + X(n.t) + '" y="' + Tp + '" width="' + (X(n.t + 4) - X(n.t)) + '" height="' + (H - Tp - B) + '"/>';
+  for (let e = Math.ceil(lo / 10) * 10; e <= hi; e += 10) h += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(e) + '" y2="' + Y(e) + '"/><text x="' + (L - 8) + '" y="' + (Y(e) + 5) + '" text-anchor="end">' + e + '</text>';
+  h += '<text x="' + L + '" y="' + (Tp - 11) + '" font-weight="800" letter-spacing=".1em" font-size="13">AI CAPABILITY · EPOCH CAPABILITIES INDEX (ECI)</text>';
+  const key2 = (x, cls, txt) => '<line class="' + cls + '" x1="' + x + '" x2="' + (x + 34) + '" y1="' + (Tp - 16) + '" y2="' + (Tp - 16) + '"/><text x="' + (x + 42) + '" y="' + (Tp - 11) + '" font-size="14">' + txt + '</text>';
+  h += reveal ? key2(560, 'cn real', 'China as the IC saw it') : proj.length > 1 ? key2(560, 'us proj', 'US if the labs keep this turn\'s pace') : '';
+  for (let t = 0; t <= T1; t += 4) h += '<line class="axis" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + (H - B) + '" y2="' + (H - B + 6) + '"/><text x="' + X(t) + '" y="' + (H - 9) + '" text-anchor="middle">' + (t === T1 ? 'Dec 2028' : monthName(t)) + '</text>';
+  h += '<line class="axis" x1="' + X(0) + '" x2="' + X(0) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke-dasharray="3 5"/>';
+  h += '<rect class="band" x="' + L + '" width="' + (W - L - R) + '" y="' + Y(E(g.hi)) + '" height="' + (Y(E(g.lo)) - Y(E(g.hi))) + '"/>';
+  if (!reveal) h += '<text class="bandl" x="' + (L + 10) + '" y="' + (Y((E(g.lo) + E(g.hi)) / 2) + 5) + '">IC: RUNAWAY RSI POSSIBLE IN THIS RANGE</text>';
+  else h += '<line class="truth" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(E(g.line)) + '" y2="' + Y(E(g.line)) + '"/><text class="truthl" x="' + (L + 10) + '" y="' + (Y(E(g.line)) - 8) + '">RUNAWAY RSI WAS POSSIBLE FROM HERE</text>';
+  h += '<g clip-path="url(#plot)">';
+  h += line([[T0, E(p[0].us) - pre * 6], [0, E(p[0].us)]], 'us pre') + line([[T0, E(p[0].cn) - pre * 6], [0, E(p[0].cn)]], 'cn pre');
+  if (proj.length > 1) h += line(proj.map(q => [q.t, E(q.us)]), 'us proj');
+  if (reveal) h += line(p.map(q => [q.t, E(q.cn)]), 'cn real');
+  h += line(p.map(q => [q.t, E(q.us)]), 'us') + line(p.map(q => [q.t, E(q[key])]), 'cn');
+  p.forEach((q, i) => { const last = i === p.length - 1; h += '<circle class="' + (last ? 'ring' : 'dot-us') + '" stroke="var(--us)" cx="' + X(q.t) + '" cy="' + Y(E(q.us)) + '" r="' + (last ? 8 : 5) + '"/><circle class="' + (last ? 'ring' : 'dot-cn') + '" stroke="var(--cn)" cx="' + X(q.t) + '" cy="' + Y(E(q[key])) + '" r="' + (last ? 8 : 5) + '"/>'; });
+  // the gap, read off the latest dots
+  const us = E(n.us), cn = E(n[key]), d = us - cn, x = X(n.t);
+  let ago = null;
+  if (Math.abs(d) >= 1) {
+    const lead = d > 0, back = World.firstAt(p, lead ? 'us' : key, lead ? n[key] : n.us), yb = Y(lead ? cn : us), xb = X(Math.max(T0, back == null ? n.t : back)), m = Math.round(n.t - (back == null ? n.t : back));
+    h += '<path class="gap" d="M' + x + ',' + Y(us) + 'V' + Y(cn) + 'M' + (x - 6) + ',' + Y(us) + 'h12M' + (x - 6) + ',' + Y(cn) + 'h12"/>';
+    if (m >= 1) { h += '<path class="gap" d="M' + x + ',' + yb + 'H' + xb + 'M' + xb + ',' + (yb - 6) + 'v12"/>'; ago = [(lead ? 'China is where America' : 'America is where China'), 'was ' + m + (m === 1 ? ' month' : ' months') + ' ago']; }
+  }
+  h += '</g>';
+  const lx = W - R + 22, mid = Math.max(Tp + 30, Math.min(H - B - 50, (Y(us) + Y(cn)) / 2));
+  h += '<line class="axis" stroke-dasharray="2 4" x1="' + (x + 10) + '" x2="' + (lx - 8) + '" y1="' + (Y(us) + Y(cn)) / 2 + '" y2="' + (mid - 10) + '"/>';
+  h += '<text class="gapb" x="' + lx + '" y="' + (mid - 4) + '">' + (Math.abs(d) < 1 ? 'Neck and neck' : (d > 0 ? 'US' : 'China') + ' ahead by ' + f1(Math.abs(d)) + ' ECI') + '</text>';
+  h += '<text class="gaps" x="' + lx + '" y="' + (mid + 19) + '">' + monthName(n.t) + ': US ' + f1(us) + ', China ' + f1(cn) + '</text>';
+  const more = (ago || []).concat(!reveal && g.deal && !g.caught ? ['China\'s figure is Beijing\'s', 'own account'] : []);
+  more.forEach((t, i) => { h += '<text class="gaps" x="' + lx + '" y="' + (mid + 40 + 20 * i) + '">' + t + '</text>'; });
+  h += '<text class="lab-us" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].us)) - 12) + '" text-anchor="end">US</text><text class="lab-cn" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].cn)) + 24) + '" text-anchor="end">CHINA</text>';
+  return h + '</svg>';
 }
 function facts(g, v) {
   const sc = v.strait === 'Calm' ? 'good' : v.strait === 'Tense' ? 'warn' : 'bad';
-  return '<div class="facts"><span>US lead' + (g.deal && !g.caught ? ', by Beijing\'s account' : '') + ': <b>' + v.leadText.toLowerCase() + '</b></span>' +
+  return '<div class="facts">' +
     '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span>' +
     '<span>AI research: <b>' + v.speedText + '</b></span></div>';
 }
