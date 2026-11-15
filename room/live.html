@@ -212,7 +212,7 @@ function lock(g, v, id) {
     if (g.deal) return L('A pause is signed', g.caught ? 'bad' : 'good', g.caught ? 'and Beijing is cheating' : 'and holding', '<br>' + v.deal.map(x => '<span class="pill">' + esc(x) + '</span>').join(''));
     return v.talking ? L('Beijing', 'warn', 'will talk') : L('Beijing', 'bad', 'is not talking');
   }
-  return L('Inside Beijing', g.eyes > 1 ? 'good' : g.eyes ? 'warn' : 'bad', v.eyesText.toLowerCase());
+  return L('Inside Beijing', g.eyes > 1 ? 'good' : g.eyes ? 'warn' : 'bad', v.eyesText.toLowerCase().replace('beijing', 'Beijing'));
 }
 function topbar(g) {
   const n = st.screen === 'news' || st.screen === 'end' ? g.log.length - 1 : g.turn;
