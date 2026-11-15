@@ -33,7 +33,7 @@ const TUNE = {
   // fear (0 to 100): how frightened Congress (cg) and California (ca) are about AI. News moves it; it ebbs decay a turn without new alarm.
   // A halt bill passes at (cg - lawLo) / lawSpan odds; California passes its own law once ca reaches caLaw.
   fear: { cg: 20, ca: 30, decay: 6, lawLo: 25, lawSpan: 60, caLaw: 55, warn: [7, 9], ms: [3, 5], nearMiss: [35, 35], theft: [15, 6], hackers: [6, 3], blockade: [12, 4], shot: 0.6 },
-  shot: { base: 0.1, perMonth: 0.035, race: 0.12, test: 0.08, max: 0.55 },   // a warning shot's odds a turn: base, plus per month of progress, plus racing (train 0.7+), less testing (0.3+)
+  shot: { base: 0.2, perMonth: 0.03, race: 0.1, test: 0.05, max: 0.6 },   // a warning shot's odds a turn: base, plus per month of progress of AI out in the world (the frontier plus diffusion), plus racing (train 0.7+), less testing (0.3+)
   maxOps: 8, maxChances: 4, maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
@@ -131,7 +131,7 @@ const MILESTONES = [
   [7, 'info', 'Data centers outspend the Pentagon', '"The data centers now being built cost more than twice the defense budget. Half the power plants planned in America are for AI."', 'Congressional Budget Office', 'world'],
   [9, 'warn', 'Nobody can check its work', '"Our people can no longer check most of what the model does. We approve its research because it keeps turning out to be right."', 'Chief executive of a frontier lab, private letter'],
 ];
-// Warning shots: AI incidents in the world, at most one a turn, likelier as the frontier climbs and when the labs race. [from frontier, Congress fear, California fear, markets, tone, title, text, source]
+// Warning shots: AI incidents in the world, at most one a turn, likelier as AI spreads (the frontier plus diffusion, so a pause does not stop them) and when the labs race. [from frontier, Congress fear, California fear, markets, tone, title, text, source]
 const SHOTS = [
   [0, 25, 10, 4, 'bad', 'AI-written worm hits hospitals', '"A self-rewriting worm built with an open model has locked the records systems of 140 hospitals in six states. Ambulances are being turned away in Ohio."', 'CISA emergency directive'],
   [0, 15, 8, 6, 'bad', 'Trading agents crash the market', '"AI trading agents fed on each other\'s orders and took nine percent off the S&P 500 in eleven minutes before the circuit breakers tripped."', 'SEC statement'],
@@ -466,8 +466,8 @@ function play1(s, r0) {
   due.forEach(k => { s.ms |= 1 << k; });
   due.filter(k => !MILESTONES[k][5]).concat(due.filter(k => MILESTONES[k][5])).slice(0, 3).forEach(k => { const m = MILESTONES[k]; if (m[1] === 'warn') scare(T.fear.ms); add(m[1], m[2], m[3], m[4]); });
   // a warning shot: at most one a turn, likelier as the frontier climbs and when the labs race
-  { const SH = T.shot, p = clamp(SH.base + SH.perMonth * Math.max(0, s.us) + (train >= 0.7 ? SH.race : 0) - (test >= 0.3 ? SH.test : 0), 0.03, SH.max), u = hash01(s.seed, 'shot', t);
-    const open = SHOTS.map((x, k) => k).filter(k => !(s.shots & (1 << k)) && s.us >= SHOTS[k][0]);
+  { const SH = T.shot, world = s.us + T.diffuse * (t + 1), p = clamp(SH.base + SH.perMonth * world + (train >= 0.7 ? SH.race : 0) - (test >= 0.3 ? SH.test : 0), 0.03, SH.max), u = hash01(s.seed, 'shot', t);
+    const open = SHOTS.map((x, k) => k).filter(k => !(s.shots & (1 << k)) && world >= SHOTS[k][0]);
     if (u < p && open.length) { const k = open[Math.floor(hash01(s.seed, 'shotPick', t) * open.length)], x = SHOTS[k]; s.shots |= 1 << k; scare([x[1] * T.fear.shot, x[2] * T.fear.shot]); s.mkt -= (s.backstop ? 0.5 : 1) * x[3]; bj.scared = Math.min(0.5, bj.scared + 0.05); add(x[4], x[5], x[6], x[7]); }
     why.push('Warning shot: odds ' + f2(p) + ', die ' + f2(u) + (u < p && open.length ? ', one came.' : ', none.')); }   // research first, three at most
   if (t === 4) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
