@@ -249,7 +249,7 @@ function track(g, v, reveal) {
   h += '<text class="gapb" x="' + lx + '" y="' + (mid - 4) + '">' + (Math.abs(d) < 1 ? 'Neck and neck' : (d > 0 ? 'US' : 'China') + ' ahead by about ' + Math.round(Math.abs(d)) + ' ECI') + '</text>';
   const spread = reveal ? 0 : n.err + eu, rlo = Math.round(d - spread), rhi = Math.round(d + spread), side = x => x === 0 ? 'level' : (x > 0 ? 'US +' : 'China +') + Math.abs(x);
   h += '<text class="gaps" x="' + lx + '" y="' + (mid + 19) + '">' + (reveal ? monthName(n.t) + ': US ' + f1(us) + ', China ' + f1(cn) : 'Likely range: ' + side(rlo) + ' to ' + side(rhi)) + '</text>';
-  const more = (ago || []).concat(!reveal && g.deal && !g.caught ? ['China\'s figure is Beijing\'s', 'own account'] : []);
+  const more = (ago || []).concat(!reveal && g.deal && !g.caught ? (g.deal.inspectors ? ['China\'s figure is', 'checked by inspectors'] : g.watch || g.eyes ? ['China\'s figure is checked', 'by US monitoring'] : ['China\'s figure is Beijing\'s', 'own account']) : []);
   more.forEach((t, i) => { h += '<text class="gaps" x="' + lx + '" y="' + (mid + 40 + 20 * i) + '">' + t + '</text>'; });
   h += '<text class="lab-us" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].us)) - 12) + '" text-anchor="end">US</text><text class="lab-cn" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].cn)) + 24) + '" text-anchor="end">CHINA</text>';
   return h + '</svg>';
