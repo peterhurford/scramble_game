@@ -1,4 +1,4 @@
-// The Scramble: Room Edition, free response. Six turns; each table (Executive Office of the President, State, Commerce and Treasury, Department of War/Pentagon/NSA/IC) writes what it does in a sentence.
+// The Scramble: Room Edition, free response. Eight turns of three months; each table (Executive Office of the President, State, Commerce and Treasury, Department of War/Pentagon/NSA/IC) writes what it does in a sentence.
 // A game master (room/gm.js) reads the orders, answers in character and returns a ruling: numbers on the dials below.
 // This file is the ledger. It clamps every ruling, makes effort finite (training + security + testing share one pool of engineers),
 // and owns what follows: frontier movement, theft, the danger point, the Strait, whether a pause holds.

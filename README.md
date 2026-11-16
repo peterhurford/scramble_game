@@ -10,7 +10,7 @@ Play it at [thescramble.pages.dev](https://thescramble.pages.dev).
 
 **AI Czar** is the full single-player game. Open `index.html` in a browser; there is nothing to build or install. It saves to the browser after every move.
 
-**The Situation Room** is a shorter version for a room of people split into three tables: the Executive Office of the President; State, Commerce and Treasury; and the Department of War with the intelligence community. Each turn every table says what it does in a sentence, and a facilitator types it in. Claude plays everyone else (the labs, Congress, Beijing) and rules on what happens. To run it:
+**The Situation Room** is a one-hour version, eight turns of three months each, for a room of people split into three tables: the Executive Office of the President; State, Commerce and Treasury; and the Department of War with the intelligence community. Each turn every table says what it does in a sentence, and a facilitator types it in. Claude plays everyone else (the labs, Congress, Beijing) and rules on what happens. To run it:
 
 ```
 node room/gm.js
