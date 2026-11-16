@@ -510,7 +510,7 @@ function play1(s, r0) {
   }
   s.cn += cnStep; if (openly || s.caught) s.cnShown += cnStep;
   why.push('China\'s frontier ' + sg(cnStep) + ' months' + (openly ? ' (research ' + f1(cnSpeed(s)) + 'x people alone; own work ' + T.cnOwn + (s.crash ? ', crash program ' + T.crash : '') + ', chips at controls level ' + s.controls + ' ' + T.cnChips[clamp(s.controls, -1, 2) + 1] + ', the rest copied from published American work' + (s.cn - cnStep >= TUNE.lineTrue[0] ? '; halved inside the danger range' : '') + ')' : s.hidden ? ' (training in secret)' : ' (stopped under the pause)') + (s.cn - cnStep - was.cn ? ', and ' + sg(s.cn - cnStep - was.cn) + ' from rulings, rolls and sabotage' : '') + '.');
-  if (s.eyes && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;
+  if ((s.eyes || s.watch) && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;   // a source or working monitoring shows China as it is, unless a hidden site escapes the monitoring
 
   // serious testing: the IC's range stays as it is, but each turn of it helps contain a crossing
   if (test >= 0.3) s.tests = (s.tests || 0) + 1;
