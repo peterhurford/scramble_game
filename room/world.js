@@ -12,7 +12,7 @@ const TUNE = {
   // takeoff: the AI speeds its own research as it improves, dx/dt = train x v0 x e^(x / accel), x the frontier in months of progress past Jan 2027.
   // v0 (months of progress a turn at the start of all-out training) is the same in every game: flat out, a turn gains about 7.5, 9, 12, 15 ECI and so on, above the 2026 pace,
   // and the danger point (line, set below) lies between where two and three flat-out turns reach, so three full turns of racing always cross it.
-  takeoff: [3.4, 3.4], accel: 20, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, mid: 3.4, diffuse: 1.1, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
+  takeoff: [3.4, 3.4], accel: 20, cnRatio: 0.65, cnSlow: 0.35, stepMax: 14, speed0: 2.5, mid: 3.4, diffuse: 1.1, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
   eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [1, 1], blur: 0 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.5, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
