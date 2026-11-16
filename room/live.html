@@ -144,7 +144,7 @@ button{font:inherit;color:inherit}
 // The facilitator's screen for the free-response game; the ledger is world.js and the game master is gm.js (POST /gm).
 // Each table says its order and the facilitator types it. Send asks the game master; its answers can be edited before Go applies them.
 // G opens the facilitator's drawer (the ruling, the game master's note, the hidden facts). U undoes a turn.
-const TURN_SECS = 240, GAME_MINS = 40, SAVE = 'scramble-live-v4', ids = g => Object.keys(World.TABLES).filter(k => k !== 'cong' || (g && g.congress));
+const TURN_SECS = 360, GAME_MINS = 56, SAVE = 'scramble-live-v4', ids = g => Object.keys(World.TABLES).filter(k => k !== 'cong' || (g && g.congress));
 // Served by gm.js, the game master is next door; on the public site it is the server on the facilitator's laptop.
 const GM = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'gm' : 'http://localhost:8787/gm';
 const $ = id => document.getElementById(id);
