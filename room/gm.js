@@ -11,7 +11,7 @@ const num = d => ({ type: 'number', description: d }), bool = d => ({ type: 'boo
 const RULING = {
   train: num('0 to 1. Share of the labs\' engineers left training the next model. 1 is flat out; 0 is a full stop. Until some table gives the labs an order they train flat out; after that the last order stands.'),
   secure: num('0 to 1. Share of engineers pulled onto securing the weights this turn. Comes out of training.'),
-  test: num('0 to 1. Share of engineers pulled onto testing where the danger point is. Comes out of training. 0.3 or more narrows the IC\'s range.'),
+  test: num('0 to 1. Share of engineers pulled onto testing where the danger point is. Comes out of training. 0.3 or more is serious testing: it builds the labs\' cooperation and helps contain a crossing.'),
   nationalize: bool('The government takes over the labs. They then obey, at a lasting cost in speed.'),
   law: bool('The room asks Congress this turn for a narrow bill binding every frontier lab at once (the halt power) and has paid any price the leaders named. The ledger rolls the vote at the odds in the brief; if it passes the labs obey, at no cost in speed. No reply may say the bill passed or failed: the ledger\'s bulletin tells the room.'),
   congress: num('0 to 10. How much the room\'s own work this turn frightens Congress about AI: public hearings on the lab warnings, the evidence declassified, members briefed in secret, a public address. 0 if the room did none of this.'),

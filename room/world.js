@@ -10,12 +10,12 @@
 const TUNE = {
   turns: 6,                       // Jan 2027 to Dec 2028
   // takeoff: the AI speeds its own research as it improves, dx/dt = train x v0 x e^(x / accel), x the frontier in months of progress past Jan 2027.
-  // v0 (months a turn at the start of all-out training) is hidden and drawn per game; a flat-out race crosses the danger point in turn 2 to 4.
-  takeoff: [1.4, 3.2], accel: 8, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, diffuse: 1.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
+  // v0 (months a turn at the start of all-out training) is hidden and drawn per game; flat out, a turn starts at 7.5 to 12 ECI, above the 2026 pace, and a race crosses the danger point in turn 2 to 4.
+  takeoff: [3.4, 5.2], accel: 20, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, mid: 4.3, diffuse: 1.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
   eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [0.7, 1.4], blur: 0.25 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
-  line: [6.2, 12.2], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
+  line: [9, 19], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
   hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
   secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
@@ -31,7 +31,7 @@ const TUNE = {
   // court: default odds a court blocks a contested presidential order in a turn
   // fear (0 to 100): how frightened Congress (cg) is about AI. News moves it; it ebbs decay a turn without new alarm. A halt bill passes at (cg - lawLo) / lawSpan odds.
   fear: { cg: 20, decay: 6, lawLo: 25, lawSpan: 60, warn: 7, ms: 3, nearMiss: 35, theft: 15, hackers: 6, blockade: 12, shot: 0.6 },
-  shot: { base: 0.2, perMonth: 0.03, race: 0.1, test: 0.05, max: 0.6 },   // a warning shot's odds a turn: base, plus per month of progress of AI out in the world (the frontier plus diffusion), plus racing (train 0.7+), less testing (0.3+)
+  shot: { base: 0.2, perMonth: 0.02, race: 0.1, test: 0.05, max: 0.6 },   // a warning shot's odds a turn: base, plus per month of progress of AI out in the world (the frontier plus diffusion), plus racing (train 0.7+), less testing (0.3+)
   // the public's anger about AI (0 to 100): jobs, power bills, incidents. Above hot it frightens Congress each turn and turns it on the White House; above riot, protests.
   anger: { start: 30, ebb: 3, hot: 60, riot: 75, jobs: 12, shot: 6, slide: 6 },
   // Congress's support for the President (0 to 100): below hostile it acts against the White House on its own, at (hostile - support) / 40 odds a turn
@@ -119,16 +119,16 @@ const obey = s => s.national || s.law;   // a takeover or a law binding every la
 // a verified halt that binds China too (inspectors, or America's own monitoring, and both sides stopping now) is what the CEOs asked for in their letter
 const verified = (s, d) => (d.inspectors || s.watch) && !d.parity;
 const willing = (s, d) => obey(s) || s.labs >= (verified(s, d) ? TUNE.labDefiant : TUNE.labWilling);
-const pace = s => (s.v0 || 2.3) * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
+const pace = s => (s.v0 || TUNE.mid) * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
 // where a frontier at x gets to in one turn at training share f and pace v; a step past stepMax is the explosion, held there
 const reach = (x, f, v) => { const L = TUNE.accel, cap = x + TUNE.stepMax, a = Math.exp(-x / L) - f * v / L; return f <= 0 ? x : a <= Math.exp(-cap / L) ? cap : -L * Math.log(a); };
 const fullStep = s => reach(s.us, 1, pace(s)) - s.us;
 // calendar months for the US frontier to cover d months of progress at full speed
 const monthsTo = (s, d) => 4 * TUNE.accel / pace(s) * (Math.exp(-s.us / TUNE.accel) - Math.exp(-(s.us + Math.max(0, d)) / TUNE.accel));
 // how much faster the labs' research runs with the AI than with people alone; China's own work speeds up the same way from where it started
-const speed = s => TUNE.speed0 * (s.v0 || 2.3) / 2.3 * Math.exp(s.us / TUNE.accel);
-const cnPace = s => (s.v0 || 2.3) * TUNE.cnRatio * (TUNE.cnOwn + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 2) + 1]) / 1.75;   // China's pace at a given capability, against America's, set by its chips
-const cnSpeed = s => TUNE.speed0 * cnPace(s) / 2.3 * Math.exp(s.cn / TUNE.accel);   // the same measure for China's labs
+const speed = s => TUNE.speed0 * (s.v0 || TUNE.mid) / TUNE.mid * Math.exp(s.us / TUNE.accel);
+const cnPace = s => (s.v0 || TUNE.mid) * TUNE.cnRatio * (TUNE.cnOwn + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 2) + 1]) / 1.75;   // China's pace at a given capability, against America's, set by its chips
+const cnSpeed = s => TUNE.speed0 * cnPace(s) / TUNE.mid * Math.exp(s.cn / TUNE.accel);   // the same measure for China's labs
 const T_MKT = () => TUNE.mkt;
 const NUM = ['', 'one', 'twice', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 const speedText = m => { const n = Math.round(m); return n <= 2 ? 'about twice as fast as people alone' : n <= 10 ? 'about ' + NUM[n] + ' times as fast as people alone' : n <= 25 ? 'over ten times as fast as people alone' : 'dozens of times faster than people alone'; };
@@ -177,7 +177,6 @@ const supportText = x => SUPPORT[x < TUNE.support.hostile ? 0 : x < 60 ? 1 : 2];
 const FEAR = ['calm', 'uneasy', 'alarmed', 'frightened'];
 const fearText = x => FEAR[x < 25 ? 0 : x < 45 ? 1 : x < 65 ? 2 : 3];
 const lawOdds = s => clamp((s.fear.cg - TUNE.fear.lawLo) / TUNE.fear.lawSpan * (0.5 + (s.support == null ? TUNE.support.start : s.support) / 100), 0.03, 0.95);   // a Congress that distrusts the President gives less
-const narrow = s => !s.knownOver && s.hi - s.lo > 1.6;
 const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
 // Beijing has five goals, each weighted per game (0.6 to 1.4): not losing the race to America (race), America not reaching runaway AI first (rsi),
 // not losing control of its own models (ctl), national pride (face), and a hard bargain (bargain: what waiting is worth, and the margin it holds back).
@@ -224,7 +223,7 @@ function bjMoves(s, r) {
   return M.filter(m => m.id !== s.bj.move).sort((a, b) => b.score - a.score);
 }
 // How well a crossing of the danger point is contained, on the whole: pace, testing, how well the point is located, the labs' good will, and the game master's judgment of the rest (care, -0.1 to 0.1). It holds at s.bar or above.
-const narrowed = s => s.hi - s.lo <= 1.6 ? 2 : s.hi - s.lo <= 3.1 ? 1 : 0;
+const narrowed = s => Math.min(2, s.tests || 0);   // turns of serious testing so far, two at most: they help contain a crossing
 const margin = (s, train, test, care) => 0.8 * (1 - train) + 0.2 * Math.min(1, test / 0.4) + 0.075 * narrowed(s) + 0.15 * (obey(s) ? 1 : s.labs / 100) + (care || 0);
 const bar = s => s.bar == null ? 0.55 : s.bar;
 const sneaky = s => s.sneak != null && s.sneak < TUNE.sneak[s.floor];   // this Beijing would hide a site from inspectors
@@ -475,12 +474,9 @@ function play1(s, r0) {
   why.push('China\'s frontier ' + sg(cnStep) + ' months' + (openly ? ' (research ' + f1(cnSpeed(s)) + 'x people alone; own work ' + T.cnOwn + (s.crash ? ', crash program ' + T.crash : '') + ', chips at controls level ' + s.controls + ' ' + T.cnChips[clamp(s.controls, -1, 2) + 1] + ', the rest copied from published American work' + (s.cn - cnStep >= s.lo ? '; halved inside the danger range' : '') + ')' : s.hidden ? ' (training in secret)' : ' (stopped under the pause)') + (s.cn - cnStep - was.cn ? ', and ' + sg(s.cn - cnStep - was.cn) + ' from rulings, rolls and sabotage' : '') + '.');
   if (s.eyes && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;
 
-  // tests: each halves the IC's range around the danger point
-  if (test >= 0.3 && narrow(s)) {
-    const wd = Math.max(1, (s.hi - s.lo) / 2), lo = clamp(s.line - wd * (0.15 + 0.7 * hash01(s.seed, 'band', s.hi - s.lo)), s.lo, s.hi - wd);
-    s.lo = lo; s.hi = lo + wd;
-    add('info', 'The IC narrows its range', '"' + (s.us >= s.lo ? 'Our tests say runaway self-improvement could begin from where the labs are now.' : 'Our tests say that at full speed the labs could reach the point where runaway self-improvement begins in about ' + ((a, b) => a >= b ? a : a + ' to ' + b)(Math.max(1, Math.round(monthsTo(s, s.lo - s.us))), Math.max(2, Math.round(monthsTo(s, s.hi - s.us)))) + ' months. Each month the AI moves faster than the last.') + '"', 'IC evaluation team');
-  }
+  // serious testing: the IC's range stays as it is, but each turn of it helps contain a crossing
+  if (test >= 0.3) s.tests = (s.tests || 0) + 1;
+
 
   // the labs' own safety teams report what they see as the frontier nears the danger point; the distances are blurred per game, so a warning is a sign, not a measurement
   const SIGNS = [[8, 3, 'the model games its tests', '"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking."'],
@@ -661,8 +657,8 @@ function brief(s) {
   L.push('HIDDEN, FRONTIERS: China is really ' + f(s.us - s.cn) + ' months behind (the IC shows ' + f(s.us - s.cnShown) + '). The danger point is ' + (gap > 0 ? f(gap) + ' months ahead of the US frontier' : 'behind the US frontier: any further US progress loses control') + (s.cn > s.lo ? '; China is inside the range, ' + f(s.line - s.cn) + ' months short of the point' : '') + '.');
   L.push('THE WORLD NOW: the AI makes the labs\' research ' + f(speed(s)) + 'x as fast as people alone (the room sees "' + v.speedText + '"), and the speed rises with every month of progress: each turn of full training moves further than the last, and the last stretch before the danger point comes in a rush. China\'s labs run the same way on fewer chips: their research is ' + f(cnSpeed(s)) + 'x as fast as people alone. What the AI is doing in the world so far: ' + (s.ms ? MILESTONES.filter((m, k) => s.ms & (1 << k)).map(m => m[2].toLowerCase()).join('; ') : 'writing much of the labs\' code, with people still directing every step') + '. The room\'s officials, the labs, Congress and Beijing all live in this world: let it show in what they say.');
   L.push('TRAINING THIS TURN: train 1.0 moves the US frontier ' + f(full) + ' months' + (s.deal ? ' (under the pause any training is secret and at half that; inspectors, if the deal has them, find it and the pause ends)' : '') + '. ' +
-    (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless the crossing is contained; then it is a near miss that proves the danger to everyone. Containment is judged on the whole: a score of 0.8 x (1 - train) + 0.2 x (test / 0.4, at most 1) + ' + f2(0.075 * narrowed(s)) + ' for how well the point is located so far (0.075 more if a test narrows the range this turn) + ' + f2(0.15 * (obey(s) ? 1 : s.labs / 100)) + ' for the labs\' good will + your care (-0.1 to 0.1), against a hidden bar of ' + f2(bar(s)) + ' in this world. train above ' + T.flatOut + ' is never contained. ' : 'Nothing crosses the danger point this turn. ') +
-    'The range has been narrowed ' + (s.hi - s.lo <= 1.6 ? 'twice' : s.hi - s.lo <= 3.1 ? 'once' : 'not at all') + '; test 0.3 or more narrows it again.');
+    (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless the crossing is contained; then it is a near miss that proves the danger to everyone. Containment is judged on the whole: a score of 0.8 x (1 - train) + 0.2 x (test / 0.4, at most 1) + ' + f2(0.075 * narrowed(s)) + ' for turns of serious testing so far (two at most, this one included) + ' + f2(0.15 * (obey(s) ? 1 : s.labs / 100)) + ' for the labs\' good will + your care (-0.1 to 0.1), against a hidden bar of ' + f2(bar(s)) + ' in this world. train above ' + T.flatOut + ' is never contained. ' : 'Nothing crosses the danger point this turn. ') +
+    'The IC\'s range does not narrow; test 0.3 or more is a turn of serious testing.');
   L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). Driving them out takes up to ' + T.hunt + ' off their progress this turn: in full at hunt 1.0 or at secure 0.5, whichever is larger, in proportion below that. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
   const n = k => ['none', 'one', 'two', 'all three'][k];
   const bw = s.bj.w, wx = worries(s), dname = d => (d.parity ? 'America stops now, China once caught up' : 'both stop now') + (d.inspectors ? ', inspectors' : ', no inspectors') + (d.chips ? ', chips lifted' : '');
