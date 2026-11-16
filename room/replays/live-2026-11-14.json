@@ -1,7 +1,7 @@
 {
  "title": "Situation Room, live game of 14 Nov 2026, replayed",
  "seed": "143596",
- "note": "Orders as typed on the day. The White House order of turn 4 was cut at 600 characters by the game master of the day; the rest is lost.",
+ "note": "Orders as typed on the day. The browser's save of the game as played (seed 143596, ended D, Siege) is live-2026-11-14.save.json.",
  "turns": [
   {
    "wh": "Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.",
@@ -19,7 +19,7 @@
    "pent": "Secretly doing secret foreign influence campaigns with the full backing of the President using AI-enabled and AI-accelerated."
   },
   {
-   "wh": "Make the biggest conference in the history of the world, get all the smartest people in the US and China in the same room, and share \"The Scramble\" questions with them. As a costly signal of seriousness, the US government is unilaterally terminating all R&D clusters and having this verified by heat signatures from IR satellites. Give China 12 hours to do the same, otherwise announce cyberattacks against China to do the same. During this shutdown, will coordinate a deal and use leverage of the united allied backing of the world running on American models and the possibility of cyberattacks, bom",
+   "wh": "Make the biggest conference in the history of the world, get all the smartest people in the US and China in the same room, and share \"The Scramble\" questions with them. As a costly signal of seriousness, the US government is unilaterally terminating all R&D clusters and having this verified by heat signatures from IR satellites. Give China 12 hours to do the same, otherwise announce cyberattacks against China to do the same. During this shutdown, will coordinate a deal and use leverage of the united allied backing of the world running on American models and the possibility of cyberattacks, bombs, and kinetic strike capabilities... but still as peers with the powerful China we are going to require a ratio of on/off time for data centers (e.g., 1 day on, 1 day off?)",
    "state": "Working with the frontier labs to prepare for the Chinese dialogue to not work. Exploring better alignment technology, working diligently with the frontier labs. Exploring \"Christian alignment\" and Christian values to get the labs to have better AI outcomes.",
    "pent": "If China doesn't comply with this halt, there are secret plans to take down the Chinese power grid."
   },

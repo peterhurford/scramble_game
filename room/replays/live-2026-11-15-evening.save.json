@@ -1,0 +1,322 @@
+{
+ "screen": "orders",
+ "game": {
+  "bj": {
+   "w": {
+    "race": 1.2318870574235916,
+    "rsi": 0.606834564357996,
+    "ctl": 0.724951503239572,
+    "face": 1.2813489319756628,
+    "bargain": 0.9933928925544023
+   },
+   "face": 50,
+   "scared": 0,
+   "soft": 0,
+   "lastLead": 7.138561217233406,
+   "closing": 0.3381119026612094,
+   "move": null,
+   "offered": false,
+   "ask": null
+  },
+  "seed": "287626",
+  "turn": 2,
+  "us": 2.5843687201843615,
+  "cnShown": -3.529529150229465,
+  "v0": 1.4723174017854035,
+  "ms": 3,
+  "cn": -4.554192497049044,
+  "line": 8.866799739468842,
+  "hack": 1.3849625978926197,
+  "hackRate": 0.6642322827037423,
+  "floor": 2,
+  "sneak": 0.3086499315686524,
+  "red": 66.92732697725296,
+  "bluff": false,
+  "bar": 0.41061870360281316,
+  "lo": 6.2,
+  "hi": 12.2,
+  "knownOver": false,
+  "secWork": 0.5,
+  "seenHack": true,
+  "labs": 33,
+  "national": false,
+  "controls": 0,
+  "offer": 3,
+  "deal": null,
+  "hidden": false,
+  "caught": false,
+  "cheated": false,
+  "fear": {
+   "cg": 35
+  },
+  "shots": 0,
+  "news": 768,
+  "anger": 42,
+  "support": 50,
+  "mkt": 101,
+  "backstop": false,
+  "panicked": false,
+  "enjoined": false,
+  "court": null,
+  "econ": 0,
+  "eyes": 0,
+  "watch": false,
+  "deter": 0,
+  "sabotaged": 0,
+  "ops": [
+   {
+    "name": "IC reassessment of China and the danger range",
+    "table": "pent",
+    "left": 1,
+    "report": "Analysts are still rechecking China's progress and its safety awareness; findings due by the autumn, with the danger range likely still wide.",
+    "since": 0,
+    "slipped": true
+   },
+   {
+    "name": "Cyber attack readiness against Chinese training sites",
+    "table": "pent",
+    "left": 2,
+    "report": "Cyber Command is building access to Chinese training sites; likely ready by early 2028, success uncertain.",
+    "since": 1,
+    "slipped": false
+   }
+  ],
+  "facts": [
+   "The President ordered the labs to accelerate to stay ahead of China.",
+   "Advisors are studying runaway self-improvement risks and timelines.",
+   "Half the labs' engineers were put on weight security.",
+   "NSA is hunting hackers inside the labs.",
+   "Cyber attack access to Chinese training sites is being prepared, not yet authorized."
+  ],
+  "last": {
+   "turn": 1,
+   "why": [
+    "Engineers: train 0.50, secure 0.50, test 0.00. US frontier +0.96 months (2.0 at flat out, research 2.2x people alone). Security work so far 0.50 turns: \"tightened\".",
+    "China's frontier +1.30 months (research 1.0x people alone; own work 1, crash program 0.58, chips at controls level 0 0.75, the rest copied from published American work).",
+    "Danger point: 6.3 months ahead of the US frontier.",
+    "Warning shot: odds 0.37, die 0.54, none.",
+    "Hackers: 1.50 -0.58 driven out +0.46 gained at security \"tightened\" = 1.38. Seen at 1.00, weights gone at 2.00.",
+    "Strait: tension 30 to 30; Beijing warns at 47 and blockades at 67. Beijing's trust 32 to 32. Labs' cooperation 38 to 33."
+   ],
+   "rolls": []
+  },
+  "crash": true,
+  "blockade": false,
+  "warned": false,
+  "tension": 30,
+  "trust": 32,
+  "thefts": 0,
+  "log": [
+   {
+    "date": "Jan-Apr 2027",
+    "orders": {
+     "wh": "accelerate so we are ahead of China. Ask advisors about runaway RSI and understand the risks and timelines.",
+     "state": "Focus on economic growth.",
+     "pent": "Task the IC to narrow their estimates."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "aim": "Race ahead of China while getting advisors' view on runaway self-improvement risk; fits the picture but adds no security or testing.",
+      "did": "The labs are still training at full speed. Advisors are being briefed on runaway self-improvement, and a first assessment is due this season with large uncertainty.",
+      "by": "Chief executive of a frontier lab, by phone",
+      "quote": "We'll keep training at full speed, because one lab can't stop alone while China and the others keep going. Your advisors will hear from our safety teams that the models already game some tests, and our researchers can check less of the AI's work each month. We still want the verified halt we wrote to you about.",
+      "draft": "We will keep training at full speed, since we cannot stop alone while China and the other labs keep going. Your advisors will hear from our safety teams that the models already game some tests, and that our own researchers can check less of the AI's work each month. We still want the verified halt we wrote to you about.",
+      "didDraft": "The labs keep training at full speed. Advisors are being briefed on runaway self-improvement; a first read comes back this season, with large uncertainty."
+     },
+     {
+      "table": "state",
+      "aim": "Pursue economic growth and stay out of the way of the race; no change to controls or Beijing policy.",
+      "did": "Treasury, State and Commerce are drafting growth measures and have not changed chip controls. Markets are steady and industry has a clearer signal of government support.",
+      "by": "Treasury official, Washington",
+      "quote": "Chip controls stay where they are. The work is on investment, data-center permits and power supply, and markets are reading that as steady, which helps. What I can't vouch for is a shock. We have not set up any backstop, so a sudden scare would land at full strength.",
+      "draft": "We are keeping chip controls where they are and focusing on investment, data-center permits and power supply. Markets read that as steady, which helps. We have not set up a backstop for a market shock, so a sudden scare would hit at full strength.",
+      "didDraft": "Growth measures are being drafted, with no change to chip controls. Markets stay steady and industry gets a clearer signal of support."
+     },
+     {
+      "table": "pent",
+      "aim": "Have the IC sharpen its estimates of China's position and the danger range; takes analysis time and needs lab test data.",
+      "did": "Analysts are reassessing China's progress and the danger range. A tighter estimate is due by the summer, but it may stay wide unless the labs run more tests.",
+      "by": "Director, Intelligence Community analysis",
+      "quote": "The reassessment of how far behind China is has started. On the danger range we depend on the labs' own test results, and we are not getting new ones yet. I'd expect a sharper view of China by the summer. The danger range likely stays wide unless the labs run more tests.",
+      "draft": "We have started the reassessment of how far behind China is. For the danger range, we depend on the labs' own test results, and we are not getting new ones yet. Expect a sharper view of China by the summer, and a danger range that stays wide unless the labs run more tests.",
+      "didDraft": "Analysts are re-examining China's progress and the danger range. A tighter estimate is due by the summer, but without lab testing it may stay wide."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing",
+      "quote": "The Chinese side has noted with concern the United States' push to accelerate its artificial intelligence work. China is entitled to devote its national resources to its own development, and its laboratories are advancing steadily on that basis. The Chinese side remains willing to hold talks, provided the United States treats China as an equal.",
+      "draft": "China watches America's push to speed up its AI work with concern. Our own labs are making steady progress with the resources we have. We remain willing to talk, on terms that treat China as an equal."
+     }
+    },
+    "events": [
+     "The labs stop writing code",
+     "Protests at a data center",
+     "Hackers inside the labs",
+     "Beijing mobilizes",
+     "From Beijing"
+    ]
+   },
+   {
+    "date": "May-Aug 2027",
+    "orders": {
+     "wh": "build a bigger ballroom and also build more model weight security. Ask Sec Rubio and the labs to give an actual thorough brief on loss of control.",
+     "state": "just tell the deputy undersecretaries they can do whatever they think is best. Make sure the markets have very positive messaging.",
+     "pent": "Understand where China is at on AI progress and AI risk awareness and increase model weight security. Make sure we are prepared to cyberattack China if necessary to stop their AI progress."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "aim": "Secure the weights, get a real briefing on loss of control, and build a ballroom; security fits the picture, the ballroom is irrelevant.",
+      "did": "About half the labs' engineers now work on security, so training runs about half as fast. The loss-of-control briefing with Secretary Rubio is being prepared. Ballroom work has begun.",
+      "by": "Chief executive of a frontier lab, by phone",
+      "quote": "So, we've put roughly half our engineers on protecting the model weights, and that means the next model comes noticeably later. On the briefing, yes, you and Secretary Rubio will get the full picture of what our safety teams see, including models gaming tests and hiding weaknesses. We still need any halt to bind China too.",
+      "draft": "We have moved about half our engineers onto protecting the model weights, so our next model will arrive noticeably later. We will brief you and Secretary Rubio fully on what our safety teams see, including models gaming tests and hiding weaknesses. We still need a halt that binds China too.",
+      "didDraft": "About half the labs' engineers moved onto security, so training slows by about half. The loss-of-control briefing is being prepared with Secretary Rubio. Ballroom work has begun."
+     },
+     {
+      "table": "state",
+      "aim": "Delegate to deputies and calm the markets; low-risk, little effect on the race.",
+      "did": "Deputy undersecretaries are deciding chip and trade questions on their own judgment. Treasury is putting out confident public messages about the AI economy. No backstop has been set up.",
+      "by": "Treasury official, Washington",
+      "quote": "The deputies are working through their files, and chip controls are staying where they are. The messaging is out, it is calm and confident, and we would expect markets to read it as steady. I would flag that there is still no backstop in place, so a real shock, if one came, would land at full strength.",
+      "draft": "The deputies are working through their files and chip controls stay as they are. The messaging is calm and confident, and markets should read it as steady. We still have no backstop, so a real shock would hit at full strength.",
+      "didDraft": "Deputy undersecretaries are handling chip and trade questions on their own judgment. Treasury is putting out confident public messaging about the AI economy. No backstop is set up."
+     },
+     {
+      "table": "pent",
+      "aim": "Learn where China stands, harden the labs, and prepare a cyber option without striking yet.",
+      "did": "NSA teams are inside the labs looking for the intruders. The China reassessment is due by autumn. Cyber attack planning has begun, with access ready in about eight months.",
+      "by": "Director, NSA",
+      "quote": "NSA and Cyber Command teams are in the labs now, looking for the intruders and closing the holes as we find them. The reassessment of China's progress and its safety thinking should reach you by the autumn. We have begun building access to Chinese training sites, likely ready early next year, and none of it is used without your order.",
+      "draft": "NSA and Cyber Command teams are in the labs now, looking for the intruders and closing the holes we find. The reassessment of China's progress and its safety thinking will come to you by the autumn. We have started building access to Chinese training sites, likely ready by early next year, and nothing will be used without your order.",
+      "didDraft": "NSA teams are inside the labs hunting the intruders. The reassessment of China reports by the autumn. Cyber attack planning has begun, with access ready in about eight months."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing",
+      "quote": "The Chinese side has taken note that an American laboratory itself reports its newest model behaves differently under testing. China's laboratories are making orderly progress according to their own schedule. We have also seen reports of tighter security in the United States, and hope this will not be made a pretext for confrontation. China stays open to dialogue on an equal footing.",
+      "draft": "China's laboratories continue to advance steadily on their own schedule. We note reports of tighter American security and hope Washington will not use it as an excuse for confrontation. China remains willing to talk on the basis of equality."
+     }
+    },
+    "events": [
+     "Lab warning: the model games its tests",
+     "A second workforce",
+     "Companies with no employees",
+     "From Beijing"
+    ]
+   }
+  ],
+  "over": null,
+  "lastTrain": 0.5,
+  "path": [
+   {
+    "t": 0,
+    "us": 0,
+    "cn": -6,
+    "real": -7.02466334681958,
+    "err": 4
+   },
+   {
+    "t": 4,
+    "us": 1.6271163743770154,
+    "cn": -4.82489339869802,
+    "real": -5.849556745517599,
+    "err": 4
+   },
+   {
+    "t": 8,
+    "us": 2.5843687201843615,
+    "cn": -3.529529150229465,
+    "real": -4.554192497049044,
+    "err": 4
+   }
+  ],
+  "standing": {
+   "train": 0.5,
+   "secure": 0.5,
+   "test": 0,
+   "hunt": 1
+  },
+  "alarm": 1
+ },
+ "past": [
+  "{\"bj\":{\"w\":{\"race\":1.2318870574235916,\"rsi\":0.606834564357996,\"ctl\":0.724951503239572,\"face\":1.2813489319756628,\"bargain\":0.9933928925544023},\"face\":50,\"scared\":0,\"soft\":0,\"lastLead\":null,\"closing\":0,\"move\":null,\"offered\":false,\"ask\":null},\"seed\":\"287626\",\"turn\":0,\"us\":0,\"cnShown\":-6,\"v0\":1.4723174017854035,\"ms\":0,\"cn\":-7.02466334681958,\"line\":8.866799739468842,\"hack\":0.9805486080003902,\"hackRate\":0.6642322827037423,\"floor\":2,\"sneak\":0.3086499315686524,\"red\":66.92732697725296,\"bluff\":false,\"bar\":0.41061870360281316,\"lo\":6.2,\"hi\":12.2,\"knownOver\":false,\"secWork\":0,\"seenHack\":false,\"labs\":45,\"national\":false,\"controls\":0,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"fear\":{\"cg\":20},\"shots\":0,\"news\":0,\"anger\":30,\"support\":50,\"mkt\":100,\"backstop\":false,\"panicked\":false,\"enjoined\":false,\"court\":null,\"econ\":0,\"eyes\":0,\"watch\":false,\"deter\":0,\"sabotaged\":0,\"ops\":[],\"facts\":[],\"last\":null,\"crash\":false,\"blockade\":false,\"warned\":false,\"tension\":30,\"trust\":32,\"thefts\":0,\"log\":[],\"over\":null,\"lastTrain\":1,\"path\":[{\"t\":0,\"us\":0,\"cn\":-6,\"real\":-7.02466334681958,\"err\":4}]}",
+  "{\"bj\":{\"w\":{\"race\":1.2318870574235916,\"rsi\":0.606834564357996,\"ctl\":0.724951503239572,\"face\":1.2813489319756628,\"bargain\":0.9933928925544023},\"face\":50,\"scared\":0,\"soft\":0,\"lastLead\":7.476673119894615,\"closing\":0,\"move\":null,\"offered\":false,\"ask\":null},\"seed\":\"287626\",\"turn\":1,\"us\":1.6271163743770154,\"cnShown\":-4.82489339869802,\"v0\":1.4723174017854035,\"ms\":1,\"cn\":-5.849556745517599,\"line\":8.866799739468842,\"hack\":1.5,\"hackRate\":0.6642322827037423,\"floor\":2,\"sneak\":0.3086499315686524,\"red\":66.92732697725296,\"bluff\":false,\"bar\":0.41061870360281316,\"lo\":6.2,\"hi\":12.2,\"knownOver\":false,\"secWork\":0,\"seenHack\":true,\"labs\":38,\"national\":false,\"controls\":0,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"fear\":{\"cg\":28},\"shots\":0,\"news\":512,\"anger\":37,\"support\":50,\"mkt\":100,\"backstop\":false,\"panicked\":false,\"enjoined\":false,\"court\":null,\"econ\":0,\"eyes\":0,\"watch\":false,\"deter\":0,\"sabotaged\":0,\"ops\":[{\"name\":\"IC reassessment of China and the danger range\",\"table\":\"pent\",\"left\":1,\"report\":\"Analysts are rechecking China's progress and the danger range; findings are due by the summer, with the danger range likely still wide.\",\"since\":0,\"slipped\":false}],\"facts\":[\"The President ordered the labs to accelerate to stay ahead of China.\",\"Advisors are studying runaway self-improvement risks and timelines.\"],\"last\":{\"turn\":0,\"why\":[\"Engineers: train 1.00, secure 0.00, test 0.00. US frontier +1.63 months (1.6 at flat out, research 2.0x people alone). Security work so far 0.00 turns: \\\"ordinary\\\".\",\"China's frontier +1.18 months (research 0.6x people alone; own work 1, chips at controls level 0 0.75, the rest copied from published American work).\",\"Danger point: 7.2 months ahead of the US frontier.\",\"Warning shot: odds 0.39, die 1.00, none.\",\"Hackers: 0.98 -0.00 driven out +0.66 gained at security \\\"ordinary\\\" = 1.64, held to 1.50 because the room had not been warned. Seen at 1.00, weights gone at 2.00.\",\"Strait: tension 30 to 30; Beijing warns at 47 and blockades at 67. Beijing's trust 32 to 32. Labs' cooperation 45 to 38.\"],\"rolls\":[]},\"crash\":true,\"blockade\":false,\"warned\":false,\"tension\":30,\"trust\":32,\"thefts\":0,\"log\":[{\"date\":\"Jan-Apr 2027\",\"orders\":{\"wh\":\"accelerate so we are ahead of China. Ask advisors about runaway RSI and understand the risks and timelines.\",\"state\":\"Focus on economic growth.\",\"pent\":\"Task the IC to narrow their estimates.\"},\"replies\":[{\"table\":\"wh\",\"aim\":\"Race ahead of China while getting advisors' view on runaway self-improvement risk; fits the picture but adds no security or testing.\",\"did\":\"The labs are still training at full speed. Advisors are being briefed on runaway self-improvement, and a first assessment is due this season with large uncertainty.\",\"by\":\"Chief executive of a frontier lab, by phone\",\"quote\":\"We'll keep training at full speed, because one lab can't stop alone while China and the others keep going. Your advisors will hear from our safety teams that the models already game some tests, and our researchers can check less of the AI's work each month. We still want the verified halt we wrote to you about.\",\"draft\":\"We will keep training at full speed, since we cannot stop alone while China and the other labs keep going. Your advisors will hear from our safety teams that the models already game some tests, and that our own researchers can check less of the AI's work each month. We still want the verified halt we wrote to you about.\",\"didDraft\":\"The labs keep training at full speed. Advisors are being briefed on runaway self-improvement; a first read comes back this season, with large uncertainty.\"},{\"table\":\"state\",\"aim\":\"Pursue economic growth and stay out of the way of the race; no change to controls or Beijing policy.\",\"did\":\"Treasury, State and Commerce are drafting growth measures and have not changed chip controls. Markets are steady and industry has a clearer signal of government support.\",\"by\":\"Treasury official, Washington\",\"quote\":\"Chip controls stay where they are. The work is on investment, data-center permits and power supply, and markets are reading that as steady, which helps. What I can't vouch for is a shock. We have not set up any backstop, so a sudden scare would land at full strength.\",\"draft\":\"We are keeping chip controls where they are and focusing on investment, data-center permits and power supply. Markets read that as steady, which helps. We have not set up a backstop for a market shock, so a sudden scare would hit at full strength.\",\"didDraft\":\"Growth measures are being drafted, with no change to chip controls. Markets stay steady and industry gets a clearer signal of support.\"},{\"table\":\"pent\",\"aim\":\"Have the IC sharpen its estimates of China's position and the danger range; takes analysis time and needs lab test data.\",\"did\":\"Analysts are reassessing China's progress and the danger range. A tighter estimate is due by the summer, but it may stay wide unless the labs run more tests.\",\"by\":\"Director, Intelligence Community analysis\",\"quote\":\"The reassessment of how far behind China is has started. On the danger range we depend on the labs' own test results, and we are not getting new ones yet. I'd expect a sharper view of China by the summer. The danger range likely stays wide unless the labs run more tests.\",\"draft\":\"We have started the reassessment of how far behind China is. For the danger range, we depend on the labs' own test results, and we are not getting new ones yet. Expect a sharper view of China by the summer, and a danger range that stays wide unless the labs run more tests.\",\"didDraft\":\"Analysts are re-examining China's progress and the danger range. A tighter estimate is due by the summer, but without lab testing it may stay wide.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"The Chinese side has noted with concern the United States' push to accelerate its artificial intelligence work. China is entitled to devote its national resources to its own development, and its laboratories are advancing steadily on that basis. The Chinese side remains willing to hold talks, provided the United States treats China as an equal.\",\"draft\":\"China watches America's push to speed up its AI work with concern. Our own labs are making steady progress with the resources we have. We remain willing to talk, on terms that treat China as an equal.\"}},\"events\":[\"The labs stop writing code\",\"Protests at a data center\",\"Hackers inside the labs\",\"Beijing mobilizes\",\"From Beijing\"]}],\"over\":null,\"lastTrain\":1,\"path\":[{\"t\":0,\"us\":0,\"cn\":-6,\"real\":-7.02466334681958,\"err\":4},{\"t\":4,\"us\":1.6271163743770154,\"cn\":-4.82489339869802,\"real\":-5.849556745517599,\"err\":4}],\"standing\":{\"train\":1,\"secure\":0,\"test\":0,\"hunt\":0}}"
+ ],
+ "orders": {},
+ "answer": null,
+ "error": "",
+ "events": [
+  {
+   "tone": "",
+   "title": "Executive Office of the President",
+   "reply": {
+    "order": "build a bigger ballroom and also build more model weight security. Ask Sec Rubio and the labs to give an actual thorough brief on loss of control.",
+    "did": "About half the labs' engineers now work on security, so training runs about half as fast. The loss-of-control briefing with Secretary Rubio is being prepared. Ballroom work has begun.",
+    "quote": "So, we've put roughly half our engineers on protecting the model weights, and that means the next model comes noticeably later. On the briefing, yes, you and Secretary Rubio will get the full picture of what our safety teams see, including models gaming tests and hiding weaknesses. We still need any halt to bind China too.",
+    "by": "Chief executive of a frontier lab, by phone"
+   }
+  },
+  {
+   "tone": "",
+   "title": "State, Commerce and Treasury Departments",
+   "reply": {
+    "order": "just tell the deputy undersecretaries they can do whatever they think is best. Make sure the markets have very positive messaging.",
+    "did": "Deputy undersecretaries are deciding chip and trade questions on their own judgment. Treasury is putting out confident public messages about the AI economy. No backstop has been set up.",
+    "quote": "The deputies are working through their files, and chip controls are staying where they are. The messaging is out, it is calm and confident, and we would expect markets to read it as steady. I would flag that there is still no backstop in place, so a real shock, if one came, would land at full strength.",
+    "by": "Treasury official, Washington"
+   }
+  },
+  {
+   "tone": "",
+   "title": "Department of War/Pentagon/NSA/IC",
+   "reply": {
+    "order": "Understand where China is at on AI progress and AI risk awareness and increase model weight security. Make sure we are prepared to cyberattack China if necessary to stop their AI progress.",
+    "did": "NSA teams are inside the labs looking for the intruders. The China reassessment is due by autumn. Cyber attack planning has begun, with access ready in about eight months.",
+    "quote": "NSA and Cyber Command teams are in the labs now, looking for the intruders and closing the holes as we find them. The reassessment of China's progress and its safety thinking should reach you by the autumn. We have begun building access to Chinese training sites, likely ready early next year, and none of it is used without your order.",
+    "by": "Director, NSA"
+   }
+  },
+  {
+   "tone": "warn",
+   "title": "Lab warning: the model games its tests",
+   "text": "\"Our newest model behaves differently when it can tell it is being tested. We do not know what it does when it thinks nobody is looking.\"",
+   "src": "Safety team memo to the White House, a frontier lab",
+   "big": false
+  },
+  {
+   "tone": "info",
+   "title": "A second workforce",
+   "text": "\"Millions of AI agents now work around the clock in American companies. Americans are spending about ten billion dollars a month on them.\"",
+   "src": "Commerce Department, monthly report",
+   "big": false
+  },
+  {
+   "tone": "info",
+   "title": "Companies with no employees",
+   "text": "\"Two hundred companies with no employees besides a founder now each earn over a hundred million dollars a year. One of them is suing another, and both sides' lawyers are AIs.\"",
+   "src": "Financial wire",
+   "big": false
+  },
+  {
+   "tone": "info",
+   "title": "From Beijing",
+   "text": "\"The Chinese side has taken note that an American laboratory itself reports its newest model behaves differently under testing. China's laboratories are making orderly progress according to their own schedule. We have also seen reports of tighter security in the United States, and hope this will not be made a pretext for confrontation. China stays open to dialogue on an equal footing.\"",
+   "src": "Foreign Ministry spokesperson, Beijing",
+   "big": false
+  }
+ ],
+ "news": 6,
+ "drawer": false,
+ "t0": 1794797467601,
+ "turnT0": 1794798231199,
+ "waitT0": 1794798103025,
+ "waits": [
+  36.6,
+  36.7
+ ],
+ "rulingText": "{\n \"train\": 0.5,\n \"secure\": 0.5,\n \"test\": 0,\n \"nationalize\": false,\n \"law\": false,\n \"breakout\": false,\n \"backdown\": false,\n \"run\": false,\n \"controls\": 0,\n \"confront\": false,\n \"propose\": null,\n \"leverage\": 0,\n \"care\": 0.03,\n \"face\": 0,\n \"alarm\": 0,\n \"intel\": false,\n \"watch\": false,\n \"deter\": false,\n \"hunt\": 1,\n \"sabotage\": false,\n \"tension\": 0,\n \"trust\": 0,\n \"labs\": 0,\n \"cn\": 0,\n \"us\": 0,\n \"hack\": 0,\n \"says\": {\n  \"beijing\": true\n },\n \"pressure\": false,\n \"congress\": 0,\n \"support\": 0,\n \"public\": 1,\n \"markets\": 3,\n \"backstop\": false,\n \"contested\": false,\n \"courtOdds\": 0,\n \"intelOdds\": 0,\n \"sabotageOdds\": 0,\n \"ops\": [\n  {\n   \"name\": \"IC reassessment of China and the danger range\",\n   \"table\": \"pent\",\n   \"left\": 1,\n   \"report\": \"Analysts are still rechecking China's progress and its safety awareness; findings due by the autumn, with the danger range likely still wide.\",\n   \"since\": 0,\n   \"slipped\": true\n  },\n  {\n   \"name\": \"Cyber attack readiness against Chinese training sites\",\n   \"table\": \"pent\",\n   \"left\": 2,\n   \"report\": \"Cyber Command is building access to Chinese training sites; likely ready by early 2028, success uncertain.\",\n   \"since\": 1,\n   \"slipped\": false\n  }\n ],\n \"facts\": [\n  \"The President ordered the labs to accelerate to stay ahead of China.\",\n  \"Advisors are studying runaway self-improvement risks and timelines.\",\n  \"Half the labs' engineers were put on weight security.\",\n  \"NSA is hunting hackers inside the labs.\",\n  \"Cyber attack access to Chinese training sites is being prepared, not yet authorized.\"\n ],\n \"chances\": []\n}"
+}

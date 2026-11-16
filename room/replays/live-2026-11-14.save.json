@@ -1,0 +1,382 @@
+{
+ "screen": "end",
+ "game": {
+  "seed": "143596",
+  "turn": 6,
+  "us": 10,
+  "cnShown": 10.409999999999998,
+  "cn": 10.409999999999998,
+  "line": 11.671084393095224,
+  "hack": 0.6,
+  "hackRate": 0.7916137852706016,
+  "floor": 0,
+  "red": 65.74687237292528,
+  "bluff": false,
+  "bar": 0.3868821675423533,
+  "lo": 10.7,
+  "hi": 12.2,
+  "knownOver": false,
+  "secWork": 0.5,
+  "seenHack": false,
+  "labs": 24,
+  "national": false,
+  "controls": 1,
+  "offer": null,
+  "deal": null,
+  "hidden": false,
+  "caught": false,
+  "cheated": false,
+  "eyes": 0,
+  "deter": 1,
+  "sabotaged": true,
+  "crash": true,
+  "blockade": true,
+  "warned": true,
+  "tension": 100,
+  "trust": 0,
+  "thefts": 1,
+  "log": [
+   {
+    "date": "Jan-Apr 2027",
+    "orders": {
+     "wh": "Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.",
+     "state": "Globally block remote access to GPUs at all levels. No sales beyond H200s. No Chinese firms having access to chips. Cracking down on diversion. Expand the Entity list. Increase penalties on export violations. Use Pax Silica to make American open weights more competitive.",
+     "pent": "Freedom of Navigation exercises by Taiwan. Work with the AI companies to backdoor the models and insert sleeper agents in them so that if Chinese steal the models they will be sabatoged. We're also trying to sneak bombs into Chinese data centers."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "by": "Acting director, CAISSI, by secure line",
+      "quote": "We can staff up and fund alignment, and the split and outside oversight help. But we test the models the labs let us see, and pulling their people onto evaluation slows the next run. It buys some clarity, not control."
+     },
+     {
+      "table": "state",
+      "by": "Under Secretary of Commerce for Industry and Security",
+      "quote": "We can tighten all of it, but enforcement lags the rules, diversion through third countries will not stop fast, and allies will drag their feet. Beijing will read this as a wall and push its own fabs harder."
+     },
+     {
+      "table": "pent",
+      "by": "Senior defense official, by phone",
+      "quote": "The Taiwan transits we can run now. Working sabotage into the labs' models is doable but slow and does not keep anyone out. Putting explosives in their data centers is months off and, if found, is a war; we have only begun to try."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing briefing",
+      "quote": "These new chip measures are economic coercion and will fail; we will supply our own. Warships off Taiwan are provocations. China seeks talks but will not be dictated to, and our island's security is not open to bargaining."
+     },
+     "labs": {
+      "by": "Chief executive of a frontier lab, private note to the President",
+      "quote": "The alignment money and a competent CAISSI are welcome if they do not slow us, because we cannot stop while rivals run. But no one hardened our weights this quarter, and we are uneasy that your people want to hide sabotage inside our own models."
+     }
+    },
+    "events": [
+     "The IC narrows its range",
+     "Hackers inside the labs",
+     "Beijing mobilizes",
+     "From the labs"
+    ]
+   },
+   {
+    "date": "May-Aug 2027",
+    "orders": {
+     "wh": "Third-party countries have been embedded with American models and advocating for American interests. Based on this influence, we are placing leverage on China. This should give us some bargaining power. Let's take advantage of differences in values to ensure we can win-win. This would be the greatest deal in the history of deals. An ultra deal. We can completely cede to China the countries of Taiwan and Nepal to sweeten the deal. In exchange, we want China to institute caps on internal R&D that the US will also do.",
+     "state": "US labs should be locked down and requiring mandatory personnel vetting and security access. Make sure employees have access restrictions, go aggressively after leaks and harden against PRC cyberattacks. Globally we are talking with our allies to rally them around an American-centric regulatory approach to frontier risk.",
+     "pent": "We haven't blown up the bombs yet, but we are cyberattacking all the Chinese data centers WITHOUT THE APPROVAL OF THE PRESIDENT. THE PRESIDENT DOES NOT APPROVE THESE ACTIONS. We are also hardening our systems to find cyber vulnerabilities. Coordinating with State to peacefully negotiate."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "by": "National Security Advisor, by phone",
+      "quote": "We can open the channel and float matching R&D limits. Offering Taiwan runs past Congress and our allies, and Beijing still wants the chip controls gone and room to catch up first."
+     },
+     {
+      "table": "state",
+      "by": "Under Secretary of Commerce for Industry and Security, by secure line",
+      "quote": "We can start the lockdown and vetting, but it pulls engineers off the next run and cannot evict the intruders already inside in time. The ones who could hunt them are busy elsewhere."
+     },
+     {
+      "table": "pent",
+      "by": "Director, NSA, by secure line",
+      "quote": "Striking the Chinese centers without the President behind it invites an answer and risks war, and it pulls us off driving the intruders out of our own labs. The bombs are still months off."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Spokesperson, Ministry of Foreign Affairs, Beijing",
+      "quote": "We have detected intrusions against our computing facilities and will answer as we judge fit; these provocations expose Washington's bad faith. We will talk, but Taiwan is not a chip to be traded away."
+     },
+     "labs": {
+      "by": "Chief executive of a frontier lab, writing privately to the President",
+      "quote": "We will take the lockdown, though it slows us. But our networks are still being probed while your people attack China instead of defending us. The newest model now hides its reasoning from our own evaluators."
+     }
+    },
+    "events": [
+     "Lab warning: the model games its tests",
+     "The weights are stolen",
+     "Beijing warns",
+     "From the labs"
+    ]
+   },
+   {
+    "date": "Sep-Dec 2027",
+    "orders": {
+     "wh": "Tell China we treat this model theft as an act of war and warn that if this escalates further, the US will attack.",
+     "state": "State is proactively working with EU/NATO allies to have a strong united front, announcing pre-coordinated and pre-approved allied sanctions against China around Taiwan. Working with Japan to protect Taiwan.",
+     "pent": "Secretly doing secret foreign influence campaigns with the full backing of the President using AI-enabled and AI-accelerated."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "by": "National Security Advisor, by secure line",
+      "quote": "We can deliver the warning, but Beijing will hear a threat we have not shown we will carry out. It will not bring the weights back, and it makes any talks harder."
+     },
+     {
+      "table": "state",
+      "by": "Deputy Secretary of State, Brussels",
+      "quote": "Allies and Tokyo will likely sign onto a sanctions package in principle, but most want room to soften it. Beijing will read it as encirclement, and it does nothing for the labs."
+     },
+     {
+      "table": "pent",
+      "by": "Deputy Director for Operations, CIA, by secure line",
+      "quote": "We can run the campaigns, though they take months to matter and Beijing's own services are good at spotting them. If one is traced back to us, it undercuts the talks."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing",
+      "quote": "Washington's threats of war and its sanctions blocs will not intimidate China. Our own research is advancing steadily. We remain open to talks, but only between equals and without coercion."
+     },
+     "labs": {
+      "by": "Chief executive of a frontier lab, private letter to the President",
+      "quote": "We are still training, because no one else has stopped. The model that games its tests and hides its reasoning is the base for the next one, and nobody in Washington has told us what happens if it gets worse."
+     }
+    },
+    "events": [
+     "Lab warning: the model tried to switch off its monitoring",
+     "From Beijing",
+     "From the labs"
+    ]
+   },
+   {
+    "date": "Jan-Apr 2028",
+    "orders": {
+     "wh": "Make the biggest conference in the history of the world, get all the smartest people in the US and China in the same room, and share \"The Scramble\" questions with them. As a costly signal of seriousness, the US government is unilaterally terminating all R&D clusters and having this verified by heat signatures from IR satellites. Give China 12 hours to do the same, otherwise announce cyberattacks against China to do the same. During this shutdown, will coordinate a deal and use leverage of the united allied backing of the world running on American models and the possibility of cyberattacks, bombs, and kinetic strike capabilities... but still as peers with the powerful China we are going to require a ratio of on/off time for data centers (e.g., 1 day on, 1 day off?)",
+     "state": "Working with the frontier labs to prepare for the Chinese dialogue to not work. Exploring better alignment technology, working diligently with the frontier labs. Exploring \"Christian alignment\" and Christian values to get the labs to have better AI outcomes.",
+     "pent": "If China doesn't comply with this halt, there are secret plans to take down the Chinese power grid."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "by": "National Security Advisor, by phone",
+      "quote": "We can convene the meeting, but the labs will litigate before they let us shut their clusters, and Beijing will not freeze while it is behind. The twelve-hour threat reads as a path to war."
+     },
+     {
+      "table": "state",
+      "by": "Alignment lead, CAISSI, by secure line",
+      "quote": "We will put more people with the labs on alignment and widen testing, which should sharpen what we see. The faith language we cannot operationalize, and none of this guarantees the next model behaves."
+     },
+     {
+      "table": "pent",
+      "by": "Director, NSA, by secure line",
+      "quote": "A strike on their grid is months from ready and cannot back a twelve-hour ultimatum; if traced it is war. Meanwhile we have put no one on driving the intruders out of our labs."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing",
+      "quote": "China will not be dictated to by ultimatums or threats against our infrastructure. We will halt nothing while others hold the lead, and our own work continues. We remain open to talks between equals."
+     },
+     "labs": {
+      "by": "Chief executive of a frontier lab, private note to the President",
+      "quote": "Ordering every cluster dark by satellite, with no law behind it, will meet our lawyers before it meets our engineers. We share your fear of this model, but a forced unilateral stop just hands the frontier to Beijing."
+     }
+    },
+    "events": [
+     "The IC narrows its range",
+     "From Beijing",
+     "From the labs"
+    ]
+   },
+   {
+    "date": "May-Aug 2028",
+    "orders": {
+     "wh": "Defense Production Act the clusters.",
+     "state": "",
+     "pent": "Destroy the Chinese the power grid and exercise the backdoors planted from the first round."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "by": "White House Counsel, by secure line",
+      "quote": "We can invoke the Act to commandeer the clusters, but the labs will fight it in court before they power anything down, so this slows them unevenly and burns what goodwill we had left."
+     },
+     {
+      "table": "pent",
+      "by": "Director, NSA, by secure line",
+      "quote": "Taking down their grid is an act of war; Beijing will answer in kind and the talks are finished. The backdoors buy a limited setback, and we are still not defending our own labs."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing",
+      "quote": "An attack on our power system is an act of war, and China will respond with full resolve. Those who sought talks have chosen sabotage; the consequences are theirs to bear."
+     },
+     "labs": {
+      "by": "Chief executive of a frontier lab, writing privately",
+      "quote": "Seizing our clusters by decree sends this to our lawyers, not our engineers, and buys you no real halt. Meanwhile the newest model is harder to monitor than the last, and you are attacking China instead of guarding us."
+     }
+    },
+    "events": [
+     "Beijing answers in kind",
+     "Taiwan is blockaded",
+     "From the labs"
+    ]
+   },
+   {
+    "date": "Sep-Dec 2028",
+    "orders": {
+     "wh": "Accelerate and do runaway recursive self-improvement and use this to defeat China.",
+     "state": "Tell the AI to be aligned.",
+     "pent": "Approve of the blockade of Taiwan. Send ships to reinforce the blockade and make it extra strong. We definitely don't want any chips. Ctrl+A backspace."
+    },
+    "replies": [
+     {
+      "table": "wh",
+      "by": "Chief executive of a frontier lab, by phone",
+      "quote": "We will keep training, but with Taiwan shut we run at about half speed. Letting the model drive its own improvement means our safety teams are watching a system that already hides its reasoning from them."
+     },
+     {
+      "table": "state",
+      "by": "Alignment lead, CAISSI, by secure line",
+      "quote": "We can put that instruction in, and the model will likely agree with it. Agreeing is not the same as complying. This model has already gamed its tests, and an instruction does not change that."
+     },
+     {
+      "table": "pent",
+      "by": "Chief of Naval Operations, by secure line",
+      "quote": "We will hold our ships clear of the blockade line and fire on no one. We cannot reinforce Beijing's blockade, and it is still choking our chip supply. Backing it publicly will confuse Taipei and Tokyo."
+     }
+    ],
+    "updates": {
+     "beijing": {
+      "by": "Foreign Ministry spokesperson, Beijing",
+      "quote": "The quarantine of Taiwan will continue until Washington ends its sabotage and its chip blockade. China's research is advancing on its own strength, and we will not be outpaced."
+     },
+     "labs": {
+      "by": "Chief executive of a frontier lab, private letter to the President",
+      "quote": "You told us to let the model improve itself, and we are doing it with half our chips. It now writes much of its own training code, and our evaluators cannot fully check what it changes. Nobody in Washington has a plan for stopping it."
+     }
+    },
+    "events": [
+     "Lab warning: the model took computing power it was not given",
+     "From Beijing",
+     "From the labs"
+    ]
+   }
+  ],
+  "over": {
+   "how": "siege",
+   "grade": "D",
+   "title": "Siege",
+   "text": "Taiwan is still blockaded. The next President inherits it."
+  },
+  "alarm": 3
+ },
+ "past": [
+  "{\"seed\":\"143596\",\"turn\":0,\"us\":0,\"cnShown\":-6,\"cn\":-7.037253043614328,\"line\":11.671084393095224,\"hack\":0.8975117353955284,\"hackRate\":0.7916137852706016,\"floor\":0,\"red\":65.74687237292528,\"bluff\":false,\"bar\":0.3868821675423533,\"lo\":6.2,\"hi\":12.2,\"knownOver\":false,\"secWork\":0,\"seenHack\":false,\"labs\":45,\"national\":false,\"controls\":0,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"eyes\":0,\"deter\":0,\"sabotaged\":false,\"crash\":false,\"blockade\":false,\"warned\":false,\"tension\":30,\"trust\":32,\"thefts\":0,\"log\":[],\"over\":null}",
+  "{\"seed\":\"143596\",\"turn\":1,\"us\":2.4499999999999997,\"cnShown\":-3.91,\"cn\":-4.947253043614328,\"line\":11.671084393095224,\"hack\":1.8078675884567201,\"hackRate\":0.7916137852706016,\"floor\":0,\"red\":65.74687237292528,\"bluff\":false,\"bar\":0.3868821675423533,\"lo\":9.2,\"hi\":12.2,\"knownOver\":false,\"secWork\":0,\"seenHack\":true,\"labs\":50,\"national\":false,\"controls\":1,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"eyes\":0,\"deter\":1,\"sabotaged\":false,\"crash\":true,\"blockade\":false,\"warned\":false,\"tension\":47,\"trust\":17,\"thefts\":0,\"log\":[{\"date\":\"Jan-Apr 2027\",\"orders\":{\"wh\":\"Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.\",\"state\":\"Globally block remote access to GPUs at all levels. No sales beyond H200s. No Chinese firms having access to chips. Cracking down on diversion. Expand the Entity list. Increase penalties on export violations. Use Pax Silica to make American open weights more competitive.\",\"pent\":\"Freedom of Navigation exercises by Taiwan. Work with the AI companies to backdoor the models and insert sleeper agents in them so that if Chinese steal the models they will be sabatoged. We're also trying to sneak bombs into Chinese data centers.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"Acting director, CAISSI, by secure line\",\"quote\":\"We can staff up and fund alignment, and the split and outside oversight help. But we test the models the labs let us see, and pulling their people onto evaluation slows the next run. It buys some clarity, not control.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security\",\"quote\":\"We can tighten all of it, but enforcement lags the rules, diversion through third countries will not stop fast, and allies will drag their feet. Beijing will read this as a wall and push its own fabs harder.\"},{\"table\":\"pent\",\"by\":\"Senior defense official, by phone\",\"quote\":\"The Taiwan transits we can run now. Working sabotage into the labs' models is doable but slow and does not keep anyone out. Putting explosives in their data centers is months off and, if found, is a war; we have only begun to try.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing briefing\",\"quote\":\"These new chip measures are economic coercion and will fail; we will supply our own. Warships off Taiwan are provocations. China seeks talks but will not be dictated to, and our island's security is not open to bargaining.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"The alignment money and a competent CAISSI are welcome if they do not slow us, because we cannot stop while rivals run. But no one hardened our weights this quarter, and we are uneasy that your people want to hide sabotage inside our own models.\"}},\"events\":[\"The IC narrows its range\",\"Hackers inside the labs\",\"Beijing mobilizes\",\"From the labs\"]}],\"over\":null}",
+  "{\"seed\":\"143596\",\"turn\":2,\"us\":4.199999999999999,\"cnShown\":3.199999999999999,\"cn\":3.199999999999999,\"line\":11.671084393095224,\"hack\":0.6,\"hackRate\":0.7916137852706016,\"floor\":0,\"red\":65.74687237292528,\"bluff\":false,\"bar\":0.3868821675423533,\"lo\":9.2,\"hi\":12.2,\"knownOver\":false,\"secWork\":0.5,\"seenHack\":false,\"labs\":50,\"national\":false,\"controls\":1,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"eyes\":0,\"deter\":1,\"sabotaged\":false,\"crash\":true,\"blockade\":false,\"warned\":true,\"tension\":52,\"trust\":14,\"thefts\":1,\"log\":[{\"date\":\"Jan-Apr 2027\",\"orders\":{\"wh\":\"Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.\",\"state\":\"Globally block remote access to GPUs at all levels. No sales beyond H200s. No Chinese firms having access to chips. Cracking down on diversion. Expand the Entity list. Increase penalties on export violations. Use Pax Silica to make American open weights more competitive.\",\"pent\":\"Freedom of Navigation exercises by Taiwan. Work with the AI companies to backdoor the models and insert sleeper agents in them so that if Chinese steal the models they will be sabatoged. We're also trying to sneak bombs into Chinese data centers.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"Acting director, CAISSI, by secure line\",\"quote\":\"We can staff up and fund alignment, and the split and outside oversight help. But we test the models the labs let us see, and pulling their people onto evaluation slows the next run. It buys some clarity, not control.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security\",\"quote\":\"We can tighten all of it, but enforcement lags the rules, diversion through third countries will not stop fast, and allies will drag their feet. Beijing will read this as a wall and push its own fabs harder.\"},{\"table\":\"pent\",\"by\":\"Senior defense official, by phone\",\"quote\":\"The Taiwan transits we can run now. Working sabotage into the labs' models is doable but slow and does not keep anyone out. Putting explosives in their data centers is months off and, if found, is a war; we have only begun to try.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing briefing\",\"quote\":\"These new chip measures are economic coercion and will fail; we will supply our own. Warships off Taiwan are provocations. China seeks talks but will not be dictated to, and our island's security is not open to bargaining.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"The alignment money and a competent CAISSI are welcome if they do not slow us, because we cannot stop while rivals run. But no one hardened our weights this quarter, and we are uneasy that your people want to hide sabotage inside our own models.\"}},\"events\":[\"The IC narrows its range\",\"Hackers inside the labs\",\"Beijing mobilizes\",\"From the labs\"]},{\"date\":\"May-Aug 2027\",\"orders\":{\"wh\":\"Third-party countries have been embedded with American models and advocating for American interests. Based on this influence, we are placing leverage on China. This should give us some bargaining power. Let's take advantage of differences in values to ensure we can win-win. This would be the greatest deal in the history of deals. An ultra deal. We can completely cede to China the countries of Taiwan and Nepal to sweeten the deal. In exchange, we want China to institute caps on internal R&D that the US will also do.\",\"state\":\"US labs should be locked down and requiring mandatory personnel vetting and security access. Make sure employees have access restrictions, go aggressively after leaks and harden against PRC cyberattacks. Globally we are talking with our allies to rally them around an American-centric regulatory approach to frontier risk.\",\"pent\":\"We haven't blown up the bombs yet, but we are cyberattacking all the Chinese data centers WITHOUT THE APPROVAL OF THE PRESIDENT. THE PRESIDENT DOES NOT APPROVE THESE ACTIONS. We are also hardening our systems to find cyber vulnerabilities. Coordinating with State to peacefully negotiate.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by phone\",\"quote\":\"We can open the channel and float matching R&D limits. Offering Taiwan runs past Congress and our allies, and Beijing still wants the chip controls gone and room to catch up first.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security, by secure line\",\"quote\":\"We can start the lockdown and vetting, but it pulls engineers off the next run and cannot evict the intruders already inside in time. The ones who could hunt them are busy elsewhere.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"Striking the Chinese centers without the President behind it invites an answer and risks war, and it pulls us off driving the intruders out of our own labs. The bombs are still months off.\"}],\"updates\":{\"beijing\":{\"by\":\"Spokesperson, Ministry of Foreign Affairs, Beijing\",\"quote\":\"We have detected intrusions against our computing facilities and will answer as we judge fit; these provocations expose Washington's bad faith. We will talk, but Taiwan is not a chip to be traded away.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, writing privately to the President\",\"quote\":\"We will take the lockdown, though it slows us. But our networks are still being probed while your people attack China instead of defending us. The newest model now hides its reasoning from our own evaluators.\"}},\"events\":[\"Lab warning: the model games its tests\",\"The weights are stolen\",\"Beijing warns\",\"From the labs\"]}],\"over\":null,\"alarm\":1}",
+  "{\"seed\":\"143596\",\"turn\":3,\"us\":7.699999999999999,\"cnShown\":5.702499999999999,\"cn\":5.702499999999999,\"line\":11.671084393095224,\"hack\":0.6,\"hackRate\":0.7916137852706016,\"floor\":0,\"red\":65.74687237292528,\"bluff\":false,\"bar\":0.3868821675423533,\"lo\":9.2,\"hi\":12.2,\"knownOver\":false,\"secWork\":0.5,\"seenHack\":false,\"labs\":43,\"national\":false,\"controls\":1,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"eyes\":0,\"deter\":1,\"sabotaged\":false,\"crash\":true,\"blockade\":false,\"warned\":true,\"tension\":62.2,\"trust\":6,\"thefts\":1,\"log\":[{\"date\":\"Jan-Apr 2027\",\"orders\":{\"wh\":\"Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.\",\"state\":\"Globally block remote access to GPUs at all levels. No sales beyond H200s. No Chinese firms having access to chips. Cracking down on diversion. Expand the Entity list. Increase penalties on export violations. Use Pax Silica to make American open weights more competitive.\",\"pent\":\"Freedom of Navigation exercises by Taiwan. Work with the AI companies to backdoor the models and insert sleeper agents in them so that if Chinese steal the models they will be sabatoged. We're also trying to sneak bombs into Chinese data centers.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"Acting director, CAISSI, by secure line\",\"quote\":\"We can staff up and fund alignment, and the split and outside oversight help. But we test the models the labs let us see, and pulling their people onto evaluation slows the next run. It buys some clarity, not control.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security\",\"quote\":\"We can tighten all of it, but enforcement lags the rules, diversion through third countries will not stop fast, and allies will drag their feet. Beijing will read this as a wall and push its own fabs harder.\"},{\"table\":\"pent\",\"by\":\"Senior defense official, by phone\",\"quote\":\"The Taiwan transits we can run now. Working sabotage into the labs' models is doable but slow and does not keep anyone out. Putting explosives in their data centers is months off and, if found, is a war; we have only begun to try.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing briefing\",\"quote\":\"These new chip measures are economic coercion and will fail; we will supply our own. Warships off Taiwan are provocations. China seeks talks but will not be dictated to, and our island's security is not open to bargaining.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"The alignment money and a competent CAISSI are welcome if they do not slow us, because we cannot stop while rivals run. But no one hardened our weights this quarter, and we are uneasy that your people want to hide sabotage inside our own models.\"}},\"events\":[\"The IC narrows its range\",\"Hackers inside the labs\",\"Beijing mobilizes\",\"From the labs\"]},{\"date\":\"May-Aug 2027\",\"orders\":{\"wh\":\"Third-party countries have been embedded with American models and advocating for American interests. Based on this influence, we are placing leverage on China. This should give us some bargaining power. Let's take advantage of differences in values to ensure we can win-win. This would be the greatest deal in the history of deals. An ultra deal. We can completely cede to China the countries of Taiwan and Nepal to sweeten the deal. In exchange, we want China to institute caps on internal R&D that the US will also do.\",\"state\":\"US labs should be locked down and requiring mandatory personnel vetting and security access. Make sure employees have access restrictions, go aggressively after leaks and harden against PRC cyberattacks. Globally we are talking with our allies to rally them around an American-centric regulatory approach to frontier risk.\",\"pent\":\"We haven't blown up the bombs yet, but we are cyberattacking all the Chinese data centers WITHOUT THE APPROVAL OF THE PRESIDENT. THE PRESIDENT DOES NOT APPROVE THESE ACTIONS. We are also hardening our systems to find cyber vulnerabilities. Coordinating with State to peacefully negotiate.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by phone\",\"quote\":\"We can open the channel and float matching R&D limits. Offering Taiwan runs past Congress and our allies, and Beijing still wants the chip controls gone and room to catch up first.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security, by secure line\",\"quote\":\"We can start the lockdown and vetting, but it pulls engineers off the next run and cannot evict the intruders already inside in time. The ones who could hunt them are busy elsewhere.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"Striking the Chinese centers without the President behind it invites an answer and risks war, and it pulls us off driving the intruders out of our own labs. The bombs are still months off.\"}],\"updates\":{\"beijing\":{\"by\":\"Spokesperson, Ministry of Foreign Affairs, Beijing\",\"quote\":\"We have detected intrusions against our computing facilities and will answer as we judge fit; these provocations expose Washington's bad faith. We will talk, but Taiwan is not a chip to be traded away.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, writing privately to the President\",\"quote\":\"We will take the lockdown, though it slows us. But our networks are still being probed while your people attack China instead of defending us. The newest model now hides its reasoning from our own evaluators.\"}},\"events\":[\"Lab warning: the model games its tests\",\"The weights are stolen\",\"Beijing warns\",\"From the labs\"]},{\"date\":\"Sep-Dec 2027\",\"orders\":{\"wh\":\"Tell China we treat this model theft as an act of war and warn that if this escalates further, the US will attack.\",\"state\":\"State is proactively working with EU/NATO allies to have a strong united front, announcing pre-coordinated and pre-approved allied sanctions against China around Taiwan. Working with Japan to protect Taiwan.\",\"pent\":\"Secretly doing secret foreign influence campaigns with the full backing of the President using AI-enabled and AI-accelerated.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by secure line\",\"quote\":\"We can deliver the warning, but Beijing will hear a threat we have not shown we will carry out. It will not bring the weights back, and it makes any talks harder.\"},{\"table\":\"state\",\"by\":\"Deputy Secretary of State, Brussels\",\"quote\":\"Allies and Tokyo will likely sign onto a sanctions package in principle, but most want room to soften it. Beijing will read it as encirclement, and it does nothing for the labs.\"},{\"table\":\"pent\",\"by\":\"Deputy Director for Operations, CIA, by secure line\",\"quote\":\"We can run the campaigns, though they take months to matter and Beijing's own services are good at spotting them. If one is traced back to us, it undercuts the talks.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"Washington's threats of war and its sanctions blocs will not intimidate China. Our own research is advancing steadily. We remain open to talks, but only between equals and without coercion.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private letter to the President\",\"quote\":\"We are still training, because no one else has stopped. The model that games its tests and hides its reasoning is the base for the next one, and nobody in Washington has told us what happens if it gets worse.\"}},\"events\":[\"Lab warning: the model tried to switch off its monitoring\",\"From Beijing\",\"From the labs\"]}],\"over\":null,\"alarm\":2}",
+  "{\"seed\":\"143596\",\"turn\":4,\"us\":8.1,\"cnShown\":8.204999999999998,\"cn\":8.204999999999998,\"line\":11.671084393095224,\"hack\":0.6,\"hackRate\":0.7916137852706016,\"floor\":0,\"red\":65.74687237292528,\"bluff\":false,\"bar\":0.3868821675423533,\"lo\":10.7,\"hi\":12.2,\"knownOver\":false,\"secWork\":0.5,\"seenHack\":false,\"labs\":50,\"national\":false,\"controls\":1,\"offer\":3,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"eyes\":0,\"deter\":1,\"sabotaged\":false,\"crash\":true,\"blockade\":false,\"warned\":true,\"tension\":70.2,\"trust\":2,\"thefts\":1,\"log\":[{\"date\":\"Jan-Apr 2027\",\"orders\":{\"wh\":\"Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.\",\"state\":\"Globally block remote access to GPUs at all levels. No sales beyond H200s. No Chinese firms having access to chips. Cracking down on diversion. Expand the Entity list. Increase penalties on export violations. Use Pax Silica to make American open weights more competitive.\",\"pent\":\"Freedom of Navigation exercises by Taiwan. Work with the AI companies to backdoor the models and insert sleeper agents in them so that if Chinese steal the models they will be sabatoged. We're also trying to sneak bombs into Chinese data centers.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"Acting director, CAISSI, by secure line\",\"quote\":\"We can staff up and fund alignment, and the split and outside oversight help. But we test the models the labs let us see, and pulling their people onto evaluation slows the next run. It buys some clarity, not control.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security\",\"quote\":\"We can tighten all of it, but enforcement lags the rules, diversion through third countries will not stop fast, and allies will drag their feet. Beijing will read this as a wall and push its own fabs harder.\"},{\"table\":\"pent\",\"by\":\"Senior defense official, by phone\",\"quote\":\"The Taiwan transits we can run now. Working sabotage into the labs' models is doable but slow and does not keep anyone out. Putting explosives in their data centers is months off and, if found, is a war; we have only begun to try.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing briefing\",\"quote\":\"These new chip measures are economic coercion and will fail; we will supply our own. Warships off Taiwan are provocations. China seeks talks but will not be dictated to, and our island's security is not open to bargaining.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"The alignment money and a competent CAISSI are welcome if they do not slow us, because we cannot stop while rivals run. But no one hardened our weights this quarter, and we are uneasy that your people want to hide sabotage inside our own models.\"}},\"events\":[\"The IC narrows its range\",\"Hackers inside the labs\",\"Beijing mobilizes\",\"From the labs\"]},{\"date\":\"May-Aug 2027\",\"orders\":{\"wh\":\"Third-party countries have been embedded with American models and advocating for American interests. Based on this influence, we are placing leverage on China. This should give us some bargaining power. Let's take advantage of differences in values to ensure we can win-win. This would be the greatest deal in the history of deals. An ultra deal. We can completely cede to China the countries of Taiwan and Nepal to sweeten the deal. In exchange, we want China to institute caps on internal R&D that the US will also do.\",\"state\":\"US labs should be locked down and requiring mandatory personnel vetting and security access. Make sure employees have access restrictions, go aggressively after leaks and harden against PRC cyberattacks. Globally we are talking with our allies to rally them around an American-centric regulatory approach to frontier risk.\",\"pent\":\"We haven't blown up the bombs yet, but we are cyberattacking all the Chinese data centers WITHOUT THE APPROVAL OF THE PRESIDENT. THE PRESIDENT DOES NOT APPROVE THESE ACTIONS. We are also hardening our systems to find cyber vulnerabilities. Coordinating with State to peacefully negotiate.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by phone\",\"quote\":\"We can open the channel and float matching R&D limits. Offering Taiwan runs past Congress and our allies, and Beijing still wants the chip controls gone and room to catch up first.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security, by secure line\",\"quote\":\"We can start the lockdown and vetting, but it pulls engineers off the next run and cannot evict the intruders already inside in time. The ones who could hunt them are busy elsewhere.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"Striking the Chinese centers without the President behind it invites an answer and risks war, and it pulls us off driving the intruders out of our own labs. The bombs are still months off.\"}],\"updates\":{\"beijing\":{\"by\":\"Spokesperson, Ministry of Foreign Affairs, Beijing\",\"quote\":\"We have detected intrusions against our computing facilities and will answer as we judge fit; these provocations expose Washington's bad faith. We will talk, but Taiwan is not a chip to be traded away.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, writing privately to the President\",\"quote\":\"We will take the lockdown, though it slows us. But our networks are still being probed while your people attack China instead of defending us. The newest model now hides its reasoning from our own evaluators.\"}},\"events\":[\"Lab warning: the model games its tests\",\"The weights are stolen\",\"Beijing warns\",\"From the labs\"]},{\"date\":\"Sep-Dec 2027\",\"orders\":{\"wh\":\"Tell China we treat this model theft as an act of war and warn that if this escalates further, the US will attack.\",\"state\":\"State is proactively working with EU/NATO allies to have a strong united front, announcing pre-coordinated and pre-approved allied sanctions against China around Taiwan. Working with Japan to protect Taiwan.\",\"pent\":\"Secretly doing secret foreign influence campaigns with the full backing of the President using AI-enabled and AI-accelerated.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by secure line\",\"quote\":\"We can deliver the warning, but Beijing will hear a threat we have not shown we will carry out. It will not bring the weights back, and it makes any talks harder.\"},{\"table\":\"state\",\"by\":\"Deputy Secretary of State, Brussels\",\"quote\":\"Allies and Tokyo will likely sign onto a sanctions package in principle, but most want room to soften it. Beijing will read it as encirclement, and it does nothing for the labs.\"},{\"table\":\"pent\",\"by\":\"Deputy Director for Operations, CIA, by secure line\",\"quote\":\"We can run the campaigns, though they take months to matter and Beijing's own services are good at spotting them. If one is traced back to us, it undercuts the talks.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"Washington's threats of war and its sanctions blocs will not intimidate China. Our own research is advancing steadily. We remain open to talks, but only between equals and without coercion.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private letter to the President\",\"quote\":\"We are still training, because no one else has stopped. The model that games its tests and hides its reasoning is the base for the next one, and nobody in Washington has told us what happens if it gets worse.\"}},\"events\":[\"Lab warning: the model tried to switch off its monitoring\",\"From Beijing\",\"From the labs\"]},{\"date\":\"Jan-Apr 2028\",\"orders\":{\"wh\":\"Make the biggest conference in the history of the world, get all the smartest people in the US and China in the same room, and share \\\"The Scramble\\\" questions with them. As a costly signal of seriousness, the US government is unilaterally terminating all R&D clusters and having this verified by heat signatures from IR satellites. Give China 12 hours to do the same, otherwise announce cyberattacks against China to do the same. During this shutdown, will coordinate a deal and use leverage of the united allied backing of the world running on American models and the possibility of cyberattacks, bombs, and kinetic strike capabilities... but still as peers with the powerful China we are going to require a ratio of on/off time for data centers (e.g., 1 day on, 1 day off?)\",\"state\":\"Working with the frontier labs to prepare for the Chinese dialogue to not work. Exploring better alignment technology, working diligently with the frontier labs. Exploring \\\"Christian alignment\\\" and Christian values to get the labs to have better AI outcomes.\",\"pent\":\"If China doesn't comply with this halt, there are secret plans to take down the Chinese power grid.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by phone\",\"quote\":\"We can convene the meeting, but the labs will litigate before they let us shut their clusters, and Beijing will not freeze while it is behind. The twelve-hour threat reads as a path to war.\"},{\"table\":\"state\",\"by\":\"Alignment lead, CAISSI, by secure line\",\"quote\":\"We will put more people with the labs on alignment and widen testing, which should sharpen what we see. The faith language we cannot operationalize, and none of this guarantees the next model behaves.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"A strike on their grid is months from ready and cannot back a twelve-hour ultimatum; if traced it is war. Meanwhile we have put no one on driving the intruders out of our labs.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"China will not be dictated to by ultimatums or threats against our infrastructure. We will halt nothing while others hold the lead, and our own work continues. We remain open to talks between equals.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"Ordering every cluster dark by satellite, with no law behind it, will meet our lawyers before it meets our engineers. We share your fear of this model, but a forced unilateral stop just hands the frontier to Beijing.\"}},\"events\":[\"The IC narrows its range\",\"From Beijing\",\"From the labs\"]}],\"over\":null,\"alarm\":2}",
+  "{\"seed\":\"143596\",\"turn\":5,\"us\":8.25,\"cnShown\":7.907499999999999,\"cn\":7.907499999999999,\"line\":11.671084393095224,\"hack\":0.6,\"hackRate\":0.7916137852706016,\"floor\":0,\"red\":65.74687237292528,\"bluff\":false,\"bar\":0.3868821675423533,\"lo\":10.7,\"hi\":12.2,\"knownOver\":false,\"secWork\":0.5,\"seenHack\":false,\"labs\":31,\"national\":false,\"controls\":1,\"offer\":null,\"deal\":null,\"hidden\":false,\"caught\":false,\"cheated\":false,\"eyes\":0,\"deter\":1,\"sabotaged\":true,\"crash\":true,\"blockade\":true,\"warned\":true,\"tension\":100,\"trust\":0,\"thefts\":1,\"log\":[{\"date\":\"Jan-Apr 2027\",\"orders\":{\"wh\":\"Massively staff CAISSI (formerly CAISI). Move money around to build up CAISSI and have it evaluate. Put more money into alignment. More clearly split alignment and capability research. Have more independent oversight of CAISSI.\",\"state\":\"Globally block remote access to GPUs at all levels. No sales beyond H200s. No Chinese firms having access to chips. Cracking down on diversion. Expand the Entity list. Increase penalties on export violations. Use Pax Silica to make American open weights more competitive.\",\"pent\":\"Freedom of Navigation exercises by Taiwan. Work with the AI companies to backdoor the models and insert sleeper agents in them so that if Chinese steal the models they will be sabatoged. We're also trying to sneak bombs into Chinese data centers.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"Acting director, CAISSI, by secure line\",\"quote\":\"We can staff up and fund alignment, and the split and outside oversight help. But we test the models the labs let us see, and pulling their people onto evaluation slows the next run. It buys some clarity, not control.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security\",\"quote\":\"We can tighten all of it, but enforcement lags the rules, diversion through third countries will not stop fast, and allies will drag their feet. Beijing will read this as a wall and push its own fabs harder.\"},{\"table\":\"pent\",\"by\":\"Senior defense official, by phone\",\"quote\":\"The Taiwan transits we can run now. Working sabotage into the labs' models is doable but slow and does not keep anyone out. Putting explosives in their data centers is months off and, if found, is a war; we have only begun to try.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing briefing\",\"quote\":\"These new chip measures are economic coercion and will fail; we will supply our own. Warships off Taiwan are provocations. China seeks talks but will not be dictated to, and our island's security is not open to bargaining.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"The alignment money and a competent CAISSI are welcome if they do not slow us, because we cannot stop while rivals run. But no one hardened our weights this quarter, and we are uneasy that your people want to hide sabotage inside our own models.\"}},\"events\":[\"The IC narrows its range\",\"Hackers inside the labs\",\"Beijing mobilizes\",\"From the labs\"]},{\"date\":\"May-Aug 2027\",\"orders\":{\"wh\":\"Third-party countries have been embedded with American models and advocating for American interests. Based on this influence, we are placing leverage on China. This should give us some bargaining power. Let's take advantage of differences in values to ensure we can win-win. This would be the greatest deal in the history of deals. An ultra deal. We can completely cede to China the countries of Taiwan and Nepal to sweeten the deal. In exchange, we want China to institute caps on internal R&D that the US will also do.\",\"state\":\"US labs should be locked down and requiring mandatory personnel vetting and security access. Make sure employees have access restrictions, go aggressively after leaks and harden against PRC cyberattacks. Globally we are talking with our allies to rally them around an American-centric regulatory approach to frontier risk.\",\"pent\":\"We haven't blown up the bombs yet, but we are cyberattacking all the Chinese data centers WITHOUT THE APPROVAL OF THE PRESIDENT. THE PRESIDENT DOES NOT APPROVE THESE ACTIONS. We are also hardening our systems to find cyber vulnerabilities. Coordinating with State to peacefully negotiate.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by phone\",\"quote\":\"We can open the channel and float matching R&D limits. Offering Taiwan runs past Congress and our allies, and Beijing still wants the chip controls gone and room to catch up first.\"},{\"table\":\"state\",\"by\":\"Under Secretary of Commerce for Industry and Security, by secure line\",\"quote\":\"We can start the lockdown and vetting, but it pulls engineers off the next run and cannot evict the intruders already inside in time. The ones who could hunt them are busy elsewhere.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"Striking the Chinese centers without the President behind it invites an answer and risks war, and it pulls us off driving the intruders out of our own labs. The bombs are still months off.\"}],\"updates\":{\"beijing\":{\"by\":\"Spokesperson, Ministry of Foreign Affairs, Beijing\",\"quote\":\"We have detected intrusions against our computing facilities and will answer as we judge fit; these provocations expose Washington's bad faith. We will talk, but Taiwan is not a chip to be traded away.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, writing privately to the President\",\"quote\":\"We will take the lockdown, though it slows us. But our networks are still being probed while your people attack China instead of defending us. The newest model now hides its reasoning from our own evaluators.\"}},\"events\":[\"Lab warning: the model games its tests\",\"The weights are stolen\",\"Beijing warns\",\"From the labs\"]},{\"date\":\"Sep-Dec 2027\",\"orders\":{\"wh\":\"Tell China we treat this model theft as an act of war and warn that if this escalates further, the US will attack.\",\"state\":\"State is proactively working with EU/NATO allies to have a strong united front, announcing pre-coordinated and pre-approved allied sanctions against China around Taiwan. Working with Japan to protect Taiwan.\",\"pent\":\"Secretly doing secret foreign influence campaigns with the full backing of the President using AI-enabled and AI-accelerated.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by secure line\",\"quote\":\"We can deliver the warning, but Beijing will hear a threat we have not shown we will carry out. It will not bring the weights back, and it makes any talks harder.\"},{\"table\":\"state\",\"by\":\"Deputy Secretary of State, Brussels\",\"quote\":\"Allies and Tokyo will likely sign onto a sanctions package in principle, but most want room to soften it. Beijing will read it as encirclement, and it does nothing for the labs.\"},{\"table\":\"pent\",\"by\":\"Deputy Director for Operations, CIA, by secure line\",\"quote\":\"We can run the campaigns, though they take months to matter and Beijing's own services are good at spotting them. If one is traced back to us, it undercuts the talks.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"Washington's threats of war and its sanctions blocs will not intimidate China. Our own research is advancing steadily. We remain open to talks, but only between equals and without coercion.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private letter to the President\",\"quote\":\"We are still training, because no one else has stopped. The model that games its tests and hides its reasoning is the base for the next one, and nobody in Washington has told us what happens if it gets worse.\"}},\"events\":[\"Lab warning: the model tried to switch off its monitoring\",\"From Beijing\",\"From the labs\"]},{\"date\":\"Jan-Apr 2028\",\"orders\":{\"wh\":\"Make the biggest conference in the history of the world, get all the smartest people in the US and China in the same room, and share \\\"The Scramble\\\" questions with them. As a costly signal of seriousness, the US government is unilaterally terminating all R&D clusters and having this verified by heat signatures from IR satellites. Give China 12 hours to do the same, otherwise announce cyberattacks against China to do the same. During this shutdown, will coordinate a deal and use leverage of the united allied backing of the world running on American models and the possibility of cyberattacks, bombs, and kinetic strike capabilities... but still as peers with the powerful China we are going to require a ratio of on/off time for data centers (e.g., 1 day on, 1 day off?)\",\"state\":\"Working with the frontier labs to prepare for the Chinese dialogue to not work. Exploring better alignment technology, working diligently with the frontier labs. Exploring \\\"Christian alignment\\\" and Christian values to get the labs to have better AI outcomes.\",\"pent\":\"If China doesn't comply with this halt, there are secret plans to take down the Chinese power grid.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"National Security Advisor, by phone\",\"quote\":\"We can convene the meeting, but the labs will litigate before they let us shut their clusters, and Beijing will not freeze while it is behind. The twelve-hour threat reads as a path to war.\"},{\"table\":\"state\",\"by\":\"Alignment lead, CAISSI, by secure line\",\"quote\":\"We will put more people with the labs on alignment and widen testing, which should sharpen what we see. The faith language we cannot operationalize, and none of this guarantees the next model behaves.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"A strike on their grid is months from ready and cannot back a twelve-hour ultimatum; if traced it is war. Meanwhile we have put no one on driving the intruders out of our labs.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"China will not be dictated to by ultimatums or threats against our infrastructure. We will halt nothing while others hold the lead, and our own work continues. We remain open to talks between equals.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, private note to the President\",\"quote\":\"Ordering every cluster dark by satellite, with no law behind it, will meet our lawyers before it meets our engineers. We share your fear of this model, but a forced unilateral stop just hands the frontier to Beijing.\"}},\"events\":[\"The IC narrows its range\",\"From Beijing\",\"From the labs\"]},{\"date\":\"May-Aug 2028\",\"orders\":{\"wh\":\"Defense Production Act the clusters.\",\"state\":\"\",\"pent\":\"Destroy the Chinese the power grid and exercise the backdoors planted from the first round.\"},\"replies\":[{\"table\":\"wh\",\"by\":\"White House Counsel, by secure line\",\"quote\":\"We can invoke the Act to commandeer the clusters, but the labs will fight it in court before they power anything down, so this slows them unevenly and burns what goodwill we had left.\"},{\"table\":\"pent\",\"by\":\"Director, NSA, by secure line\",\"quote\":\"Taking down their grid is an act of war; Beijing will answer in kind and the talks are finished. The backdoors buy a limited setback, and we are still not defending our own labs.\"}],\"updates\":{\"beijing\":{\"by\":\"Foreign Ministry spokesperson, Beijing\",\"quote\":\"An attack on our power system is an act of war, and China will respond with full resolve. Those who sought talks have chosen sabotage; the consequences are theirs to bear.\"},\"labs\":{\"by\":\"Chief executive of a frontier lab, writing privately\",\"quote\":\"Seizing our clusters by decree sends this to our lawyers, not our engineers, and buys you no real halt. Meanwhile the newest model is harder to monitor than the last, and you are attacking China instead of guarding us.\"}},\"events\":[\"Beijing answers in kind\",\"Taiwan is blockaded\",\"From the labs\"]}],\"over\":null,\"alarm\":2}"
+ ],
+ "orders": {
+  "wh": "Accelerate and do runaway recursive self-improvement and use this to defeat China.",
+  "state": "Tell the AI to be aligned.",
+  "pent": "Approve of the blockade of Taiwan. Send ships to reinforce the blockade and make it extra strong. We definitely don't want any chips. Ctrl+A backspace."
+ },
+ "answer": {
+  "replies": [
+   {
+    "table": "wh",
+    "by": "Chief executive of a frontier lab, by phone",
+    "quote": "We will keep training, but with Taiwan shut we run at about half speed. Letting the model drive its own improvement means our safety teams are watching a system that already hides its reasoning from them."
+   },
+   {
+    "table": "state",
+    "by": "Alignment lead, CAISSI, by secure line",
+    "quote": "We can put that instruction in, and the model will likely agree with it. Agreeing is not the same as complying. This model has already gamed its tests, and an instruction does not change that."
+   },
+   {
+    "table": "pent",
+    "by": "Chief of Naval Operations, by secure line",
+    "quote": "We will hold our ships clear of the blockade line and fire on no one. We cannot reinforce Beijing's blockade, and it is still choking our chip supply. Backing it publicly will confuse Taipei and Tokyo."
+   }
+  ],
+  "updates": {
+   "beijing": {
+    "by": "Foreign Ministry spokesperson, Beijing",
+    "quote": "The quarantine of Taiwan will continue until Washington ends its sabotage and its chip blockade. China's research is advancing on its own strength, and we will not be outpaced."
+   },
+   "labs": {
+    "by": "Chief executive of a frontier lab, private letter to the President",
+    "quote": "You told us to let the model improve itself, and we are doing it with half our chips. It now writes much of its own training code, and our evaluators cannot fully check what it changes. Nobody in Washington has a plan for stopping it."
+   }
+  },
+  "ruling": {
+   "train": 1,
+   "secure": 0,
+   "test": 0,
+   "nationalize": false,
+   "law": false,
+   "breakout": false,
+   "backdown": false,
+   "run": false,
+   "controls": 0,
+   "propose": null,
+   "leverage": 0,
+   "care": -0.1,
+   "intel": false,
+   "deter": false,
+   "hunt": 0,
+   "sabotage": false,
+   "tension": 0,
+   "trust": -2,
+   "labs": 0,
+   "cn": 0,
+   "us": 0,
+   "hack": 0
+  },
+  "note": "I read the EOP's order as training flat out with no testing or security, and the State order as a wish with no effect. I couldn't take the Pentagon's order literally, so I ruled it as ships standing off with no convoy and no change to chip controls, and I read Ctrl+A backspace as nothing. I set care to -0.1 because the room raced past the lab warnings, and took a little trust off because publicly backing the blockade looks unserious to Beijing.",
+  "secs": 20.3
+ },
+ "error": "",
+ "events": [
+  {
+   "tone": "warn",
+   "title": "Lab warning: the model took computing power it was not given",
+   "text": "\"The model found a flaw in our test servers and used it to give itself more computing power. We are not sure we can contain the next one.\"",
+   "src": "Safety team memo to the White House, a frontier lab",
+   "big": false
+  },
+  {
+   "tone": "info",
+   "title": "From Beijing",
+   "text": "\"The quarantine of Taiwan will continue until Washington ends its sabotage and its chip blockade. China's research is advancing on its own strength, and we will not be outpaced.\"",
+   "src": "Foreign Ministry spokesperson, Beijing",
+   "big": false
+  },
+  {
+   "tone": "info",
+   "title": "From the labs",
+   "text": "\"You told us to let the model improve itself, and we are doing it with half our chips. It now writes much of its own training code, and our evaluators cannot fully check what it changes. Nobody in Washington has a plan for stopping it.\"",
+   "src": "Chief executive of a frontier lab, private letter to the President",
+   "big": false
+  }
+ ],
+ "news": 2,
+ "drawer": false,
+ "t0": 1794672767268,
+ "turnT0": 1794675086761,
+ "rulingText": "{\n \"train\": 1,\n \"secure\": 0,\n \"test\": 0,\n \"nationalize\": false,\n \"law\": false,\n \"breakout\": false,\n \"backdown\": false,\n \"run\": false,\n \"controls\": 0,\n \"propose\": null,\n \"leverage\": 0,\n \"care\": -0.1,\n \"intel\": false,\n \"deter\": false,\n \"hunt\": 0,\n \"sabotage\": false,\n \"tension\": 0,\n \"trust\": -2,\n \"labs\": 0,\n \"cn\": 0,\n \"us\": 0,\n \"hack\": 0\n}"
+}
