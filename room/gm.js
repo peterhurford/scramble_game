@@ -25,7 +25,7 @@ const RULING = {
   propose: bool('America puts a pause to Beijing this turn, on the terms in the next four fields.'),
   inspectors: bool('The proposed pause has inspectors in both countries.'),
   chips: bool('Under the proposed pause America lifts its chip controls in full when it takes effect. Easing that is staged, partial or conditional is not this: put it in extra and weigh it in leverage, never both.'),
-  parity: bool('Under the proposed pause America stops now and China stops only once it has caught up.'),
+  parity: bool('Under the proposed pause America stops now and China stops only once it has caught up. A cap or ceiling that lets China keep training up to or near the US level is this, whatever it is called; put its details in extra as well.'),
   extra: { type: 'string', description: 'Any other term the room wrote into the proposed pause, as a short plain phrase the screen can show: "A joint safety lab in Singapore". Empty if none.' },
   leverage: { type: 'integer', enum: [-2, -1, 0, 1, 2], description: 'Your judgment of how everything beyond chips, inspectors and parity moves Beijing toward signing: the extra terms, how the room has dealt with Beijing all game, whether its threats and promises are believable, what Congress and the labs are visibly doing. Each +1 is worth one concession. +1 for something real that costs America; +2 only for a package that changes Beijing\'s whole position; negative for insults, broken promises, empty threats. Usually 0.' },
   care: num('-0.1 to 0.1. Your judgment of how well, on the whole, the room is placed to catch a model slipping out of control this turn, beyond the pace and the testing the dials already count: whether it heeded the lab warnings, gave the safety teams authority to halt a run, has the labs working with it and not around it, has a plan for what to do when something is caught. 0 if the orders say nothing about it; negative if the room overrode or silenced the safety teams.'),
@@ -154,7 +154,7 @@ How to write the replies.
 - Plain speech, the way a tired official talks on a secure line. No metaphors, no wit, no slogans, nothing literary.
 - The quote is read aloud once to a room of thirty people who are not specialists. Every sentence must be understood on first hearing. Use full ordinary sentences with the subject and the reason spelled out; do not compress. Say the concrete thing: who will do what, by when, and what they want in return. Instead of "we will not say it is sealed", say "we cannot promise the weights are safe from theft yet". Instead of "the price is tighter chip controls or public hearings", say "the senators we need want one of two things first: stricter limits on chip sales, or public hearings on the labs".
 - Do not end on a punchy line, a challenge or a command to the room ("Name which, and it moves."). Do not use the rhythm of a speech or a thriller: no clipped fragments, no paired contrasts, no dramatic last clause. If a listener might ask "what does that mean?", rewrite it.
-- The President is "the President" or "you", never he or she.
+- The President is "the President" or "you", never he or she, and never "Mr. President" or "Madam President".
 - How far ahead or behind anyone is, is said in ECI points as the brief gives them ("about six points behind"), never in months. Otherwise no precise numbers: "about four months", "likely", "almost certainly not". Time is said in months, seasons or dates ("by the autumn", "about a year"), never in turns. Never percentages. Never game words such as turn, level, dial, tension, trust, cooperation, ruling.
 - did: the plain fact of what is now happening because of the order, and when to expect the rest if it takes time. If part of the order was not carried out, say which part.
 - An official who works for the room reports what has been done, as done: "NSA teams are inside the labs." For what takes time: what has begun, when it will be ready, and how confident they are in it. No advice against the order, no "we could". Then at most one thing the room should know.
@@ -317,6 +317,9 @@ async function gm1(body) {
   // the dice are seeded by game and turn, so playing the turn on a copy shows what the room will read after the replies; the second writer fits the updates to it
   let next = []; try { next = W.play(JSON.parse(JSON.stringify(body.state)), out.ruling).filter(e => e.title !== 'From Beijing' && e.title !== 'From the labs'); } catch (e) { console.error('could not preview the turn: ' + e.message); }
   if (BACKEND !== 'mock' && VOICE_MODEL !== 'off') { if (NOW) { NOW.stage = 'voice'; NOW.t1 = Date.now(); } await voice(out, body, next); }
+  // the President is never addressed by gender, whoever wrote the line
+  const neutral = q => String(q || '').replace(/\b(Mr\.?|Madam) President,\s*(\w)/g, (m, x, c) => c.toUpperCase()).replace(/,\s*(Mr\.?|Madam) President\b/g, '').replace(/\b(Mr\.?|Madam) President\b/g, 'the President');
+  (out.replies || []).forEach(r => { r.quote = neutral(r.quote); }); Object.values(out.updates || {}).forEach(u => { if (u) u.quote = neutral(u.quote); });
   out.backend = BACKEND + (MODEL ? ' ' + MODEL : ''); out.secs = Math.round((Date.now() - t0) / 100) / 10;
   return out;
 }
