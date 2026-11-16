@@ -40,6 +40,7 @@ const TUNE = {
   support: { start: 50, hostile: 38, ease: 8, chips: 15, seize: 15, contested: 5, angry: 3 },
   // trickery: a hard-line Beijing (floor 1, 2) may hide a training site even under inspection, at these odds per game; inspectors find it at find a turn
   sneak: [0, 0.2, 0.5], sneakGo: 0.6, find: 0.5,
+  confront: [0.9, 0.7, 0.25],   // the odds that Beijing, caught and confronted, seals its site rather than walk out, by floor; a sealed cheat grades a notch down
   // the CEOs' classified letter: told to Congress's leaders (brief) or made public (open) it frightens Congress and California [cg, ca] and costs the labs' trust;
   // a briefing leaks on a roll each later turn (leak), a secret letter at leak0; the labs sign a verified halt with China at any cooperation short of defiance (signVerified on signing, signLoose for one that is not), and lose alone a turn held back while China is not
   letter: { brief: [12, 0], open: [20, 20], anger: 10, mkt: 6, face: -5, scared: 0.1, labsBrief: -3, labsOpen: -10, labsLeak: -6, leak: 0.3, leak0: 0.05, signVerified: 10, signLoose: -10, alone: -5 },
@@ -56,7 +57,7 @@ const terms = d => (d.parity ? ['America stops now', 'China stops once it has ca
 // A ruling that changes nothing: the labs keep training flat out.
 const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0, care: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0,
-  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court , pressure: false, california: 0, letter: 0 };   // ops or facts null leaves them as they were
+  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court , pressure: false, california: 0, letter: 0, confront: false };   // ops or facts null leaves them as they were
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
@@ -273,7 +274,7 @@ function rule(s, r0) {
   return {
     train: Math.min(clamp(r.train, 0, 1), 1 - secure - test), secure, test,
     nationalize: b('nationalize') && !s.national, law: b('law') && !s.law, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
-    controls: Math.sign(clamp(r.controls, -1, 1)), propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
+    controls: Math.sign(clamp(r.controls, -1, 1)), confront: b('confront') && !!s.caught, propose: r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
     face: clamp(r.face, -15, 15), alarm: clamp(r.alarm, 0, 0.3),
     intel: b('intel') && s.eyes < 2, watch: b('watch') && !s.watch, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage'),
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
@@ -397,12 +398,22 @@ function play1(s, r0) {
   // a pause: the room names terms; Beijing signs anything at least as good for it as what it would take today
   let signed = false;
   const w = want(s, r.leverage);
+  // a caught Beijing, confronted: it seals the site under inspection, on a roll, or walks out of the pause
+  if (r.confront && s.deal && s.caught) {
+    const p = T.confront[s.floor], cr = roll('confront', p);
+    rolls.push({ what: 'Beijing seals its hidden site', table: 'state', odds: p, word: oddsWord(p), u: cr.u, hit: cr.hit });
+    if (cr.hit) { s.caught = false; s.hidden = false; s.cheated = true; s.sealed = true; s.cnShown = s.cn; bj.face -= 5; add('good', 'Beijing seals the site', '"Inspectors have entered the Gansu site and watched it shut down. Beijing calls it a misunderstanding. The pause holds."', 'Neutral inspection body'); }
+    else breakDeal('"China will not be accused and threatened. It is no longer bound by the agreement."');
+  }
   if (r.propose) { const dw = dealWorth(s, r.propose, r.leverage); why.push('Pause: worth ' + f2(dw.total) + ' to Beijing against the ' + f2(dw.need) + ' it holds out for (' + Object.keys(dw.parts).filter(k => Math.abs(dw.parts[k]) >= 0.005).map(k => DEAL_WORDS[k] + ' ' + sg(dw.parts[k])).join(', ') + ').'); }
   if (r.propose && r.sabotage) why.push('The attack this turn rules out signing.');
   if (r.propose && !r.sabotage) {
-    if (signs(s, r.propose, r.leverage)) {
-      if (train > 0.5) { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
+    const old = s.deal, ok = old ? !s.blockade && dealWorth(s, r.propose, r.leverage).total >= dealWorth(s, old, 0).total : signs(s, r.propose, r.leverage);   // a pause in force is replaced by any terms at least as good for Beijing as the ones it has
+    if (old && !ok) add('info', 'Beijing keeps the old terms', '"The agreement in force serves both sides. China sees no reason to reopen it."', 'Foreign Ministry spokesperson, Beijing');
+    if (ok) {
+      if (train > 0.5)  { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
       else if (!willing(s, r.propose)) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
+      else if (old) { s.deal = Object.assign({ t: old.t, blocked: old.blocked }, r.propose); if (r.propose.chips && !old.chips) { s.support -= T.support.chips; s.controls = -1; } s.trust += 5; bj.face += 5; add('good', 'The pause is renegotiated', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva'); }
       else {
         s.deal = Object.assign({ t }, r.propose); signed = true; if (!obey(s)) s.labs += verified(s, r.propose) ? T.letter.signVerified : T.letter.signLoose; if (r.propose.chips) s.support -= T.support.chips; shock('pause'); train = 0; defy = false; s.trust += 20; s.tension -= 25; bj.face += 10; if (r.propose.chips) s.controls = -1;
         add('good', 'A pause is signed', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva', true);
@@ -673,6 +684,7 @@ function end(s, how, ev) {
     else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : lead >= 0.5 ? 'neck' : 'overtaken';   // in ECI (2 a month of progress): decisive 10+, ahead 8+, racing 3+, neck 1+, overtaken under 1, the same gap the room's chart shows
   }
   s.over = Object.assign({ how }, ENDINGS[how]);
+  if (s.sealed && s.deal && ['verified', 'watched', 'bought', 'parity', 'trust'].includes(how)) { s.over.grade = RANK[Math.max(0, RANK.indexOf(s.over.grade) - 1)]; s.over.text += ' Beijing was caught once, and sealed its site when confronted.'; }
   if (s.deal && !s.deal.inspectors && s.watch && (how === 'bought' || how === 'verified')) s.over.text = s.over.text.replace('held under inspection', 'held, checked by America\'s own monitoring');
   if (s.crashed && RANK.indexOf(s.over.grade) >= RANK.indexOf('D-')) { s.over.grade = RANK[Math.max(RANK.indexOf('D-'), Math.min(RANK.indexOf('B+'), RANK.indexOf(s.over.grade) - 3))]; s.over.crash = true; s.over.text += ' And the markets crashed on the way: the next President inherits a recession.'; }   // a crash caps the grade
   return ev;
@@ -701,7 +713,7 @@ function brief(s) {
     'It bargains hard. Refusing, it ' + (wx.wait >= 0.35 && bw.bargain >= 1 ? 'takes its time and names nothing, since time is on its side.' : ask ? 'names its own terms: ' + dname(ask) + ' (more than it needs; the least it would take is ' + dname(cheapest(s, 0) || ask) + ').' : 'says no terms would do while things stand as they are, and says why.') + ' ' +
     'Its pride falls with public pressure and rises with respect: face (-15 to 15) is your judgment of this turn\'s conduct beyond what the ledger counts (tighter controls, sabotage and shows of force already cost pride; a signing restores it). alarm (0 to 0.3) is how far evidence it believes this turn frightens it about its own models. ' +
     'If nothing is signed, the ledger makes Beijing\'s own move this turn, the highest scoring of: ' + (mv.length ? mv.map(m => ({ sprint: 'sprint (runs its labs harder to catch an America that slowed)', coerce: 'drills near Taiwan (against America racing toward the danger point; scores higher if the labs train at 0.7 or more)', safety: 'proposes safety talks itself and slows a little (its own fear)', retaliate: 'curbs rare earths (if America tightens controls)' }[m.id] + ' ' + f2(m.score))).join(', ') : 'none') + ', if any scores 0.5 or more. ' +
-    (s.deal ? (s.caught ? 'It has been caught cheating. ' + (s.floor <= 1 ? 'Confronted, it would shut the site and admit inspectors.' : 'Confronted, it would walk out.') : s.hidden ? 'It is training in secret right now.' : cheats(s) ? 'It will start training in secret this turn.' : 'It is keeping the deal.') + (s.watch ? ' America\'s remote monitoring is working: it catches secret training a turn after it starts, as one source in Beijing would. ' : ' Only a source in Beijing, or American remote monitoring once it works (watch), can see cheating. ') : 'Under a deal without inspectors it would cheat ' + (s.floor === 2 ? 'always' : 'while it is ' + T.cheatLead + '+ months behind') + '. ' + (sneaky(s) ? 'Under a deal with inspectors it would hide a training site anyway, and inspectors find it at ' + T.find + ' a turn; so it minds inspectors less than it says. ' : 'Under a deal with inspectors it would not cheat. ')) +
+    (s.deal ? (s.caught ? 'It has been caught cheating. ' + 'Confronted (confront), it seals the site under inspection at ' + T.confront[s.floor] + ' (the ledger rolls it; do not roll it in chances, and no reply says how it ends) or walks out of the pause.' : s.hidden ? 'It is training in secret right now.' : cheats(s) ? 'It will start training in secret this turn.' : 'It is keeping the deal.') + (s.watch ? ' America\'s remote monitoring is working: it catches secret training a turn after it starts, as one source in Beijing would. ' : ' Only a source in Beijing, or American remote monitoring once it works (watch), can see cheating. ') : 'Under a deal without inspectors it would cheat ' + (s.floor === 2 ? 'always' : 'while it is ' + T.cheatLead + '+ months behind') + '. ' + (sneaky(s) ? 'Under a deal with inspectors it would hide a training site anyway, and inspectors find it at ' + T.find + ' a turn; so it minds inspectors less than it says. ' : 'Under a deal with inspectors it would not cheat. ')) +
     'The labs sign a verified pause that binds China too (inspectors or working American monitoring, both sides stopping now) at any cooperation of ' + T.labDefiant + '+ and gain ' + T.letter.signVerified + ' for it; any other pause only at ' + T.labWilling + '+, and it costs ' + (-T.letter.signLoose) + ' (now ' + Math.round(s.labs) + (s.national ? ', nationalized: they obey' : s.law ? ', bound by an act of Congress: they obey' : '') + '); below ' + T.labDefiant + ' they defy orders. Racing costs cooperation, testing builds it. A pause cannot be signed in a turn with train above 0.5.');
   L.push('HIDDEN, STRAIT: tension ' + Math.round(s.tension) + '. ' + (s.blockade ? 'Taiwan is blockaded: US training runs at half speed until it ends. backdown (lifting every chip control) ends it. run (a convoy) ' + (s.bluff ? 'works: Beijing will not fire' : 'means war: Beijing will fire') + '. More chip controls or sabotage during the blockade ' + (s.bluff ? 'do not start a war' : 'mean war') + '.' : 'Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades Taiwan at ' + Math.round(redLine(s)) + '. Tightening chip controls adds ' + T.squeeze + ', sabotage 30, nationalizing 10, racing close to the danger range ' + T.fear + '; easing controls takes off 10; a show of force (deter) moves the blockade line up ' + T.deter + ' (twice at most) and costs trust. ' + (s.bluff ? 'If it came to a blockade, Beijing would not fire first.' : 'If it came to a blockade, Beijing would fire on a convoy.')));
   const M = T.mkt, half = s.backstop ? ' (halved: the Treasury backstop is in place)' : '';
