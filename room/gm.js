@@ -181,7 +181,8 @@ async function viaSdk(text) {
 // No MCP servers, settings or hooks: they add seconds before the first word.
 const BARE = ['--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--setting-sources', ''];
 const STEPS = ['picture', 'replies', 'ops', 'facts', 'chances', 'updates', 'ruling', 'note'];
-function viaCli(text) {
+// limit: seconds before the call is killed and rejects with 'timed out' (0 for none)
+function viaCli(text, limit) {
   return new Promise((resolve, reject) => {
     const p = spawn('claude', ['-p', '--model', MODEL || 'sonnet', '--effort', EFFORT, '--system-prompt', SYSTEM, '--json-schema', JSON.stringify(SCHEMA), '--output-format', 'stream-json', '--include-partial-messages', '--verbose', '--tools', '', ...BARE], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
     let buf = '', err = '', partial = '', step = -1, result = null;
@@ -195,7 +196,8 @@ function viaCli(text) {
     p.stdout.on('data', d => { buf += d; const ls = buf.split('\n'); buf = ls.pop(); ls.forEach(line); });
     p.stderr.on('data', d => err += d);
     p.on('error', reject);
-    p.on('close', code => { if (buf) line(buf); try { CHARS.push(partial.length); resolve(result.structured_output || JSON.parse(result.result)); } catch (e) { reject(new Error('claude CLI: ' + (err || (result && result.result) || 'no answer').slice(0, 300) + ' (exit ' + code + ')')); } });
+    const t = limit ? setTimeout(() => { p.kill(); reject(new Error('timed out')); }, limit * 1000) : null;
+    p.on('close', code => { clearTimeout(t); if (buf) line(buf); try { CHARS.push(partial.length); resolve(result.structured_output || JSON.parse(result.result)); } catch (e) { reject(new Error('claude CLI: ' + (err || (result && result.result) || 'no answer').slice(0, 300) + ' (exit ' + code + ')')); } });
     p.stdin.end(text);
   });
 }
@@ -259,7 +261,7 @@ function voiceCall(text, system, schema) {
       .then(res => { if (res.stop_reason !== 'end_turn') throw new Error('stopped (' + res.stop_reason + ')'); return JSON.parse(res.content.filter(b => b.type === 'text').map(b => b.text).join('')); }); }
   return new Promise((resolve, reject) => {
     const p = spawn('claude', ['-p', '--model', VOICE_MODEL, '--effort', 'low', '--system-prompt', system, '--json-schema', JSON.stringify(schema), '--output-format', 'json', '--tools', '', ...BARE], { cwd: require('os').homedir(), stdio: ['pipe', 'pipe', 'pipe'] });
-    let out = ''; const t = setTimeout(() => { p.kill(); reject(new Error('timed out')); }, 60000);
+    let out = ''; const t = setTimeout(() => { p.kill(); reject(new Error('timed out')); }, system === VOICE_SYSTEM ? 45000 : 60000);
     p.stdout.on('data', d => out += d); p.on('error', reject);
     p.on('close', () => { clearTimeout(t); try { const j = JSON.parse(out); resolve(j.structured_output || JSON.parse(j.result)); } catch (e) { reject(new Error(out.slice(0, 200) || 'no output')); } });
     p.stdin.end(text);
@@ -282,7 +284,7 @@ async function voice(out, body, next) {
     VSECS.push((Date.now() - t0) / 1000); out.voice = VOICE_MODEL + ' ' + Math.round((Date.now() - t0) / 100) / 10 + 's';
   } catch (e) { out.voice = 'voice pass failed, drafts kept: ' + e.message; console.error(out.voice); }
 }
-const WANT = process.env.GM || 'claude';
+const WANT = process.env.GM || 'claude', CAP = Number(process.env.GM_CAP || 90);
 if (WANT === 'openai' && !(process.env.OPENAI_API_KEY && MODEL)) throw new Error('GM=openai needs OPENAI_API_KEY and GM_MODEL in the environment; GM=codex uses the codex login instead.');
 const BACKEND = ['mock', 'codex', 'openai'].includes(WANT) ? WANT : process.env.ANTHROPIC_API_KEY ? 'sdk' : 'cli';
 const ASK = { sdk: viaSdk, cli: viaCli, codex: viaCodex, openai: viaOpenai };
@@ -300,7 +302,15 @@ function status() {
 async function gm(body) { NOW = { stage: 'ruling', t0: Date.now() }; try { return await gm1(body); } finally { NOW = null; } }
 const missing = (out, body) => Object.keys(W.TABLES).filter(k => (body.orders[k] || '').trim() && !(out.replies || []).some(r => r.table === k && (r.quote || r.did)));
 async function gm1(body) {
-  const t0 = Date.now(); let out = BACKEND === 'mock' ? mock(body) : await ASK[BACKEND](prompt(body));
+  const t0 = Date.now(); let out, stalled = '';
+  // a stalled call is cut off and asked once more without a limit (CLI only; the other backends ignore the limit)
+  if (BACKEND === 'mock') out = mock(body);
+  else try { out = await ASK[BACKEND](prompt(body), CAP); } catch (e) {
+    if (e.message !== 'timed out') throw e;
+    stalled = 'asked again: no answer in ' + CAP + ' s'; console.error(stalled);
+    if (NOW) { NOW.step = ''; NOW.chars = 0; }
+    out = await ASK[BACKEND](prompt(body));
+  }
   // a table that wrote an order and got no reply would have no card: ask once more, and keep the fuller answer
   const miss = missing(out, body);
   if (miss.length && BACKEND !== 'mock') {
@@ -310,6 +320,7 @@ async function gm1(body) {
     out.retry = 'asked again: no reply to ' + miss.join(', ') + (missing(out, body).length ? '; still missing ' + missing(out, body).join(', ') : '');
     console.error(out.retry);
   }
+  if (stalled) out.retry = stalled + (out.retry ? '; ' + out.retry : '');
   out.ruling = W.rule(body.state, Object.assign({}, out.ruling, { ops: out.ops, facts: out.facts, chances: out.chances, says: { beijing: !!(out.updates && out.updates.beijing && (out.updates.beijing.quote || '').trim()) } })); delete out.ops; delete out.facts; delete out.chances;   // the page and the ledger read them from the ruling
   // the dice are seeded by game and turn, so playing the turn on a copy shows what the room will read after the replies; the second writer fits the updates to it
   let next = []; try { next = W.play(JSON.parse(JSON.stringify(body.state)), out.ruling).filter(e => e.title !== 'From Beijing' && e.title !== 'From the labs'); } catch (e) { console.error('could not preview the turn: ' + e.message); }
