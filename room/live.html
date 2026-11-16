@@ -255,22 +255,15 @@ function track(g, v, reveal) {
   return h + '</svg>';
 }
 function facts(g, v) {
-  const sc = v.strait === 'Calm' ? 'good' : v.strait === 'Tense' ? 'warn' : 'bad';
+  const sc = v.strait === 'Calm' ? 'good' : v.strait === 'Tense' ? 'warn' : 'bad', mc = v.markets === 'Steady' ? 'good' : v.markets === 'Jittery' ? 'warn' : 'bad';
   return '<div class="facts">' +
-    '<span>The public: <b class="' + (v.public === 'calm' || v.public === 'restless' ? '' : 'warn') + '">' + v.public + '</b></span>' + '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span>' +
+    '<span>Polling: <b class="' + (v.public === 'calm' || v.public === 'restless' ? '' : 'warn') + '">' + v.angry + '% angry about AI</b></span>' + '<span>Markets: <b class="' + mc + '">' + v.markets.toLowerCase() + '</b></span>' + '<span>Taiwan Strait: <b class="' + sc + '">' + v.strait.toLowerCase().replace('beijing', 'Beijing') + '</b></span>' +
     '<span>AI research: <b>' + v.speedText + '</b></span></div>';
 }
-// Who each table is dealing with, shown over its box.
+// Over the State table's box, the pause once one is signed; the rest of the world is left for the room to infer.
 function lock(g, v, id) {
-  const L = (label, c, txt, more) => '<div class="lock"><i>' + label + ': </i><span class="' + c + '">' + txt + '</span>' + (more || '') + '</div>';
-  const fc = x => x === 'calm' || x === 'uneasy' ? '' : 'warn';
-  if (id === 'wh') return L('Congress', fc(v.congress), v.congress + ', ' + v.support, '') + L('The labs', g.national || g.law || v.labsText === 'Would stop' ? 'good' : v.labsText === 'Defiant' ? 'bad' : 'warn', v.labsText.toLowerCase().replace('china', 'China')) + L('Their security', 'warn', v.security);
-  if (id === 'state') {
-    const mk = L('Markets', v.markets === 'Steady' ? 'good' : v.markets === 'Jittery' ? 'warn' : 'bad', v.markets.toLowerCase());
-    if (g.deal) return L('A pause is signed', g.caught ? 'bad' : 'good', g.caught ? 'and Beijing is cheating' : 'and holding', '<br>' + v.deal.map(x => '<span class="pill">' + esc(x) + '</span>').join('')) + mk;
-    return (v.talking ? L('Beijing', 'warn', 'will talk') : L('Beijing', 'bad', 'is not talking')) + mk;
-  }
-  return L('Inside Beijing', g.eyes > 1 ? 'good' : g.eyes ? 'warn' : 'bad', v.eyesText.toLowerCase().replace('beijing', 'Beijing'));
+  if (id !== 'state' || !g.deal) return '';
+  return '<div class="lock"><i>A pause is signed: </i><span class="' + (g.caught ? 'bad' : 'good') + '">' + (g.caught ? 'and Beijing is cheating' : 'and holding') + '</span><br>' + v.deal.map(x => '<span class="pill">' + esc(x) + '</span>').join('') + '</div>';
 }
 function topbar(g) {
   const n = st.screen === 'news' || st.screen === 'end' ? g.log.length - 1 : g.turn;
