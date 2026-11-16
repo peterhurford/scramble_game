@@ -19,7 +19,10 @@ const TUNE = {
   line: null, bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
   hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.44, hackWarn: 1.5,   // hackers: noticed at 1, fully in at 2; hunt in proportion to the three-month turn
   // theft is Beijing's choice, rolled each turn the hackers are inside (1+) and the room has been warned: k x how far in x its motive (lead, race-minded, low trust, no deal) x its chance of getting away (no source, no monitoring) x what it has left to lose (Strait tension) x US security (never below floor)
-  theft: { k: 0.42, max: 0.85, lead: 0.08, race: 0.6, trust: 0.06, deal: 0.5, eyes: 0.2, watch: 0.15, tension: 0.15, floor: 0.2 },
+  theft: { k: 0.37, max: 0.85, lead: 0.08, race: 0.6, trust: 0.12, deal: 0.5, eyes: 0.2, watch: 0.15, tension: 0.15, floor: 0.2, weak: 1 },
+  // US resolve as Beijing reads it (0 to 1): this turn's signals (controls held or tightened, a show of force, the NSA hunting, sabotage; backing down or easing lowers it; resolve is the game master's judgment of red lines on the record), blended with what it read before.
+  // Beijing probes where it looks low (probe = 0.5 - resolve): more theft, more pressure moves and gray-zone tests, a harder bargain, a readier blockade, bolder cheating
+  resolve: { start: 0.45, keep: 0.6, base: 0.3, controls: 0.12, deter: 0.2, hunt: 0.15, sabotage: 0.15, backdown: 0.3, ease: 0.1, gm: 0.25, move: 0.8, test: 1.7, margin: 0.25, red: 16, cheat: 1 },
   secAt: [0.64, 1.92, 3.52], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, bjFear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
   labs0: 45, labRace: -7, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
@@ -59,7 +62,7 @@ const terms = d => (d.parity ? ['America stops now', 'China stops once it has ca
 // A ruling that changes nothing: the labs keep training flat out.
 const DEFAULT = { train: 1, secure: 0, test: 0, nationalize: false, law: false, breakout: false, controls: 0, backdown: false, propose: false, inspectors: true, chips: false, parity: false, extra: '', leverage: 0, care: 0,
   intel: false, deter: false, hunt: 0, sabotage: false, run: false, tension: 0, trust: 0, labs: 0, cn: 0, us: 0, hack: 0,
-  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court , pressure: false, confront: false };   // ops or facts null leaves them as they were
+  intelOdds: 1, sabotageOdds: 1, watch: false, face: 0, alarm: 0, ops: null, facts: null, chances: [] , markets: 0, backstop: false, contested: false, courtOdds: TUNE.court , pressure: false, confront: false, resolve: 0 };   // ops or facts null leaves them as they were
 
 function hash01() { let h = 2166136261 >>> 0; const str = Array.prototype.join.call(arguments, '|'); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995) >>> 0; h ^= h >>> 15; return (h >>> 0) / 4294967296; }
 const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
@@ -88,7 +91,7 @@ function newGame(seed, opts) {
     labs: TUNE.labs0, national: false, controls: 0, offer: 3, deal: null, hidden: false, caught: false, cheated: false,
     fear: { cg: TUNE.fear.cg }, shots: 0, news: 0, anger: TUNE.anger.start, support: TUNE.support.start, mkt: 100, backstop: false, panicked: false, enjoined: false, court: null, econ: 0,
     eyes: 0, watch: false, deter: 0, sabotaged: 0, ops: [], facts: [], last: null, crash: false, blockade: false, warned: false,
-    tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null, lastTrain: 1,
+    tension: TUNE.tension0, trust: TUNE.trust0, resolve: TUNE.resolve.start, thefts: 0, log: [], over: null, lastTrain: 1,
   };
   g.path = [{ t: 0, us: 0, cn: g.cnShown, real: g.cn, err: TUNE.eci.cnErr[0] }];
   if (opts && opts.congress) g.congress = true;   // a fourth table plays the congressional majority
@@ -125,7 +128,7 @@ function theftOdds(s, lvl) {
   if (s.hack < 1 || !s.seenHack) return { p: 0 };
   const access = clamp((s.hack - 0.8) / 1.2, 0, 1), lead = s.us - s.cn;
   const motive = clamp(1 + H.lead * (lead - 3) + H.race * (bw.race - 1) - H.trust * (s.trust - 30) / 10 - (s.deal ? H.deal : 0), 0.2, 1.6);
-  const away = clamp(1 - H.eyes * s.eyes - (s.watch ? H.watch : 0), 0.3, 1), stake = clamp(1 + H.tension * (s.tension - 30) / 30, 0.7, 1.5), sec = Math.max(H.floor, T.secMul[lvl]);
+  const away = clamp((1 - H.eyes * s.eyes - (s.watch ? H.watch : 0)) * (1 + H.weak * probe(s)), 0.3, 1.5), stake = clamp(1 + H.tension * (s.tension - 30) / 30, 0.7, 1.5), sec = Math.max(H.floor, T.secMul[lvl]);
   return { p: clamp(H.k * access * motive * away * stake * sec, 0, H.max), access, motive, away, stake, sec };
 }
 const secLevel = s => TUNE.secAt.filter(x => s.secWork >= x - 1e-9).length;
@@ -159,6 +162,13 @@ const MILESTONES = [
   [5.5, 'warn', 'The AI runs the research', '"Hundreds of thousands of copies of our model now do our research, each faster than our best people. A week of their work is a year of ours."', 'Chief scientist, a frontier lab'],
   [7, 'info', 'Data centers outspend the Pentagon', '"The data centers now being built cost more than twice the defense budget. Half the power plants planned in America are for AI."', 'Congressional Budget Office', 'world'],
   [9, 'warn', 'Nobody can check its work', '"Our people can no longer check most of what the model does. We approve its research because it keeps turning out to be right."', 'Chief executive of a frontier lab, private letter'],
+];
+// Beijing's gray-zone tests of US resolve: [tension, hackers' progress, title, text, source]
+const TESTS = [
+  [6, 0, 'Coast guard boards a Taiwanese boat', '"Chinese coast guard officers boarded a Taiwanese supply boat near Kinmen and held its crew for six hours. Beijing calls it a routine inspection."', 'Wire report, Taipei'],
+  [3, 0.3, 'Hackers test the grid', '"Chinese hackers were found inside the control systems of three West Coast utilities. Nothing was switched off. The NSA reads it as a test of what we would do."', 'NSA advisory, eyes only'],
+  [2, 0, 'A chip deal in the open', '"A Chinese firm bought banned chips through a Malaysian shell company and said so publicly. Beijing is daring Washington to respond."', 'Commerce Department'],
+  [5, 0, 'Warships shadow a US carrier', '"Four Chinese destroyers shadowed the Reagan through the South China Sea for three days, closing to within a mile."', 'Pacific Fleet'],
 ];
 // Warning shots: AI incidents in the world, at most one a turn, likelier as AI spreads (the frontier plus diffusion, so a pause does not stop them) and when the labs race. [from frontier, Congress fear, markets, tone, title, text, source]
 const SHOTS = [
@@ -195,7 +205,8 @@ const supportText = x => SUPPORT[x < TUNE.support.hostile ? 0 : x < 60 ? 1 : 2];
 const FEAR = ['calm', 'uneasy', 'alarmed', 'frightened'];
 const fearText = x => FEAR[x < 25 ? 0 : x < 45 ? 1 : x < 65 ? 2 : 3];
 const lawOdds = s => clamp((s.fear.cg - TUNE.fear.lawLo) / TUNE.fear.lawSpan * (0.5 + (s.support == null ? TUNE.support.start : s.support) / 100), 0.03, 0.95);   // a Congress that distrusts the President gives less
-const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
+const probe = s => 0.5 - (s.resolve == null ? TUNE.resolve.start : s.resolve);   // how far Beijing thinks it can push: positive when the US looks soft
+const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter) - TUNE.resolve.red * probe(s);
 // Beijing has five goals, each weighted per game (0.6 to 1.4): not losing the race to America (race), America not reaching runaway AI first (rsi),
 // not losing control of its own models (ctl), national pride (face), and a hard bargain (bargain: what waiting is worth, and the margin it holds back).
 // worries() reads each from the true state, 0 to 1. A pause is worth to Beijing the sum of what it does for those goals (dealWorth); it signs when that clears its margin.
@@ -220,7 +231,7 @@ function dealWorth(s, d, leverage) {
   let total = 0; for (const k in parts) total += parts[k];
   return { total, need: bjMargin(s), parts };
 }
-const bjMargin = s => Math.max(0, 0.1 + 0.15 * s.bj.w.bargain - s.bj.soft);
+const bjMargin = s => Math.max(0, 0.1 + 0.15 * s.bj.w.bargain - s.bj.soft + TUNE.resolve.margin * probe(s));   // a soft US gets a harder bargain
 const DEALS = [0, 1, 2, 3, 4, 5, 6, 7].map(m => ({ chips: !!(m & 1), inspectors: !(m & 2), parity: !!(m & 4) }));
 // The cheapest terms Beijing would sign today (fewest of the three concessions, then the most it gains), or null; pad asks for more than it needs, as a hard bargainer does.
 function cheapest(s, leverage, pad) {
@@ -234,8 +245,10 @@ const signs = (s, d, leverage) => !s.blockade && dealWorth(s, d, leverage).total
 function bjMoves(s, r) {
   const w = s.bj.w, x = worries(s), lead = s.us - s.cn, M = [];
   if (s.deal || s.blockade) return M;
-  if (lead > 1) M.push({ id: 'sprint', score: w.race * (1.5 * x.wait + (lead < 3 ? 0.3 : 0)) });
-  M.push({ id: 'coerce', score: w.rsi * x.rsi * (r.train >= 0.7 ? 1.6 : 0.4) });
+  const pr = probe(s), RV = TUNE.resolve;
+  if (lead > 1) M.push({ id: 'sprint', score: w.race * (1.5 * x.wait + (lead < 3 ? 0.3 : 0)) + RV.move * pr });
+  M.push({ id: 'coerce', score: w.rsi * x.rsi * (r.train >= 0.7 ? 1.6 : 0.4) + RV.move * pr });
+  if (TESTS.some((x, k) => !((s.tests_ || 0) & (1 << k)))) M.push({ id: 'test', score: (0.3 + 0.4 * w.face) * RV.test * 2 * pr + (s.tension < 40 ? 0.1 : 0) });   // a gray-zone test of where America's limits are
   M.push({ id: 'safety', score: 1.3 * w.ctl * x.ctl + (s.knownOver ? 0.4 : 0) - (s.bj.offered ? 0.6 : 0) });
   if ((r.controls > 0 || r.pressure) && s.econ < 3) M.push({ id: 'retaliate', score: 0.6 + 0.5 * w.face + 0.2 * s.econ });
   return M.filter(m => m.id !== s.bj.move).sort((a, b) => b.score - a.score);
@@ -295,7 +308,7 @@ function rule(s, r0) {
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
     cn: clamp(r.cn, N.cn[0], N.cn[1]), us: clamp(r.us, N.us[0], N.us[1]), hack: clamp(r.hack, N.hack[0], N.hack[1]),
     says: { beijing: !!(r.says && r.says.beijing) },
-    pressure: b('pressure'), congress: clamp(r.congress, 0, 10), support: clamp(r.support, -10, 10), public: clamp(r.public, -10, 10),
+    pressure: b('pressure'), resolve: clamp(r.resolve, -1, 1), congress: clamp(r.congress, 0, 10), support: clamp(r.support, -10, 10), public: clamp(r.public, -10, 10),
     markets: clamp(r.markets, -10, 10), backstop: b('backstop'), contested: b('contested') && !obey(s) && !s.deal, courtOdds: r.courtOdds == null ? TUNE.court : clamp(r.courtOdds, 0, 1),
     intelOdds: odds(r.intelOdds), sabotageOdds: odds(r.sabotageOdds), ops, facts: Array.isArray(r.facts) ? r.facts.slice(0, TUNE.maxFacts).map(x => str(x, 150)).filter(Boolean) : null,
     chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', reply: Number.isInteger(c.reply) ? c.reply : -1, op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
@@ -324,6 +337,9 @@ function play1(s, r0) {
 
   // the dials
   if (r.backstop) s.backstop = true;
+  { const RV = T.resolve, now = clamp(RV.base + RV.controls * (s.controls + Math.max(0, r.controls)) + (r.deter ? RV.deter : 0) + (r.hunt >= 0.5 ? RV.hunt : 0) + (r.sabotage ? RV.sabotage : 0) - (r.backdown ? RV.backdown : 0) - (r.controls < 0 ? RV.ease : 0) + RV.gm * r.resolve, 0, 1);
+    const was0 = s.resolve == null ? RV.start : s.resolve; s.resolve = RV.keep * was0 + (1 - RV.keep) * now;
+    why.push('US resolve as Beijing reads it: ' + f2(was0) + ' to ' + f2(s.resolve) + ' (this turn\'s signals ' + f2(now) + '); Beijing probes when it is below 0.5.'); }
   s.mkt += r.markets;
   if (r.nationalize) { s.national = true; s.tension += 10; shock('nationalize'); }
   s.fear.cg = clamp(s.fear.cg + r.congress, 0, 100);
@@ -432,6 +448,10 @@ function play1(s, r0) {
   if (mv) why.push('Beijing\'s own move: ' + mv.id + ' (scored ' + f2(mv.score) + ').');
   if (bj.move === 'sprint') { s.cn += 0.6; s.cnShown += 0.6; s.trust -= 3; add('warn', 'Beijing speeds up', '"China\'s labs are running every chip they can find, day and night. Beijing sees America slowing and means to close the gap."', 'IC assessment'); }
   if (bj.move === 'coerce') { s.tension += 10; s.trust -= 3; add('warn', 'PLA drills near Taiwan', '"The drills are a message to Washington, not to Taipei. Beijing is warning America against racing its labs toward the danger point."', 'Analysis, Indo-Pacific Command'); }
+  if (bj.move === 'test') {   // a gray-zone probe: a small step to see what America does
+    const open = TESTS.map((x, k) => k).filter(k => !((s.tests_ || 0) & (1 << k))), k = open.length ? open[Math.floor(hash01(s.seed, 'test', t) * open.length)] : null;
+    if (k != null) { s.tests_ = (s.tests_ || 0) | (1 << k); const x = TESTS[k]; s.tension += x[0]; s.trust -= 2; s.hack += x[1]; add('warn', x[2], x[3], x[4]); }
+  }
   if (bj.move === 'safety') { s.trust += 6; bj.soft = 0.15; bj.offered = true; s.cn -= 0.4; s.cnShown -= 0.4; add('good', 'Beijing proposes safety talks', '"China proposes that scientists from both countries meet on the danger of losing control of these systems. It says it has slowed some of its own work while they talk."', 'Foreign Ministry spokesperson, Beijing'); }
   if (bj.move === 'retaliate') {   // the trade war climbs a rung: rare earths, then a blacklist of American firms, then Treasuries
     s.econ++; const [hit, months] = T.econ[s.econ - 1]; s.us -= months; s.mkt -= s.backstop ? hit / 2 : hit;
@@ -580,7 +600,7 @@ function play1(s, r0) {
   // is Beijing keeping the deal?
   if (s.deal && !s.caught) {
     const was = s.hidden;
-    if (!s.hidden && !signed && cheats(s) && (!s.deal.inspectors || roll('sneakStarts', T.sneakGo).hit)) s.hidden = true;   // under inspection a sneaky Beijing starts its hidden site only on a roll
+    if (!s.hidden && !signed && cheats(s) && (!s.deal.inspectors || roll('sneakStarts', clamp(T.sneakGo * (1 + T.resolve.cheat * probe(s)), 0, 1)).hit)) s.hidden = true;   // under inspection a sneaky Beijing starts its hidden site only on a roll
     const found = s.deal.inspectors && s.hidden && was && roll('inspectorsFind', T.find).hit;
     if (s.hidden && (found || s.eyes >= 2 || ((s.eyes === 1 || s.watch) && was))) {
       const gap = s.us - s.cn; s.caught = true; s.cnShown = s.cn;
@@ -704,6 +724,7 @@ function brief(s) {
   if (s.congress) L.push('THE CONGRESSIONAL MAJORITY IS A PLAYER: a fourth table (cong) plays the majority\'s leaders, the Senate Majority Leader and the Speaker. Its order is what the majority does: what it brings to the floor, whips, funds, investigates or blocks. Set law true only when the majority table itself brings a halt bill binding every frontier lab to a vote this turn; the ledger rolls it at ' + f2(clamp(T.majority + lawOdds(s), 0, 0.95)) + ', since rogue members and the minority party can still sink it. A bill another table asks for reaches the floor only if the majority table brings it. You still play the minority party and the rogue members (the hawkish chair, senators from the data-center states, the members the labs\' lobbyists own): they can defect, filibuster, leak and hold hearings of their own, and they answer the majority table, along with the lab chiefs, the White House and Beijing. Never speak for the majority\'s leaders. Any other bill the majority passes (money, sanctions, a bar on an order) goes through the dials and facts; a complicated one still takes the time it honestly would. Congress no longer acts against the White House by dice: the majority table decides that.');
   L.push('CONGRESS: its fear of AI is ' + Math.round(F.cg) + ' of 100 (the room sees "' + fearText(F.cg) + '"). ' + (s.law ? 'It has passed the halt power: the labs are bound by law.' : 'A halt bill asked this turn passes at ' + f2(lawOdds(s)) + ' (the ledger rolls the vote; what the room does to frighten Congress this turn, congress 0 to 10, counts first, adding up to 10 fear and about 0.17 to the odds).') + ' Fear rises with lab warnings, warning shots, office jobs lost, hackers, thefts and a blockade, and ebbs ' + T.fear.decay + ' a quiet turn under the labs\' lobbying.');
   L.push('THE LAB CHIEFS\' LETTER: in December 2026 the chief executives of every American frontier lab wrote privately to the President that they are losing confidence they can control their systems, that China\'s labs are worse, and that they want a verifiable halt binding every lab, China\'s included. They resist anything less: held back while China is not costs ' + (-T.ceos.alone) + ' cooperation a turn (unless bound by law or taken over).');
+  L.push('US RESOLVE as Beijing reads it: ' + f2(s.resolve == null ? T.resolve.start : s.resolve) + ' of 1 (0.5 is neutral). Beijing is strategic and probes America\'s limits: where resolve looks low it presses (theft is likelier, its pressure moves and gray-zone tests score higher, it bargains harder, it blockades sooner, it cheats more readily); where resolve looks high it holds back. The ledger reads held or tightened chip controls, shows of force, the NSA hunting, sabotage, and backing down or easing. resolve (-1 to 1) is your judgment of the rest: red lines put on the record and backed, a firm private warning after a provocation (+); concessions with nothing in return, empty threats, silence after a test (-). Trust and resolve are separate: a room can be warm and firm.');
   L.push('PRESIDENTIAL AUTHORITY: the labs are ' + (s.national ? 'nationalized: they obey' : s.law ? 'bound by an act of Congress: they obey' : 'bound by nothing but their own consent; an order to stop, cap or inspect them rests on the President alone (set contested and courtOdds)') + '.' + (s.court === 'blocked' ? ' A court has blocked the President\'s order on the labs: no presidential order can hold them back until Congress acts; say so in the replies.' : s.court === 'upheld' ? ' A court has upheld the President\'s order on the labs; it stands, though the labs are appealing.' : ' The courts have not yet ruled; they rule once, the first turn such an order holds the labs.'));
   const when = n => DATES[s.turn + n] || 'after the end of 2028';
   L.push('OPERATION DATES: an operation you return with left 0 lands this period (' + when(0) + '); left 1 in ' + when(1) + '; left 2 in ' + when(2) + '; left 3 in ' + when(3) + '. Its report must give the time that matches its left, and never a time that has already passed.');

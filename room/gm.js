@@ -35,6 +35,7 @@ const RULING = {
   alarm: num('0 to 0.3. How far evidence Beijing believes this turn frightens it about losing control of its own models: shared test results it accepts, a near miss it sees. Usually 0.'),
   watch: bool('America\'s remote monitoring of China\'s training (satellites, power draw, chip flows, or any means the room built) is working from this turn on, and would see a secret training run. True only on the turn such a system the room ordered is ready and works: an operation that is ready now, settled here. It then stays on for the rest of the game; it verifies a pause without inspectors as inspectors would.'),
   deter: bool('A show of force around Taiwan.'),
+  resolve: num('-1 to 1. How firm America\'s limits look to Beijing this turn beyond what the ledger counts: red lines put on the record and backed, a firm warning after a provocation (+); concessions with nothing in return, empty threats, no answer to a test (-). Usually 0. Separate from trust.'),
   hunt: num('0 to 1. How much of the NSA and Cyber Command is put on protecting the labs this turn. Any order from any table to protect the weights, harden the labs or stop the hackers counts, whatever words it uses; it need not say hunt.'),
   sabotage: bool('A covert attack on China\'s training sites is carried out this turn. True only when the means are in place: an operation prepared on earlier turns is ready, or the access already exists.'),
   sabotageOdds: num('0 to 1. Your estimate that the attack does real damage. The ledger rolls it; a failure is traced to Washington.'),
