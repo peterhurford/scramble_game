@@ -21,7 +21,7 @@ const RULING = {
   controls: { type: 'integer', enum: [-1, 0, 1], description: '+1 tightens chip controls a level, -1 eases them a level, 0 leaves them.' },
   backdown: bool('During a blockade only: America lifts its chip controls to end it.'),
   run: bool('During a blockade only: the Navy escorts a convoy through.'),
-  propose: bool('America puts a pause to Beijing this turn, on the terms in the next four fields; with a pause in force, new terms to replace it (Beijing takes them only if their terms alone are at least as good for it: leverage does not count, so a concession already given cannot be taken back). The ledger decides whether Beijing signs; no reply may say it signed.'),
+  propose: bool('America puts a pause to Beijing this turn, on the terms in the next four fields. A pause in force cannot be reopened. The ledger decides whether Beijing signs; no reply may say it signed.'),
   confront: bool('With Beijing caught cheating under a pause: America confronts it and demands the site be opened and shut. The ledger rolls whether Beijing seals it or walks out; do not put it in chances.'),
   inspectors: bool('The proposed pause has inspectors in both countries.'),
   chips: bool('Under the proposed pause America lifts its chip controls in full when it takes effect. Easing that is staged, partial or conditional is not this: put it in extra and weigh it in leverage, never both.'),

@@ -271,7 +271,7 @@ function rule(s, r0) {
   return {
     train: Math.min(clamp(r.train, 0, 1), 1 - secure - test), secure, test,
     nationalize: b('nationalize') && !s.national, law: b('law') && !s.law, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
-    controls: Math.sign(clamp(r.controls, -1, 1)), confront: b('confront') && !!s.caught, propose: r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
+    controls: Math.sign(clamp(r.controls, -1, 1)), confront: b('confront') && !!s.caught, propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
     face: clamp(r.face, -15, 15), alarm: clamp(r.alarm, 0, 0.3),
     intel: b('intel') && s.eyes < 2, watch: b('watch') && !s.watch, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage'),
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
@@ -397,12 +397,9 @@ function play1(s, r0) {
   if (r.propose) { const dw = dealWorth(s, r.propose, r.leverage); why.push('Pause: worth ' + f2(dw.total) + ' to Beijing against the ' + f2(dw.need) + ' it holds out for (' + Object.keys(dw.parts).filter(k => Math.abs(dw.parts[k]) >= 0.005).map(k => DEAL_WORDS[k] + ' ' + sg(dw.parts[k])).join(', ') + ').'); }
   if (r.propose && r.sabotage) why.push('The attack this turn rules out signing.');
   if (r.propose && !r.sabotage) {
-    const old = s.deal, ok = old ? !s.blockade && dealWorth(s, r.propose, 0).total >= dealWorth(s, old, 0).total : signs(s, r.propose, r.leverage);   // a pause in force is replaced by terms at least as good for Beijing as the ones it has, both scored without leverage, so goodwill cannot buy back a concession
-    if (old && !ok) add('info', 'Beijing keeps the old terms', '"The agreement in force serves both sides. China sees no reason to reopen it."', 'Foreign Ministry spokesperson, Beijing');
-    if (ok) {
+    if (signs(s, r.propose, r.leverage)) {
       if (train > 0.5)  { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
       else if (!willing(s, r.propose)) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
-      else if (old) { s.deal = Object.assign({ t: old.t, blocked: old.blocked }, r.propose); if (r.propose.chips && !old.chips) { s.support -= T.support.chips; s.controls = -1; } s.trust += 5; bj.face += 5; add('good', 'The pause is renegotiated', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva'); }
       else {
         s.deal = Object.assign({ t }, r.propose); signed = true; if (!obey(s)) s.labs += verified(s, r.propose) ? T.ceos.signVerified : T.ceos.signLoose; if (r.propose.chips) s.support -= T.support.chips; shock('pause'); train = 0; defy = false; s.trust += 20; s.tension -= 25; bj.face += 10; if (r.propose.chips) s.controls = -1;
         add('good', 'A pause is signed', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva', true);
