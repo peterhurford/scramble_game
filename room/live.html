@@ -201,7 +201,7 @@ const monthName = t => { const m = Math.min(t, 23.99); return MON[((Math.floor(m
 function track(g, v, reveal) {
   const T0 = -6, T1 = 24, E = World.eci, pre = World.TUNE.eci.trend / 12, W = 1200;
   const H = Math.round(Math.max(270, Math.min(430, 1200 * 0.34 * innerHeight / Math.max(600, Math.min(innerWidth, 1800) - 60))));
-  const L = 62, R = 330, Tp = 30, B = 34;
+  const L = 24, R = 330, Tp = 12, B = 34;
   const p = World.trail(g), n = p[p.length - 1], key = reveal ? 'real' : 'cn', proj = g.over ? [] : World.project(g);
   const pts = p.map(q => [E(q.us), E(q[key]), E(q.cn)]).flat().concat([E(p[0].us) - pre * 6, E(p[0].cn) - pre * 6]);
   const lo = Math.floor((Math.min(...pts) - 1) / 10) * 10, hi = Math.ceil((Math.max(E(g.hi) + 6, Math.max(...pts) + 6)) / 10) * 10;
@@ -210,11 +210,7 @@ function track(g, v, reveal) {
   let h = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('AI capability (Epoch Capabilities Index): America ' + f1(E(n.us)) + ', China ' + f1(E(n[key])) + ', ' + monthName(n.t)) + '">';
   h += '<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="var(--bad)" opacity=".08"/><line x1="0" y1="0" x2="0" y2="10" stroke="var(--bad)" stroke-width="4" opacity=".22"/></pattern><clipPath id="plot"><rect x="' + L + '" y="' + Tp + '" width="' + (W - L - R) + '" height="' + (H - Tp - B) + '"/></clipPath></defs>';
   if (!g.over) h += '<rect class="now" x="' + X(n.t) + '" y="' + Tp + '" width="' + (X(n.t + 4) - X(n.t)) + '" height="' + (H - Tp - B) + '"/>';
-  for (let e = Math.ceil(lo / 10) * 10; e <= hi; e += 10) h += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(e) + '" y2="' + Y(e) + '"/><text x="' + (L - 8) + '" y="' + (Y(e) + 5) + '" text-anchor="end">' + e + '</text>';
-  h += '<text x="' + L + '" y="' + (Tp - 11) + '" font-weight="800" letter-spacing=".1em" font-size="13">AI CAPABILITY ESTIMATES · EPOCH CAPABILITIES INDEX</text>';
-  const key2 = (x, cls, txt) => '<line class="' + cls + '" x1="' + x + '" x2="' + (x + 34) + '" y1="' + (Tp - 16) + '" y2="' + (Tp - 16) + '"/><text x="' + (x + 42) + '" y="' + (Tp - 11) + '" font-size="14">' + txt + '</text>';
-  h += reveal ? key2(600, 'cn real', 'China as the IC saw it') : proj.length > 1 ? key2(600, 'us proj', E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? 'US if the labs keep this turn\'s pace' : 'US held flat while the labs stay stopped') : '';
-  if (!reveal) h += '<rect class="unc-cn" x="' + (W - R + 22) + '" y="' + (Tp - 24) + '" width="34" height="14"/><text x="' + (W - R + 64) + '" y="' + (Tp - 11) + '" font-size="14">shading: likely range</text>';
+  for (let e = Math.ceil(lo / 10) * 10; e <= hi; e += 10) h += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(e) + '" y2="' + Y(e) + '"/>';
   for (let t = 0; t <= T1; t += 4) h += '<line class="axis" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + (H - B) + '" y2="' + (H - B + 6) + '"/><text x="' + X(t) + '" y="' + (H - 9) + '" text-anchor="middle">' + (t === T1 ? 'Dec 2028' : monthName(t)) + '</text>';
   h += '<line class="axis" x1="' + X(0) + '" x2="' + X(0) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke-dasharray="3 5"/>';
   h += '<rect class="band" x="' + L + '" width="' + (W - L - R) + '" y="' + Y(E(g.hi)) + '" height="' + (Y(E(g.lo)) - Y(E(g.hi))) + '"/>';
@@ -230,26 +226,19 @@ function track(g, v, reveal) {
   if (!reveal) h += area(p.map(q => [q.t, E(q.cn) + q.err]), p.map(q => [q.t, E(q.cn) - q.err]), 'unc-cn');
   if (proj.length > 1) h += line(proj.map(q => [q.t, E(q.us)]), 'us proj');
   const pe = proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.find(q => q.t === n.t + 4) : null;   // where this turn's pace leaves the US by the end of the turn
-  if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/><text class="lab-us" font-size="14" x="' + (X(pe.t) + 10) + '" y="' + (Y(E(pe.us)) + 20) + '">about ' + Math.round(E(pe.us)) + ' by ' + monthName(pe.t) + ' (' + Math.round(E((plo.find(q => q.t === pe.t) || pe).us)) + ' to ' + Math.round(E((phi.find(q => q.t === pe.t) || phi[phi.length - 1]).us)) + ')</text>';
+  if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/>';
   if (reveal) h += line(p.map(q => [q.t, E(q.cn)]), 'cn real');
   h += line(p.map(q => [q.t, E(q.us)]), 'us') + line(p.map(q => [q.t, E(q[key])]), 'cn');
   p.forEach((q, i) => { const last = i === p.length - 1; h += '<circle class="' + (last ? 'ring' : 'dot-us') + '" stroke="var(--us)" cx="' + X(q.t) + '" cy="' + Y(E(q.us)) + '" r="' + (last ? 8 : 5) + '"/><circle class="' + (last ? 'ring' : 'dot-cn') + '" stroke="var(--cn)" cx="' + X(q.t) + '" cy="' + Y(E(q[key])) + '" r="' + (last ? 8 : 5) + '"/>'; });
-  // the gap, read off the latest dots
-  const us = E(n.us), cn = E(n[key]), d = us - cn, x = X(n.t);
-  let ago = null;
-  if (Math.abs(d) >= 1) {
-    const lead = d > 0, back = World.firstAt(p, lead ? 'us' : key, lead ? n[key] : n.us), yb = Y(lead ? cn : us), xb = X(Math.max(T0, back == null ? n.t : back)), m = Math.round(n.t - (back == null ? n.t : back));
-    h += '<path class="gap" d="M' + x + ',' + Y(us) + 'V' + Y(cn) + 'M' + (x - 6) + ',' + Y(us) + 'h12M' + (x - 6) + ',' + Y(cn) + 'h12"/>';
-    const held = p.length > 1 && Math.abs(n.us - p[p.length - 2].us) < 0.1;   // while America stands still the months-ago figure grows as the gap shrinks, so it is left off
-    if (m >= 1 && !held) { h += '<path class="gap" d="M' + x + ',' + yb + 'H' + xb + 'M' + xb + ',' + (yb - 6) + 'v12"/>'; ago = [(lead ? 'China is where America' : 'America is where China'), 'was ' + m + (m === 1 ? ' month' : ' months') + ' ago']; }
-  }
+  // the gap, read off the latest dots, in months of progress at the 2026 pace (the same measure the grades use)
+  const us = E(n.us), cn = E(n[key]), d = us - cn, x = X(n.t), per = World.TUNE.eci.per, mo = e => Math.round(Math.abs(e) / per);
   h += '</g>';
   const lx = W - R + 22, mid = Math.max(Tp + 30, Math.min(H - B - 50, (Y(us) + Y(cn)) / 2));
   h += '<line class="axis" stroke-dasharray="2 4" x1="' + (x + 10) + '" x2="' + (lx - 8) + '" y1="' + (Y(us) + Y(cn)) / 2 + '" y2="' + (mid - 10) + '"/>';
-  h += '<text class="gapb" x="' + lx + '" y="' + (mid - 4) + '">' + (Math.abs(d) < 1 ? 'Neck and neck' : (d > 0 ? 'US' : 'China') + ' ahead by about ' + Math.round(Math.abs(d)) + ' ECI') + '</text>';
-  const spread = reveal ? 0 : n.err + eu, rlo = Math.round(d - spread), rhi = Math.round(d + spread), side = x => x === 0 ? 'level' : (x > 0 ? 'US +' : 'China +') + Math.abs(x);
-  h += '<text class="gaps" x="' + lx + '" y="' + (mid + 19) + '">' + (reveal ? monthName(n.t) + ': US ' + f1(us) + ', China ' + f1(cn) : 'Likely range: ' + side(rlo) + ' to ' + side(rhi)) + '</text>';
-  const more = (ago || []).concat(!reveal && g.deal && !g.caught ? (g.deal.inspectors ? ['China\'s figure is', 'checked by inspectors'] : g.watch || g.eyes ? ['China\'s figure is checked', 'by US monitoring'] : ['China\'s figure is Beijing\'s', 'own account']) : []);
+  h += '<text class="gapb" x="' + lx + '" y="' + (mid - 4) + '">' + (mo(d) < 1 ? 'Neck and neck' : (d > 0 ? 'US' : 'China') + ' ' + mo(d) + (mo(d) === 1 ? ' month' : ' months') + ' ahead') + '</text>';
+  const spread = n.err + eu, rlo = Math.round((d - spread) / per), rhi = Math.round((d + spread) / per), side = x => x === 0 ? 'level' : (x > 0 ? 'US +' : 'China +') + Math.abs(x);
+  h += '<text class="gaps" x="' + lx + '" y="' + (mid + 19) + '">' + (reveal ? 'In truth, as of ' + monthName(n.t) : 'Likely range: ' + side(rlo) + ' to ' + side(rhi) + ' months') + '</text>';
+  const more = [].concat(!reveal && g.deal && !g.caught ? (g.deal.inspectors ? ['China\'s figure is', 'checked by inspectors'] : g.watch || g.eyes ? ['China\'s figure is checked', 'by US monitoring'] : ['China\'s figure is Beijing\'s', 'own account']) : []);
   more.forEach((t, i) => { h += '<text class="gaps" x="' + lx + '" y="' + (mid + 40 + 20 * i) + '">' + t + '</text>'; });
   h += '<text class="lab-us" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].us)) - 12) + '" text-anchor="end">US</text><text class="lab-cn" x="' + (X(p[0].t) - 8) + '" y="' + (Y(E(p[0].cn)) + 24) + '" text-anchor="end">CHINA</text>';
   return h + '</svg>';
@@ -297,7 +286,7 @@ function seats(g, v) {
     else {
       h += '<p class="order">' + esc(st.orders[k] || 'No order.') + '</p>';
       const R = a.ruling || {};
-      a.replies.forEach((r, i) => { if (r.table === k) h += (r.did ? '<p class="did" contenteditable="true" data-did="' + i + '">' + esc(r.did) + '</p>' : '') + '<blockquote contenteditable="true" data-reply="' + i + '">' + esc(r.quote) + '</blockquote><div class="by">' + esc(r.by) + '</div>'; });
+      a.replies.forEach((r, i) => { if (r.table === k) h += '<blockquote contenteditable="true" data-reply="' + i + '">' + esc(r.quote) + '</blockquote><div class="by">' + esc(r.by) + '</div>'; });
       h += (R.chances || []).filter(c => c.table === k).map(c => { const o = c.op && (R.ops || []).find(x => x.name === c.op); return o && o.left > 0 ? '' : '<p class="odds">' + esc(c.what) + ': <b>' + World.oddsWord(c.odds) + '</b></p>'; }).join('');
     }
     h += '</div>';
@@ -317,7 +306,7 @@ function news(g) {
   const e = st.events[st.news], n = st.events.length, last = st.news === n - 1;
   let pips = ''; for (let i = 0; i < n; i++) pips += '<i class="' + (i <= st.news ? 'done' : '') + '"></i>';
   return '<div class="ov"><div class="news ' + e.tone + (e.big ? ' big' : '') + '"><div class="mh"><b>' + g.log[g.log.length - 1].date + '</b><span>' + (e.big ? 'Flash' : '') + '</span></div>' +
-    '<div class="mb"><h2>' + esc(e.title) + '</h2>' + (e.reply ? (e.reply.order ? '<p class="order">' + esc(e.reply.order) + '</p>' : '') + (e.reply.did ? '<p class="did">' + esc(e.reply.did) + '</p>' : '') + (e.reply.quote ? '<blockquote>' + esc(e.reply.quote) + '</blockquote>' : '') + '<div class="by">' + esc(e.reply.by) + '</div>' : body(e.text, e.src)) + '</div>' +
+    '<div class="mb"><h2>' + esc(e.title) + '</h2>' + (e.reply ? (e.reply.order ? '<p class="order">' + esc(e.reply.order) + '</p>' : '') + (e.reply.quote ? '<blockquote>' + esc(e.reply.quote) + '</blockquote>' : '') + '<div class="by">' + esc(e.reply.by) + '</div>' : body(e.text, e.src)) + '</div>' +
     '<div class="go"><button class="btn" id="b-next">' + (last ? (g.over ? 'See how it ends' : 'Next turn') : 'Next') + '</button><div class="pips">' + pips + '</div></div></div></div>';
 }
 // The last writer's epilogue: asked once when the ending is first shown; until it comes (or if it fails) the ledger's own title and text stand.
