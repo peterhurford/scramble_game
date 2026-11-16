@@ -17,7 +17,9 @@ const TUNE = {
   eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [1, 1], blur: 0 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.5, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: null, bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
-  hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.44, hackWarn: 1.5, insider: 0.08,   // hackers: noticed at 1, weights gone at 2; hunt in proportion to the three-month turn; insider: the chance a turn, while the hackers are inside (1+) and the room has been warned, that the weights walk out whatever the security
+  hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.44, hackWarn: 1.5,   // hackers: noticed at 1, fully in at 2; hunt in proportion to the three-month turn
+  // theft is Beijing's choice, rolled each turn the hackers are inside (1+) and the room has been warned: k x how far in x its motive (lead, race-minded, low trust, no deal) x its chance of getting away (no source, no monitoring) x what it has left to lose (Strait tension) x US security (never below floor)
+  theft: { k: 0.42, max: 0.85, lead: 0.08, race: 0.6, trust: 0.06, deal: 0.5, eyes: 0.2, watch: 0.15, tension: 0.15, floor: 0.2 },
   secAt: [0.64, 1.92, 3.52], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, bjFear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
   labs0: 45, labRace: -7, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
@@ -117,6 +119,15 @@ function lagMonths(s, key) {
 }
 
 
+// The chance Beijing takes the weights this turn, and why: none until the hackers are inside and the room has been warned
+function theftOdds(s, lvl) {
+  const T = TUNE, H = T.theft, bw = s.bj.w;
+  if (s.hack < 1 || !s.seenHack) return { p: 0 };
+  const access = clamp((s.hack - 0.8) / 1.2, 0, 1), lead = s.us - s.cn;
+  const motive = clamp(1 + H.lead * (lead - 3) + H.race * (bw.race - 1) - H.trust * (s.trust - 30) / 10 - (s.deal ? H.deal : 0), 0.2, 1.6);
+  const away = clamp(1 - H.eyes * s.eyes - (s.watch ? H.watch : 0), 0.3, 1), stake = clamp(1 + H.tension * (s.tension - 30) / 30, 0.7, 1.5), sec = Math.max(H.floor, T.secMul[lvl]);
+  return { p: clamp(H.k * access * motive * away * stake * sec, 0, H.max), access, motive, away, stake, sec };
+}
 const secLevel = s => TUNE.secAt.filter(x => s.secWork >= x - 1e-9).length;
 const obey = s => s.national || s.law;   // a takeover or a law binding every lab: the labs do as they are told
 // a verified halt that binds China too (inspectors, or America's own monitoring, and both sides stopping now) is what the CEOs asked for in their letter
@@ -540,14 +551,15 @@ function play1(s, r0) {
   }
   if (t === 6) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
   const thefts0 = s.thefts;
-  // theft: Beijing's hackers work on any lead worth stealing; security slows them and hunting drives them out, but while they are inside an insider may still take the weights
+  // theft: Beijing's hackers work on any lead worth stealing; security slows them and hunting drives them out; once inside, Beijing chooses whether to take the weights (theftOdds)
   if ((!s.deal || s.hidden) && s.us - s.cn >= T.hackLead) {
     const gain = s.hackRate * T.secMul[lvl] * (1 + T.hackCtl * Math.max(0, s.controls)), uncapped = s.hack + gain;
     s.hack = !s.seenHack ? Math.min(uncapped, T.hackWarn) : uncapped;   // no theft the room was not warned of a turn ahead, with room left to stop it
     why.push('Hackers: ' + f2(was.hack) + (hackNudge ? ' ' + sg(hackNudge) + ' from rulings and rolls' : '') + ' -' + f2(evict) + ' driven out +' + f2(gain) + ' gained at security "' + SECURITY[lvl] + '" = ' + f2(uncapped) + (uncapped > s.hack ? ', held to ' + f2(s.hack) + ' because the room had not been warned' : '') + '. Seen at 1.00, weights gone at 2.00.');   // no theft the room was not warned of a turn ahead, with room left to stop it
-    let inside = false;
-    if (s.hack < 2 && s.hack >= 1 && s.seenHack) { const ir = roll('insider', T.insider); rolls.push({ what: 'An insider takes the weights', table: 'pent', odds: T.insider, word: oddsWord(T.insider), u: ir.u, hit: ir.hit }); if (ir.hit) { inside = true; s.hack = 2; } }
-    if (s.hack >= 2) {
+    const th = theftOdds(s, lvl), tr = th.p ? roll('theft', th.p) : null;
+    if (tr) { rolls.push({ what: 'Beijing takes the weights', table: 'pent', odds: th.p, word: oddsWord(th.p), u: tr.u, hit: tr.hit }); why.push('Theft: odds ' + f2(th.p) + ' (how far in ' + f2(th.access) + ', motive ' + f2(th.motive) + ', getting away ' + f2(th.away) + ', little left to lose ' + f2(th.stake) + ', security ' + f2(th.sec) + '); the die came up ' + f2(tr.u) + '.'); }
+    const inside = !!(tr && tr.hit && th.sec <= TUNE.theft.floor);   // taken past the best security there is: an inside job
+    if (tr && tr.hit) {
       const gain = Math.max(0, s.us - 1 - s.cn); s.cn += gain; s.thefts++; s.hack = lvl >= 3 ? 0 : 0.6; s.seenHack = true;
       if (s.deal) add('bad', 'A break-in at the lab', '"Someone had access to the model weights for eleven hours. We cannot tell what was taken."', 'Security incident report, a frontier lab');
       else { s.cnShown = s.cn; shock('theft'); scare(T.fear.theft); add('bad', 'The weights are stolen', inside ? '"Someone inside a lab copied the weights out, past every control we had. Assume Beijing has them running within days."' : '"They took the weights and the training code. Assume Beijing has it running within days."', 'Flash cable, NSA to the President', true); }
@@ -668,7 +680,7 @@ function brief(s) {
   L.push('TRAINING THIS TURN: train 1.0 moves the US frontier ' + f(full) + ' months' + (s.deal ? ' (under the pause any training is secret and at half that; inspectors, if the deal has them, find it and the pause ends)' : '') + '. ' +
     (s.knownOver ? '' : gap < full ? 'train above ' + f(gap / full) + ' crosses the danger point. That is loss of control and the end of the game, unless the crossing is contained; then it is a near miss that proves the danger to everyone. Containment is judged on the whole: a score of 0.8 x (1 - train) + 0.2 x (test / 0.4, at most 1) + ' + f2(0.075 * narrowed(s)) + ' for turns of serious testing so far (two at most, this one included) + ' + f2(0.15 * (obey(s) ? 1 : s.labs / 100)) + ' for the labs\' good will + your care (-0.1 to 0.1), against a hidden bar of ' + f2(bar(s)) + ' in this world. train above ' + T.flatOut + ' is never contained. ' : 'Nothing crosses the danger point this turn. ') +
     'The IC\'s range does not narrow; test 0.3 or more is a turn of serious testing.');
-  L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0; the weights are gone at 2.0). ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). Driving them out takes up to ' + T.hunt + ' off their progress this turn: in full at hunt 1.0 or at secure 0.5, whichever is larger, in proportion below that. Security never stops them outright, and a theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
+  L.push('HIDDEN, HACKERS: progress ' + f(s.hack) + ' (the NSA sees them at 1.0, fully in at 2.0). Once they are inside and the room has been warned, Beijing decides each turn whether to take the weights: the ledger rolls it at ' + f2(theftOdds(s, lvl).p) + ' this turn, from how far in they are, Beijing\'s motive (the lead, its race goal, low trust, no deal), its chance of getting away (no US source or monitoring), how little it has left to lose (Strait tension), and US security, which cuts the odds but never to zero. ' + (stealing ? 'This turn they gain ' + T.secMul.map((m, i) => f(rate * m) + ' at security "' + SECURITY[i] + '"').join(', ') + '. Security work done so far: ' + f(s.secWork) + ' turns; levels are reached at ' + T.secAt.join(', ') + ' turns of total work (secure 1.0 is a turn of every engineer). Driving them out takes up to ' + T.hunt + ' off their progress this turn: in full at hunt 1.0 or at secure 0.5, whichever is larger, in proportion below that. A theft leaves China about a month behind.' : 'There is nothing worth stealing right now; they make no progress.'));
   const n = k => ['none', 'one', 'two', 'all three'][k];
   const bw = s.bj.w, wx = worries(s), dname = d => (d.parity ? 'America stops now, China once caught up' : 'both stop now') + (d.inspectors ? ', inspectors' : ', no inspectors') + (d.chips ? ', chips lifted' : '');
   const pad = 0.12 * bw.bargain, ask = cheapest(s, 0, pad) || cheapest(s, 0), mv = bjMoves(s, { train: s.standing ? s.standing.train : 1, controls: 0 });
