@@ -8,16 +8,17 @@
 'use strict';
 
 const TUNE = {
-  turns: 6,                       // Jan 2027 to Dec 2028
+  turns: 7, tm: 3,                // seven turns of three months: Jan 2027 to Sep 2028
   // takeoff: the AI speeds its own research as it improves, dx/dt = train x v0 x e^(x / accel), x the frontier in months of progress past Jan 2027.
-  // v0 (months a turn at the start of all-out training) is hidden and drawn per game; flat out, a turn starts at 7.5 to 12 ECI, above the 2026 pace, and a race crosses the danger point in turn 2 to 4.
-  takeoff: [3.4, 5.2], accel: 20, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, mid: 4.3, diffuse: 1.5, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
+  // v0 (months of progress a turn at the start of all-out training) is the same in every game: flat out, a turn gains about 7.5, 9, 12, 15 ECI and so on, above the 2026 pace,
+  // and the danger point (line, set below) lies between where two and three flat-out turns reach, so three full turns of racing always cross it.
+  takeoff: [3.4, 3.4], accel: 20, cnRatio: 0.8, cnSlow: 0.35, stepMax: 14, speed0: 2.5, mid: 3.4, diffuse: 1.1, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
-  eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [0.7, 1.4], blur: 0.25 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
-  cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.67, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
-  line: [9, 19], bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
-  hack0: [0.3, 1.0], hack: [0.58, 0.92], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
-  secAt: [0.48, 1.44, 2.64], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
+  eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [1, 1], blur: 0 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
+  cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.5, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
+  line: null, bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
+  hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
+  secAt: [0.64, 1.92, 3.52], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, fear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
   labs0: 45, labRace: -7, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
   floor: [0.35, 0.75], leadFor: 4, leadShort: 2, ctlFor: 2, cold: 20, hot: 60, cheatLead: 3,
@@ -25,18 +26,19 @@ const TUNE = {
   nudge: { tension: 15, trust: 15, labs: 20, cn: [-1, 0.5], us: [-1, 0], hack: [-0.7, 0.5] },   // how far a ruling may move a dial the ledger does not otherwise own
   chance: { tension: 25, trust: 20, labs: 20, cn: [-2.5, 1], us: [-2, 0.5], hack: [-1, 0.7], secure: 0.5 },   // how far either side of a rolled outcome may move one
   // markets: an index from 100; shocks (halved under a Treasury backstop), a recovery a turn toward 100, the labs' cooperation lost below slide, a panic below panic
-  mkt: { pause: 12, nationalize: 15, tighten: 3, ease: 2, blockade: 10, theft: 5, nearMiss: 8, revenge: 4, rareEarths: 2, court: 3, recover: 4, slide: 85, panic: 70, slideLabs: 4, panicLabs: 10 },
+  mkt: { pause: 12, nationalize: 15, tighten: 3, ease: 2, blockade: 10, theft: 5, nearMiss: 8, revenge: 4, rareEarths: 2, court: 3, recover: 3, slide: 85, panic: 70, slideLabs: 4, panicLabs: 10 },
   econ: [[2, 0.3], [5, 0], [8, 0]],   // Beijing's trade war, by rung: markets hit and US months lost; each turn it lasts bleeds the rung off the markets
   court: 0.35, freed: [0.4, 0.8],   // freed: the share the labs train at once a court frees them, with the room's goodwill (labWilling+) and without
   // court: default odds a court blocks a contested presidential order in a turn
   // fear (0 to 100): how frightened Congress (cg) is about AI. News moves it; it ebbs decay a turn without new alarm. A halt bill passes at (cg - lawLo) / lawSpan odds.
-  fear: { cg: 20, decay: 6, lawLo: 25, lawSpan: 60, warn: 7, ms: 3, nearMiss: 35, theft: 15, hackers: 6, blockade: 12, shot: 0.6 },
-  shot: { base: 0.2, perMonth: 0.02, race: 0.1, test: 0.05, max: 0.6 },   // a warning shot's odds a turn: base, plus per month of progress of AI out in the world (the frontier plus diffusion), plus racing (train 0.7+), less testing (0.3+)
+  fear: { cg: 20, decay: 4.5, lawLo: 25, lawSpan: 60, warn: 7, ms: 3, nearMiss: 35, theft: 15, hackers: 6, blockade: 12, shot: 0.6 },
+  shot: { base: 0.15, perMonth: 0.02, race: 0.1, test: 0.05, max: 0.6 },   // a warning shot's odds a turn: base, plus per month of progress of AI out in the world (the frontier plus diffusion), plus racing (train 0.7+), less testing (0.3+)
   // the public's anger about AI (0 to 100): jobs, power bills, incidents. Above hot it frightens Congress each turn and turns it on the White House; above riot, protests.
-  anger: { start: 30, ebb: 3, hot: 60, riot: 75, jobs: 12, shot: 6, slide: 6 },
+  anger: { start: 30, ebb: 2.25, hot: 60, riot: 75, jobs: 12, shot: 6, slide: 6 },
   // Congress's support for the President (0 to 100): below hostile it acts against the White House on its own, at (hostile - support) / 40 odds a turn
   support: { start: 50, hostile: 38, ease: 8, chips: 15, seize: 15, contested: 5, angry: 3 },
   // trickery: a hard-line Beijing (floor 1, 2) may hide a training site even under inspection, at these odds per game; inspectors find it at find a turn
+  majority: 0.5,   // with the majority at the table, a halt bill it brings to the floor passes at this plus the usual odds (0.95 at most): rogue members and the minority can still sink it
   sneak: [0, 0.2, 0.5], sneakGo: 0.6, find: 0.5,
   confront: [0.9, 0.7, 0.25],   // the odds that Beijing, caught and confronted, seals its site rather than walk out, by floor; a sealed cheat grades a notch down
   // the CEOs' letter: the labs sign a verified halt with China at any cooperation short of defiance (signVerified on signing, signLoose for any other pause), and lose alone a turn held back while China is not
@@ -44,8 +46,8 @@ const TUNE = {
   maxOps: 8, maxChances: 2, worldCards: 2,   // worldCards: rolled outcomes, warning shots, milestones and news items shown a turn, together
   maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
-const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
-const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC', cong: 'Congress' };   // cong plays only when a game is started with Congress as a table
+const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Mar 2028', 'Apr-Jun 2028', 'Jul-Sep 2028'];
+const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC', cong: 'The Congressional Majority' };   // cong plays only when a game is started with the majority as a table
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
 // extra is anything else State wrote into the deal; the game master weighs it through leverage.
@@ -87,7 +89,7 @@ function newGame(seed, opts) {
     tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null, lastTrain: 1,
   };
   g.path = [{ t: 0, us: 0, cn: g.cnShown, real: g.cn, err: TUNE.eci.cnErr[0] }];
-  if (opts && opts.congress) g.congress = true;   // a fourth table plays Congress: its votes are its own, not rolled
+  if (opts && opts.congress) g.congress = true;   // a fourth table plays the congressional majority
   return g;
 }
 
@@ -95,7 +97,7 @@ function newGame(seed, opts) {
 const cnErr = s => TUNE.eci.cnErr[s.eyes ? 2 : s.watch ? 1 : 0];
 // Both frontiers at the start of each turn (t calendar months past Jan 2027; cn as the room saw it, real as it was), and now.
 function trail(s) {
-  const p = (s.path || []).slice(), now = { t: 4 * Math.min(s.turn + (s.over && s.over.how !== 'time' ? 1 : 0), TUNE.turns), us: s.us, cn: s.cnShown, real: s.cn, err: cnErr(s) };
+  const p = (s.path || []).slice(), now = { t: TUNE.tm * Math.min(s.turn + (s.over && s.over.how !== 'time' ? 1 : 0), TUNE.turns), us: s.us, cn: s.cnShown, real: s.cn, err: cnErr(s) };
   if (!p.length) p.push({ t: 0, us: 0, cn: TUNE.cnStart, real: s.cn, err: TUNE.eci.cnErr[0] });
   if (p[p.length - 1].t === now.t) p[p.length - 1] = now; else p.push(now);
   return p;
@@ -123,9 +125,10 @@ const willing = (s, d) => obey(s) || s.labs >= (verified(s, d) ? TUNE.labDefiant
 const pace = s => (s.v0 || TUNE.mid) * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
 // where a frontier at x gets to in one turn at training share f and pace v; a step past stepMax is the explosion, held there
 const reach = (x, f, v) => { const L = TUNE.accel, cap = x + TUNE.stepMax, a = Math.exp(-x / L) - f * v / L; return f <= 0 ? x : a <= Math.exp(-cap / L) ? cap : -L * Math.log(a); };
+TUNE.line = [2, 3].map(k => { let x = 0; for (let i = 0; i < k; i++) x = reach(x, 1, TUNE.takeoff[0]); return x; });   // the IC's range: where two and three flat-out turns reach
 const fullStep = s => reach(s.us, 1, pace(s)) - s.us;
 // calendar months for the US frontier to cover d months of progress at full speed
-const monthsTo = (s, d) => 4 * TUNE.accel / pace(s) * (Math.exp(-s.us / TUNE.accel) - Math.exp(-(s.us + Math.max(0, d)) / TUNE.accel));
+const monthsTo = (s, d) => TUNE.tm * TUNE.accel / pace(s) * (Math.exp(-s.us / TUNE.accel) - Math.exp(-(s.us + Math.max(0, d)) / TUNE.accel));
 // how much faster the labs' research runs with the AI than with people alone; China's own work speeds up the same way from where it started
 const speed = s => TUNE.speed0 * (s.v0 || TUNE.mid) / TUNE.mid * Math.exp(s.us / TUNE.accel);
 const cnPace = s => (s.v0 || TUNE.mid) * TUNE.cnRatio * (TUNE.cnOwn + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 2) + 1]) / 1.75;   // China's pace at a given capability, against America's, set by its chips
@@ -230,12 +233,12 @@ const bar = s => s.bar == null ? 0.55 : s.bar;
 const sneaky = s => s.sneak != null && s.sneak < TUNE.sneak[s.floor];   // this Beijing would hide a site from inspectors
 const cheats = s => s.deal && !s.cheated && s.deal.inspectors ? sneaky(s) && s.cn <= s.us + 0.5 : s.deal && !s.deal.inspectors && !s.cheated && (s.deal.parity ? s.floor === 2 && s.cn >= s.us - 0.6 : s.floor === 2 || s.us - s.cn >= TUNE.cheatLead);
 
-// The US frontier month by month to Dec 2028 if the labs keep this turn's training share: the chart's dashed line.
+// The US frontier month by month to the end of the game if the labs keep this turn's training share: the chart's dashed line.
 // the IC's guess at the hidden takeoff speed, as a multiple of the truth: off by up to blur at the start, exact by the end as the frontier's own climb shows it
 const paceGuess = s => 1 + TUNE.eci.blur * (2 * hash01(s.seed, 'paceGuess') - 1) * (1 - s.turn / TUNE.turns);
 function project(s, k) {
   const out = [], v = pace(s) * paceGuess(s) * (k || 1), f = s.over || s.knownOver ? 0 : s.lastTrain == null ? 1 : s.lastTrain; let x = s.us;
-  for (let t = trail(s).slice(-1)[0].t; t <= 4 * TUNE.turns; t++) { out.push({ t, us: x }); x = reach(x, f / 4, v); if (x > s.hi + 12) { out.push({ t: t + 1, us: x }); break; } }
+  for (let t = trail(s).slice(-1)[0].t; t <= TUNE.tm * TUNE.turns; t++) { out.push({ t, us: x }); x = reach(x, f / TUNE.tm, v); if (x > s.hi + 12) { out.push({ t: t + 1, us: x }); break; } }
   return out;
 }
 
@@ -314,9 +317,8 @@ function play1(s, r0) {
   const angry0 = s.anger, US = T.support;
   s.support += r.support - (r.controls < 0 && s.controls > -1 ? US.ease : 0) - (r.nationalize ? US.seize : 0) - (r.contested ? US.contested : 0);
   s.anger = clamp(s.anger + r.public, 0, 100);   // the room's own work on Congress this turn: hearings, the evidence declassified, members briefed
-  if (r.law && !s.law && s.congress) { s.law = true; add('good', 'Congress passes the halt bill', '"Congress passed the emergency halt power tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }   // Congress at the table: its vote is its own
-  else if (r.law && !s.law) {   // the halt bill: the ledger rolls the vote at odds set by how frightened Congress is
-    const p = lawOdds(s), lr = roll('law', p);
+  if (r.law && !s.law) {   // the halt bill: the ledger rolls the vote at odds set by how frightened Congress is; with the majority at the table it whips the vote, so only rogue members and the minority stand in the way
+    const p = s.congress ? clamp(T.majority + lawOdds(s), 0, 0.95) : lawOdds(s), lr = roll('law', p);
     rolls.push({ what: 'Congress passes the halt bill', table: 'wh', odds: p, word: oddsWord(p), u: lr.u, hit: lr.hit });
     why.push('Rolled: the halt bill at ' + f2(p) + ' (Congress\'s fear ' + Math.round(s.fear.cg) + '); the die came up ' + f2(lr.u) + ', so it ' + (lr.hit ? 'passed.' : 'failed.'));
     if (lr.hit) { s.law = true; const y = 51 + Math.round(18 * p); add('good', 'Congress passes the halt bill', '"The Senate passed the emergency halt power ' + y + ' to ' + (98 - y) + ' tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }
@@ -533,7 +535,7 @@ function play1(s, r0) {
       else { s.labs -= 6; s.mkt -= 3; s.tension += 5; add('warn', 'Hostile hearings', '"The committee subpoenaed the lab chiefs and the President\'s science adviser. A classified briefing on Beijing\'s program leaked within the hour."', 'Wire report, the Capitol'); }
     }
   }
-  if (t === 4) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
+  if (t === 6) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
   const thefts0 = s.thefts;
   // theft: Beijing's hackers work on any lead worth stealing; security slows them and never stops them
   if ((!s.deal || s.hidden) && s.us - s.cn >= T.hackLead) {
@@ -605,7 +607,7 @@ function play1(s, r0) {
   if (s.bj.lastLead != null) s.bj.closing = s.bj.lastLead - (s.us - s.cn); s.bj.lastLead = s.us - s.cn;
   if (!scared) { s.fear.cg = Math.max(T.fear.cg * 0.75, s.fear.cg - T.fear.decay); }
   s.turn++;
-  (s.path = s.path || []).push({ t: 4 * s.turn, us: s.us, cn: s.cnShown, real: s.cn, err: cnErr(s) });
+  (s.path = s.path || []).push({ t: TUNE.tm * s.turn, us: s.us, cn: s.cnShown, real: s.cn, err: cnErr(s) });
   if (s.turn >= T.turns) return end(s, 'time', ev);
   return ev;
 }
@@ -682,11 +684,11 @@ function brief(s) {
   const F = s.fear || T.fear;
   L.push('THE PUBLIC: anger about AI ' + Math.round(s.anger == null ? T.anger.start : s.anger) + ' of 100 (the room sees "' + angerText(s.anger == null ? T.anger.start : s.anger) + '"). It rises with lost jobs, incidents, power bills and falling markets; at ' + T.anger.hot + ' it frightens Congress and turns it on the White House each turn; at ' + T.anger.riot + ' the streets fill. public (-10 to 10) is your judgment of the room\'s conduct this turn.');
   L.push('CONGRESS AND THE PRESIDENT: support ' + Math.round(s.support == null ? T.support.start : s.support) + ' of 100 (the room sees "' + supportText(s.support == null ? T.support.start : s.support) + '"). Below ' + T.support.hostile + ' Congress acts against the White House on its own (the ledger rolls it each turn). The ledger takes support away for eased chip controls (' + T.support.ease + '), chips given up in a deal (' + T.support.chips + '), a takeover (' + T.support.seize + '), a contested order (' + T.support.contested + '); support (-10 to 10) is your judgment of the rest. Support also scales the halt bill\'s odds.');
-  if (s.congress) L.push('CONGRESS IS A PLAYER: a fourth table (cong) plays Congress, the House and Senate leaders together. Its order is Congress\'s own action. Set law true only when the Congress table itself passes a halt bill binding every frontier lab this turn; the ledger does not roll it, and the President signs it. A bill another table asks for passes only if the Congress table passes it. Do not speak for Congress\'s leaders: reply to the Congress table as whoever answers what it did (the lab chiefs, the White House, Beijing, the press). Any other bill it passes (money, sanctions, a bar on an order) goes through the dials and facts, as a real act of Congress would; a complicated one still takes the time it honestly would. The fear and support numbers below are background only.');
+  if (s.congress) L.push('THE CONGRESSIONAL MAJORITY IS A PLAYER: a fourth table (cong) plays the majority\'s leaders, the Senate Majority Leader and the Speaker. Its order is what the majority does: what it brings to the floor, whips, funds, investigates or blocks. Set law true only when the majority table itself brings a halt bill binding every frontier lab to a vote this turn; the ledger rolls it at ' + f2(clamp(T.majority + lawOdds(s), 0, 0.95)) + ', since rogue members and the minority party can still sink it. A bill another table asks for reaches the floor only if the majority table brings it. You still play the minority party and the rogue members (the hawkish chair, senators from the data-center states, the members the labs\' lobbyists own): they can defect, filibuster, leak and hold hearings of their own, and they answer the majority table, along with the lab chiefs, the White House and Beijing. Never speak for the majority\'s leaders. Any other bill the majority passes (money, sanctions, a bar on an order) goes through the dials and facts; a complicated one still takes the time it honestly would. Congress no longer acts against the White House by dice: the majority table decides that.');
   L.push('CONGRESS: its fear of AI is ' + Math.round(F.cg) + ' of 100 (the room sees "' + fearText(F.cg) + '"). ' + (s.law ? 'It has passed the halt power: the labs are bound by law.' : 'A halt bill asked this turn passes at ' + f2(lawOdds(s)) + ' (the ledger rolls the vote; what the room does to frighten Congress this turn, congress 0 to 10, counts first, adding up to 10 fear and about 0.17 to the odds).') + ' Fear rises with lab warnings, warning shots, office jobs lost, hackers, thefts and a blockade, and ebbs ' + T.fear.decay + ' a quiet turn under the labs\' lobbying.');
   L.push('THE LAB CHIEFS\' LETTER: in December 2026 the chief executives of every American frontier lab wrote privately to the President that they are losing confidence they can control their systems, that China\'s labs are worse, and that they want a verifiable halt binding every lab, China\'s included. They resist anything less: held back while China is not costs ' + (-T.ceos.alone) + ' cooperation a turn (unless bound by law or taken over).');
   L.push('PRESIDENTIAL AUTHORITY: the labs are ' + (s.national ? 'nationalized: they obey' : s.law ? 'bound by an act of Congress: they obey' : 'bound by nothing but their own consent; an order to stop, cap or inspect them rests on the President alone (set contested and courtOdds)') + '.' + (s.court === 'blocked' ? ' A court has blocked the President\'s order on the labs: no presidential order can hold them back until Congress acts; say so in the replies.' : s.court === 'upheld' ? ' A court has upheld the President\'s order on the labs; it stands, though the labs are appealing.' : ' The courts have not yet ruled; they rule once, the first turn such an order holds the labs.'));
-  const when = n => DATES[s.turn + n] || 'after the end of 2028';
+  const when = n => DATES[s.turn + n] || 'after the game ends in September 2028';
   L.push('OPERATION DATES: an operation you return with left 0 lands this period (' + when(0) + '); left 1 in ' + when(1) + '; left 2 in ' + when(2) + '; left 3 in ' + when(3) + '. Its report must give the time that matches its left, and never a time that has already passed.');
   L.push('OPERATIONS UNDER WAY: ' + ((s.ops || []).length ? s.ops.map(o => '"' + o.name + '" (' + TABLES[o.table] + ', begun ' + DATES[o.since] + '; ' + (o.left ? 'ready in ' + o.left + ' more turn' + (o.left > 1 ? 's' : '') : 'ready to attempt now') + '): ' + o.report).join(' | ') : 'none') + '. Return the full list every turn under the same names; one left out is dropped. ' + TUNE.maxOps + ' at most: past that the ledger drops the last ones, so fold related work under one name or end the least useful operation, and say so in a reply. Time left falls by one a turn at most, and an operation may slip only once. An outcome tied to an operation is rolled only once it is ready, and the operation then ends. One marked ready to attempt now must be settled this turn (a rolled outcome naming it, the sabotage dial, or its sure result said in the reply) and left out of ops; otherwise it lapses with nothing to show.');
   if (s.last && s.last.rolls.length) L.push('LAST TURN\'S DICE: ' + s.last.rolls.map(k => '"' + k.what + '" ' + (k.skipped ? 'was not rolled (not ready)' : k.hit ? 'happened' : 'did not happen')).join('; ') + '.');

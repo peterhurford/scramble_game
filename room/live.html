@@ -195,12 +195,12 @@ function next() {
 }
 function undo() { if (!st.past.length) return; st.game = JSON.parse(st.past.pop()); st.screen = 'orders'; st.orders = st.game.log.length ? {} : st.orders; st.answer = null; st.events = []; st.error = ''; st.turnT0 = Date.now(); draw(); }
 
-// The race chart: America and China on Epoch's Capabilities Index, Jul 2026 to Dec 2028. Dots are the start of each turn; before 2027 both climb at the 2026 pace (dotted);
-// the dashed US line is where this turn's training leads by Dec 2028. The gap is read off the latest dots: ECI points up, and back to when the leader stood there.
+// The race chart: America and China on Epoch's Capabilities Index, Jul 2026 to the game's end, unlabelled. Dots are the start of each turn; before 2027 both climb at the 2026 pace (dotted);
+// the dashed US line is where this turn's training leads. The gap is read off the latest dots, in months of progress.
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthName = t => { const m = Math.min(t, 23.99); return MON[((Math.floor(m) % 12) + 12) % 12] + ' ' + (2027 + Math.floor(m / 12)); };
 function track(g, v, reveal) {
-  const T0 = -6, T1 = 24, E = World.eci, pre = World.TUNE.eci.trend / 12, W = 1200;
+  const TM = World.TUNE.tm, T0 = -6, T1 = TM * World.TUNE.turns, E = World.eci, pre = World.TUNE.eci.trend / 12, W = 1200;
   const H = Math.round(Math.max(270, Math.min(430, 1200 * 0.34 * innerHeight / Math.max(600, Math.min(innerWidth, 1800) - 60))));
   const L = 24, R = 330, Tp = 12, B = 34;
   const p = World.trail(g), n = p[p.length - 1], key = reveal ? 'real' : 'cn', proj = g.over ? [] : World.project(g);
@@ -210,9 +210,9 @@ function track(g, v, reveal) {
   const line = (q, cls) => '<polyline class="' + cls + '" points="' + q.map(([t, e]) => X(t).toFixed(1) + ',' + Y(e).toFixed(1)).join(' ') + '"/>';
   let h = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc('AI capability (Epoch Capabilities Index): America ' + f1(E(n.us)) + ', China ' + f1(E(n[key])) + ', ' + monthName(n.t)) + '">';
   h += '<defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="var(--bad)" opacity=".08"/><line x1="0" y1="0" x2="0" y2="10" stroke="var(--bad)" stroke-width="4" opacity=".22"/></pattern><clipPath id="plot"><rect x="' + L + '" y="' + Tp + '" width="' + (W - L - R) + '" height="' + (H - Tp - B) + '"/></clipPath></defs>';
-  if (!g.over) h += '<rect class="now" x="' + X(n.t) + '" y="' + Tp + '" width="' + (X(n.t + 4) - X(n.t)) + '" height="' + (H - Tp - B) + '"/>';
+  if (!g.over) h += '<rect class="now" x="' + X(n.t) + '" y="' + Tp + '" width="' + (X(n.t + TM) - X(n.t)) + '" height="' + (H - Tp - B) + '"/>';
   for (let e = Math.ceil(lo / 10) * 10; e <= hi; e += 10) h += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(e) + '" y2="' + Y(e) + '"/>';
-  for (let t = 0; t <= T1; t += 4) h += '<line class="axis" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + (H - B) + '" y2="' + (H - B + 6) + '"/><text x="' + X(t) + '" y="' + (H - 9) + '" text-anchor="middle">' + (t === T1 ? 'Dec 2028' : monthName(t)) + '</text>';
+  for (let t = 0; t <= T1; t += TM) h += '<line class="axis" x1="' + X(t) + '" x2="' + X(t) + '" y1="' + (H - B) + '" y2="' + (H - B + 6) + '"/><text x="' + X(t) + '" y="' + (H - 9) + '" text-anchor="middle">' + monthName(t) + '</text>';
   h += '<line class="axis" x1="' + X(0) + '" x2="' + X(0) + '" y1="' + Tp + '" y2="' + (H - B) + '" stroke-dasharray="3 5"/>';
   h += '<rect class="band" x="' + L + '" width="' + (W - L - R) + '" y="' + Y(E(g.hi)) + '" height="' + (Y(E(g.lo)) - Y(E(g.hi))) + '"/>';
   if (!reveal) h += '<text class="bandl" x="' + (L + 10) + '" y="' + (Y((E(g.lo) + E(g.hi)) / 2) + 5) + '">IC: RUNAWAY RSI POSSIBLE IN THIS RANGE</text>';
@@ -226,7 +226,7 @@ function track(g, v, reveal) {
   h += area(p.map(q => [q.t, E(q.us) + eu]), p.map(q => [q.t, E(q.us) - eu]), 'unc-us');
   if (!reveal) h += area(p.map(q => [q.t, E(q.cn) + q.err]), p.map(q => [q.t, E(q.cn) - q.err]), 'unc-cn');
   if (proj.length > 1) h += line(proj.map(q => [q.t, E(q.us)]), 'us proj');
-  const pe = proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.find(q => q.t === n.t + 4) : null;   // where this turn's pace leaves the US by the end of the turn
+  const pe = proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.find(q => q.t === n.t + TM) : null;   // where this turn's pace leaves the US by the end of the turn
   if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/>';
   if (reveal) h += line(p.map(q => [q.t, E(q.cn)]), 'cn real');
   h += line(p.map(q => [q.t, E(q.us)]), 'us') + line(p.map(q => [q.t, E(q[key])]), 'cn');
@@ -266,7 +266,7 @@ function topbar(g) {
 
 function draw() {
   const g = st.game; let h = '';
-  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">On New Year\'s Eve the chief executives of every American frontier lab sent you a private joint letter.</p><div class="letter"><div class="lbl">Private</div><p>To the President:</p><p>We are losing confidence that we can control the systems we are building. Our models now do most of our research, faster than our people can check it, and runaway self-improvement may be less than a year of progress away.</p><p>China\'s labs are close behind us, and they are taking fewer precautions than we are. None of us can stop alone.</p><p>We ask you to secure a halt that binds every frontier lab, here and in China, and that can be verified. We will not stand down for less.</p><p class="sig">The chief executives of the American frontier labs</p></div><p class="lede">The IC agrees with it.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><label class="opt4"><input type="checkbox" id="c-cong"' + (congressOpt ? ' checked' : '') + '> Congress plays as a fourth table</label><button class="btn" id="b-start">Start</button></div>';
+  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">On New Year\'s Eve the chief executives of every American frontier lab sent you a private joint letter.</p><div class="letter"><div class="lbl">Private</div><p>To the President:</p><p>We are losing confidence that we can control the systems we are building. Our models now do most of our research, faster than our people can check it, and runaway self-improvement may be less than a year of progress away.</p><p>China\'s labs are close behind us, and they are taking fewer precautions than we are. None of us can stop alone.</p><p>We ask you to secure a halt that binds every frontier lab, here and in China, and that can be verified. We will not stand down for less.</p><p class="sig">The chief executives of the American frontier labs</p></div><p class="lede">The IC agrees with it.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have seven turns of three months each, to the autumn of 2028.</p><p class="lede">Let\'s get to work.</p><label class="opt4"><input type="checkbox" id="c-cong"' + (congressOpt ? ' checked' : '') + '> The congressional majority plays as a fourth table</label><button class="btn" id="b-start">Start</button></div>';
   else {
     const v = World.view(g);
     h = topbar(g) + '<div class="panel">' + track(g, v, st.screen === 'end') + facts(g, v) + '</div>';
@@ -319,7 +319,7 @@ function askEpi(g) {
 function ending(g) {
   const o = g.over, e = o.epi && !o.epi.failed ? o.epi : null, grade = e ? e.grade : o.grade;
   askEpi(g);
-  return '<div class="panel end"><div class="grade ' + grade[0] + '">' + esc(grade) + '</div><div><div class="lbl">' + (g.turn >= World.TUNE.turns ? 'January 2029 · Inauguration Day' : 'It ended in ' + g.log[g.log.length - 1].date) + '</div><h1>' + esc(e ? e.title : o.title) + '</h1>' +
+  return '<div class="panel end"><div class="grade ' + grade[0] + '">' + esc(grade) + '</div><div><div class="lbl">' + (g.turn >= World.TUNE.turns ? 'October 2028 · A month before the election' : 'It ended in ' + g.log[g.log.length - 1].date) + '</div><h1>' + esc(e ? e.title : o.title) + '</h1>' +
     (e ? e.text.split(/\n+/).map(p => '<p>' + esc(p) + '</p>').join('') : '<p>' + esc(o.text) + '</p>' + (!o.epi ? '<p class="muted">Writing what the next six months bring...</p>' : o.epi.failed ? '<p class="muted">The story of the next six months did not arrive. <button class="ghost" id="b-epi">Try again</button></p>' : '')) + '</div></div>' +
     '<div class="go"><button class="btn" id="b-again">New game</button><button class="ghost" id="b-same">Replay (seed ' + esc(g.seed) + ')</button></div>';
 }
