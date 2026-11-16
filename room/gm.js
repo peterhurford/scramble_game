@@ -167,10 +167,12 @@ How to write the replies.
 
 // The turn as the game master reads it: the ledger's brief, what was said before, and the three orders.
 function prompt(body) {
-  const log = (body.state.log || []).map(t => t.date + '\n' + Object.keys(W.TABLES).map(k => (t.orders[k] ? W.TABLES[k] + ' ordered: ' + t.orders[k] + '\n' : '') + (t.replies || []).filter(r => r.table === k).map(r => '  ' + r.by + ': ' + r.quote + '\n').join('')).join('') + (t.events.length ? 'Then: ' + t.events.join('; ') + '.\n' : '') + (t.updates ? '  Beijing, afterwards: ' + t.updates.beijing.quote + '\n' : '')).join('\n');
+  const log = (body.state.log || []).map(t => t.date + '\n' + Object.keys(W.TABLES).map(k => (t.orders[k] ? W.TABLES[k] + ' ordered: ' + t.orders[k] + '\n' : '') + (t.replies || []).filter(r => r.table === k).map(r => '  ' + r.by + ': ' + r.quote + '\n').join('')).join('') + (t.steer ? 'The facilitator instructed: ' + t.steer + '\n' : '') + (t.events.length ? 'Then: ' + t.events.join('; ') + '.\n' : '') + (t.updates ? '  Beijing, afterwards: ' + t.updates.beijing.quote + '\n' : '')).join('\n');
   return W.brief(body.state) + '\n\n' + (log ? 'EARLIER TURNS\n' + log + '\n' : '') + (body.state.standing ? 'STANDING FROM LAST TURN: the labs\' engineers were split train ' + (body.state.deal ? '0 (a pause is in force: they train only if a table orders training to go on in secret)' : body.state.standing.train) + ', secure ' + body.state.standing.secure + ', test ' + body.state.standing.test + '; NSA on the labs (hunt) ' + body.state.standing.hunt + '. This stands unless a table changes it.\n\n' : '') + 'THIS TURN\'S ORDERS\n' +
-    Object.keys(W.TABLES).filter(k => k !== 'cong' || body.state.congress).map(k => W.TABLES[k] + ': ' + (String(body.orders[k] || '').trim().slice(0, 1200) || '(no order)')).join('\n');
+    Object.keys(W.TABLES).filter(k => k !== 'cong' || body.state.congress).map(k => W.TABLES[k] + ': ' + (String(body.orders[k] || '').trim().slice(0, 1200) || '(no order)')).join('\n') + steer(body);
 }
+// The human running the game may add a word each turn (the page's box below the orders): it binds the game master and is never shown to the room.
+const steer = body => String(body.steer || '').trim() ? '\n\nTHE FACILITATOR\'S INSTRUCTION for this turn, from the person running the game. It is definitive: where it differs from your own judgment, from a table\'s order or from how you would otherwise rule, follow it, in the replies, the ruling, the odds and the updates alike. The room never sees it, so nobody quotes or mentions it.\n' + String(body.steer).trim().slice(0, 2000) : '';
 
 async function viaSdk(text) {
   const m = require('@anthropic-ai/sdk'), Anthropic = m.default || m, client = new Anthropic();
@@ -276,6 +278,7 @@ async function voice(out, body, next) {
   const text = R.map((r, i) => (i + 1) + '. Speaker: ' + r.by + '\n   The ' + W.TABLES[r.table] + ' ordered: ' + String(body.orders[r.table] || '').slice(0, 600) + '\n   Draft statement: ' + (r.did || '') + '\n   Draft line: ' + r.quote).join('\n\n') +
     (next && next.length ? '\n\nWhat the room reads after these lines and before Beijing\'s update, in this order (settled outcomes, written by others; do not rewrite them):\n' + next.map(e => '- ' + e.title + ': ' + String(e.text || '').replace(/"/g, '')).join('\n') : '') +
     (prev ? '\n\nLast turn\'s update, already heard (do not reuse its phrases): ' + prev.beijing.quote : '') +
+    (String(body.steer || '').trim() ? '\n\nThe facilitator running the game instructed, for this round (follow it where it bears on these lines, over the drafts if they differ; never mention it): ' + String(body.steer).trim().slice(0, 2000) : '') +
     (up.beijing ? '\n\nBeijing update, public. Speaker: ' + up.beijing.by + '\n   Draft: ' + up.beijing.quote : '');
   const t0 = Date.now();
   try {

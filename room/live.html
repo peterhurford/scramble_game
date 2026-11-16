@@ -119,6 +119,7 @@ button{font:inherit;color:inherit}
 /* free response: each table's order, then the answers */
 .seat textarea{font:inherit;font-family:var(--f-body);font-size:1.4em;line-height:1.3;color:var(--ink);background:var(--sheet2);border:2px solid var(--rule);padding:.5em .65em;min-height:5.2em;flex:1 1 auto;resize:none;width:100%}
 .seat textarea:focus{outline:none;border-color:var(--accent)}
+.wrap:has(.steer){min-height:calc(100vh + 13rem);min-height:calc(100dvh + 13rem)} .steer{flex:0 0 auto;height:11rem;margin-top:2rem;display:flex;flex-direction:column;gap:.4rem} .steer textarea{flex:1;font:inherit;font-family:var(--f-body);font-size:1.2em;line-height:1.3;color:var(--ink);background:var(--sheet2);border:2px dashed var(--faint);padding:.5em .65em;resize:none;width:100%} .steer textarea:focus{outline:none;border-color:var(--accent)}
 .seat .order{font-family:var(--f-body);color:var(--muted);font-size:1.3em;line-height:1.3;margin:0}
 .seat .did{margin:0;font-weight:800;font-size:1.3em;line-height:1.25}
 .seat .odds{margin:0;font-size:1.1em;color:var(--warn)} .seat .op{margin:0;font-family:var(--f-body);font-size:1.1em;line-height:1.3;padding:6px 10px;border-left:4px solid var(--accent);background:var(--sheet2)}
@@ -155,7 +156,7 @@ let st = { screen: 'intro', game: null, past: [], orders: {}, answer: null, erro
 function seedFromHash() { const m = /seed=([\w-]+)/.exec(location.hash); return m ? m[1] : String(Math.floor(Math.random() * 1e6)); }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(st)); } catch (e) {} }
 function load() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.game) { st = s; if (st.screen === 'wait') st.screen = 'orders'; } } catch (e) {} }
-function keep() { document.querySelectorAll('[data-order]').forEach(t => st.orders[t.dataset.order] = t.value); document.querySelectorAll('[data-reply]').forEach(q => st.answer.replies[+q.dataset.reply].quote = q.textContent.trim()); document.querySelectorAll('[data-did]').forEach(q => st.answer.replies[+q.dataset.did].did = q.textContent.trim()); const r = $('ruling'); if (r) st.rulingText = r.value; }
+function keep() { document.querySelectorAll('[data-order]').forEach(t => st.orders[t.dataset.order] = t.value); document.querySelectorAll('[data-reply]').forEach(q => st.answer.replies[+q.dataset.reply].quote = q.textContent.trim()); document.querySelectorAll('[data-did]').forEach(q => st.answer.replies[+q.dataset.did].did = q.textContent.trim()); const r = $('ruling'); if (r) st.rulingText = r.value; const f = document.querySelector('[data-steer]'); if (f) st.steer = f.value; }
 
 let congressOpt = false;   // the intro's toggle: a fourth table plays Congress
 function start(seed) { st = { screen: 'orders', game: World.newGame(seed, { congress: congressOpt }), past: [], orders: {}, answer: null, error: '', events: [], news: 0, drawer: false, t0: Date.now(), turnT0: Date.now() }; draw(); }
@@ -164,7 +165,7 @@ async function ask() {
   if (!ids(st.game).some(k => (st.orders[k] || '').trim())) return;
   st.screen = 'wait'; st.error = ''; st.waitT0 = Date.now(); live = { step: '', frac: null, miss: 0, at: 0, left: 1e9 }; draw(); tick();
   try {
-    const res = await fetch(GM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders }) }), out = await res.json();
+    const res = await fetch(GM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders, steer: st.steer || '' }) }), out = await res.json();
     if (!res.ok) throw new Error(out.error || res.status);
     if (out.secs) (st.waits = st.waits || []).push(+out.secs); st.answer = out; st.rulingText = JSON.stringify(out.ruling, null, 1); st.screen = 'answers';
     if (!st.drawer) return go();   // the replies lead the cards; with the facilitator drawer open they wait here to be edited first
@@ -181,7 +182,7 @@ function go() {
   const up = st.answer.updates || {};
   for (const e of st.events) { const u = e.title === 'From Beijing' ? up.beijing : e.title === 'From the labs' ? up.labs : null; if (u && u.quote) { e.text = '"' + String(u.quote).replace(/"/g, "'") + '"'; e.src = u.by; } }
   g.standing = { train: ruling.train, secure: ruling.secure, test: ruling.test, hunt: ruling.hunt };
-  g.log.push({ date, orders: st.orders, replies: st.answer.replies, updates: st.answer.updates || null, events: st.events.map(e => e.title) });
+  g.log.push({ date, orders: st.orders, replies: st.answer.replies, updates: st.answer.updates || null, events: st.events.map(e => e.title), steer: st.steer || '' }); st.steer = '';
   // each table's reply is the first cards the room reads, ahead of what the ledger reports
   const R = ruling;
   st.events = st.answer.replies.filter(r => r.quote || r.did).map(r => ({ tone: '', title: World.TABLES[r.table], reply: { order: st.orders[r.table] || '', did: r.did || '', quote: r.quote || '', by: r.by || '' } })).concat(st.events);
@@ -299,6 +300,8 @@ function seats(g, v) {
   h += '</div>';
   if (st.screen === 'wait') return h + '<div class="eta"><div class="bar"><b id="eta-bar"></b><div class="sweep"></div></div><div class="etal"><span id="eta-txt"></span><span id="eta-el"></span></div></div>';
   h += '<div class="go">' + (a ? '<button class="btn" id="b-go">Go</button><button class="ghost" id="b-ask">Ask again</button><button class="ghost" id="b-back">Change the orders</button>' : '<button class="btn" id="b-ask">Send</button>') + '<span class="hint err">' + esc(st.error) + '</span></div>';
+  // below the fold: the facilitator's word to the game master for this turn, binding and never shown to the room
+  h += '<div class="steer"><div class="lbl">Facilitator to the game master</div><textarea data-steer placeholder="Correct, stress or overrule anything. Sent with the orders; the tables never see it.">' + esc(st.steer || '') + '</textarea></div>';
   if (st.drawer) h += '<div class="drawer"><div class="lbl">Facilitator</div>' + (a ? '<p>' + esc(a.picture || '') + '</p>' + a.replies.map(r => '<p><b>' + World.TABLES[r.table] + ':</b> ' + esc(r.aim || '') + '</p>').join('') + '<p>' + esc(a.note) + (a.secs ? ' (' + a.secs + 's' + (a.backend ? ', ' + esc(a.backend) : '') + (a.voice ? '; voice ' + esc(a.voice) : '') + (a.retry ? '; ' + esc(a.retry) : '') + ')' : '') + '</p><textarea id="ruling">' + esc(st.rulingText) + '</textarea>' : '') + (g.last && g.last.why.length ? '<div class="lbl">Why last turn went as it did</div><pre>' + esc(g.last.why.join('\n')) + '</pre>' : '') + '<pre>' + esc(World.brief(g)) + '</pre></div>';
   return h;
 }
