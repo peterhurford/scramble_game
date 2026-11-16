@@ -17,7 +17,7 @@ const TUNE = {
   eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [1, 1], blur: 0 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
   cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.5, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
   line: null, bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
-  hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.58, hackWarn: 1.5,   // hackers: noticed at 1, weights gone at 2
+  hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.44, hackWarn: 1.5, insider: 0.08,   // hackers: noticed at 1, weights gone at 2; hunt in proportion to the three-month turn; insider: the chance a turn, while the hackers are inside (1+) and the room has been warned, that the weights walk out whatever the security
   secAt: [0.64, 1.92, 3.52], secMul: [1, 0.7, 0.4, 0.1],                            // turns of engineers' work to reach each security level, and what it leaves of the hackers' pace
   tension0: 30, trust0: 32, bjFear: 4.2, red: [52, 76], squeeze: 14, warn: 20, deter: 6, bluff: 0.4,
   labs0: 45, labRace: -7, labIdle: -8, labTest: 10, labWilling: 60, labInspect: 50, labDefiant: 25,
@@ -540,15 +540,17 @@ function play1(s, r0) {
   }
   if (t === 6) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
   const thefts0 = s.thefts;
-  // theft: Beijing's hackers work on any lead worth stealing; security slows them and never stops them
+  // theft: Beijing's hackers work on any lead worth stealing; security slows them and hunting drives them out, but while they are inside an insider may still take the weights
   if ((!s.deal || s.hidden) && s.us - s.cn >= T.hackLead) {
     const gain = s.hackRate * T.secMul[lvl] * (1 + T.hackCtl * Math.max(0, s.controls)), uncapped = s.hack + gain;
     s.hack = !s.seenHack ? Math.min(uncapped, T.hackWarn) : uncapped;   // no theft the room was not warned of a turn ahead, with room left to stop it
     why.push('Hackers: ' + f2(was.hack) + (hackNudge ? ' ' + sg(hackNudge) + ' from rulings and rolls' : '') + ' -' + f2(evict) + ' driven out +' + f2(gain) + ' gained at security "' + SECURITY[lvl] + '" = ' + f2(uncapped) + (uncapped > s.hack ? ', held to ' + f2(s.hack) + ' because the room had not been warned' : '') + '. Seen at 1.00, weights gone at 2.00.');   // no theft the room was not warned of a turn ahead, with room left to stop it
+    let inside = false;
+    if (s.hack < 2 && s.hack >= 1 && s.seenHack) { const ir = roll('insider', T.insider); rolls.push({ what: 'An insider takes the weights', table: 'pent', odds: T.insider, word: oddsWord(T.insider), u: ir.u, hit: ir.hit }); if (ir.hit) { inside = true; s.hack = 2; } }
     if (s.hack >= 2) {
       const gain = Math.max(0, s.us - 1 - s.cn); s.cn += gain; s.thefts++; s.hack = lvl >= 3 ? 0 : 0.6; s.seenHack = true;
       if (s.deal) add('bad', 'A break-in at the lab', '"Someone had access to the model weights for eleven hours. We cannot tell what was taken."', 'Security incident report, a frontier lab');
-      else { s.cnShown = s.cn; shock('theft'); scare(T.fear.theft); add('bad', 'The weights are stolen', '"They took the weights and the training code. Assume Beijing has it running within days."', 'Flash cable, NSA to the President', true); }
+      else { s.cnShown = s.cn; shock('theft'); scare(T.fear.theft); add('bad', 'The weights are stolen', inside ? '"Someone inside a lab copied the weights out, past every control we had. Assume Beijing has them running within days."' : '"They took the weights and the training code. Assume Beijing has it running within days."', 'Flash cable, NSA to the President', true); }
     } else if (s.hack >= 1 && !s.seenHack) { s.seenHack = true; scare(T.fear.hackers); add('warn', 'Hackers inside the labs', '"Beijing\'s hackers are inside two labs\' networks. They have not reached the weights. They are getting closer."', 'NSA advisory, eyes only'); }
   }
   else why.push('Hackers: nothing worth stealing' + (s.deal && !s.hidden ? ' under the pause' : ' (lead under ' + T.hackLead + ' months)') + '; progress ' + f2(s.hack) + '.');
