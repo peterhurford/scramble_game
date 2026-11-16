@@ -53,7 +53,7 @@ button{font:inherit;color:inherit}
 .chart .us{stroke:var(--us);fill:none;stroke-width:4} .chart .cn{stroke:var(--cn);fill:none;stroke-width:4}
 .chart .pre{stroke-dasharray:2 6;stroke-linecap:round;stroke-width:3} .chart .proj{stroke-dasharray:10 7;stroke-width:3;opacity:.8} .chart .real{stroke-dasharray:6 6;stroke-width:3}
 .chart .unc-us{fill:var(--us);opacity:.14} .chart .unc-cn{fill:var(--cn);opacity:.16} .chart .fan{fill:var(--us);opacity:.1}
-.chart .dot-us{fill:var(--us)} .chart .dot-cn{fill:var(--cn)} .chart .ring{fill:var(--sheet);stroke-width:3.5}
+.chart .cross{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:2 4;opacity:.8} .chart .crossm{fill:var(--sheet);stroke:var(--bad);stroke-width:3} .chart .dot-us{fill:var(--us)} .chart .dot-cn{fill:var(--cn)} .chart .ring{fill:var(--sheet);stroke-width:3.5}
 .chart .gap{stroke:var(--ink);stroke-width:2.5;fill:none}
 .chart text.gapb{fill:var(--ink);font-weight:900;font-size:21px} .chart text.gaps{fill:var(--ink);font-size:16px}
 .chart text.lab-us{fill:var(--us);font-weight:900;font-size:17px;letter-spacing:.06em} .chart text.lab-cn{fill:var(--cn);font-weight:900;font-size:17px;letter-spacing:.06em}
@@ -227,6 +227,10 @@ function track(g, v, reveal) {
   if (!reveal) h += area(p.map(q => [q.t, E(q.cn) + q.err]), p.map(q => [q.t, E(q.cn) - q.err]), 'unc-cn');
   if (proj.length > 1) h += line(proj.map(q => [q.t, E(q.us)]), 'us proj');
   const pe = proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.find(q => q.t === n.t + TM) : null;   // where this turn's pace leaves the US by the end of the turn
+  // where this turn's pace first reaches the red band: a mark on the band's edge and a faint line down to the month it happens, read off the axis
+  const ci = !g.over && n.us < g.lo && proj.length > 1 && E(proj[proj.length - 1].us) - E(n.us) > 0.2 ? proj.findIndex(q => q.us >= g.lo) : -1;
+  if (ci > 0) { const a = proj[ci - 1], b = proj[ci], tc = a.t + (b.t - a.t) * (g.lo - a.us) / Math.max(1e-9, b.us - a.us), xc = X(tc), yc = Y(E(g.lo));
+    h += '<line class="cross" x1="' + xc + '" x2="' + xc + '" y1="' + yc + '" y2="' + (H - B) + '"/><circle class="crossm" cx="' + xc + '" cy="' + yc + '" r="7"/>'; }
   if (pe && !g.over) h += '<circle class="ring" stroke="var(--us)" stroke-dasharray="3 3" cx="' + X(pe.t) + '" cy="' + Y(E(pe.us)) + '" r="6"/>';
   if (reveal) h += line(p.map(q => [q.t, E(q.cn)]), 'cn real');
   h += line(p.map(q => [q.t, E(q.us)]), 'us') + line(p.map(q => [q.t, E(q[key])]), 'cn');
