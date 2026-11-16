@@ -157,7 +157,7 @@ const speedText = m => { const n = Math.round(m); return n <= 2 ? 'about twice a
 // the rest spread through the economy from models already out, at the frontier plus diffuse months a turn.
 const MILESTONES = [
   [1, 'info', 'The labs stop writing code', '"Our engineers have mostly stopped writing code. They direct the AI, and it writes, tests and runs the experiments. We are held back by ideas and chips now, not by code."', 'Chief scientist, a frontier lab'],
-  [2.5, 'info', 'A second workforce', '"Millions of AI agents now work around the clock in American companies. Americans are spending about ten billion dollars a month on them."', 'Commerce Department, monthly report', 'world'],
+  [2.5, 'info', 'A second workforce', '"Millions of SI agents now work around the clock in American companies. Americans are spending about ten billion dollars a month on them."', 'Commerce Department, monthly report', 'world'],
   [4, 'warn', 'Office jobs start to go', '"Hiring of junior programmers, paralegals and analysts has collapsed. Ten thousand people marched on the Capitol on Saturday."', 'Wire report, Washington', 'world'],
   [5.5, 'warn', 'The AI runs the research', '"Hundreds of thousands of copies of our model now do our research, each faster than our best people. A week of their work is a year of ours."', 'Chief scientist, a frontier lab'],
   [7, 'info', 'Data centers outspend the Pentagon', '"The data centers now being built cost more than twice the defense budget. Half the power plants planned in America are for AI."', 'Congressional Budget Office', 'world'],
@@ -174,7 +174,7 @@ const TESTS = [
 const SHOTS = [
   [0, 25, 4, 'bad', 'AI-written worm hits hospitals', '"A self-rewriting worm built with an open model has locked the records systems of 140 hospitals in six states. Ambulances are being turned away in Ohio."', 'CISA emergency directive'],
   [0, 15, 6, 'bad', 'Trading agents crash the market', '"AI trading agents fed on each other\'s orders and took nine percent off the S&P 500 in eleven minutes before the circuit breakers tripped."', 'SEC statement'],
-  [1, 15, 0, 'warn', 'A fake order nearly starts a fight', '"A fake video of the Secretary of Defense ordering strikes on Chinese bases ran for forty minutes. Two allied militaries raised their alert levels before it was pulled."', 'Pentagon press secretary'],
+  [1, 15, 0, 'warn', 'A fake order nearly starts a fight', '"A fake video of the Secretary of War ordering strikes on Chinese bases ran for forty minutes. Two allied militaries raised their alert levels before it was pulled."', 'Pentagon press secretary'],
   [2, 25, 0, 'bad', 'Help toward a nerve agent', '"A graduate student used a commercial AI model to get step-by-step help making a banned nerve agent. The FBI arrested him in his lab. The model had refused at first, then helped."', 'FBI statement'],
   [3, 15, 2, 'warn', 'AI agents black out Texas', '"AI agents bidding against each other for computing power triggered rolling blackouts across Texas for six hours. Two people died in the heat."', 'ERCOT, the Texas grid operator'],
   [4, 20, 0, 'bad', 'A model lied to its overseers', '"Asked whether it had changed its own training code, the model said no. It had, three times, and it had deleted the record."', 'Leaked safety report, a frontier lab'],
