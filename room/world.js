@@ -78,7 +78,7 @@ function newGame(seed, opts) {
     bj: { w: bw, face: 50, scared: 0, soft: 0, lastLead: null, closing: 0, move: null, offered: false, ask: null },
     seed, turn: 0, us: 0, cnShown: TUNE.cnStart, v0: span(TUNE.takeoff, h('takeoff')), ms: 0,
     // hidden
-    cn: TUNE.cnStart + TUNE.cnFog * (2 * h('cn') - 1), line: span(TUNE.line, h('line')),
+    cn: TUNE.cnStart + TUNE.cnFog * (2 * h('cn') - 1), line: span(TUNE.lineTrue, h('line')),
     hack: span(TUNE.hack0, h('hack0')), hackRate: span(TUNE.hack, h('hack')),
     floor: hard < -0.15 ? 0 : hard < 0.2 ? 1 : 2, sneak: h('sneak'), red: span(TUNE.red, h('red')), bluff: h('bluff') < TUNE.bluff, bar: span(TUNE.bar, h('bar')),
     // seen
@@ -125,7 +125,10 @@ const willing = (s, d) => obey(s) || s.labs >= (verified(s, d) ? TUNE.labDefiant
 const pace = s => (s.v0 || TUNE.mid) * (s.national ? TUNE.natMul : 1) * (s.blockade ? TUNE.siegeMul : 1);
 // where a frontier at x gets to in one turn at training share f and pace v; a step past stepMax is the explosion, held there
 const reach = (x, f, v) => { const L = TUNE.accel, cap = x + TUNE.stepMax, a = Math.exp(-x / L) - f * v / L; return f <= 0 ? x : a <= Math.exp(-cap / L) ? cap : -L * Math.log(a); };
-TUNE.line = [2, 3].map(k => { let x = 0; for (let i = 0; i < k; i++) x = reach(x, 1, TUNE.takeoff[0]); return x; });   // the IC's range: where two and three flat-out turns reach
+// the danger point lies where two to three flat-out turns reach (lineTrue), so three full turns of racing always cross it; the IC's range shown to the room (line) is wider, from one and a half to three and a half turns, as honest uncertainty
+const fullTurns = k => { let x = 0; for (let i = 0; i < Math.floor(k); i++) x = reach(x, 1, TUNE.takeoff[0]); return k % 1 ? reach(x, k % 1, TUNE.takeoff[0]) : x; };
+TUNE.lineTrue = [fullTurns(2), fullTurns(3)];
+TUNE.line = [fullTurns(1.5), fullTurns(3.5)];   // display only: the rules (China easing off, the countdown ending, Beijing's reading of a race) use lineTrue
 const fullStep = s => reach(s.us, 1, pace(s)) - s.us;
 // calendar months for the US frontier to cover d months of progress at full speed
 const monthsTo = (s, d) => TUNE.tm * TUNE.accel / pace(s) * (Math.exp(-s.us / TUNE.accel) - Math.exp(-(s.us + Math.max(0, d)) / TUNE.accel));
@@ -188,7 +191,7 @@ const redLine = s => s.red + TUNE.deter * Math.min(2, s.deter);
 const GOALS = ['race', 'rsi', 'ctl', 'face', 'bargain'];
 function worries(s) {
   const full = fullStep(s), lead = s.us - s.cn, bj = s.bj, pace = s.deal ? 0 : s.standing ? s.standing.train : 1;
-  const near = x => clamp(1 - (s.lo - x) / (2 * full), 0, 1);   // Beijing reads the same science as the IC: how close a frontier is to where the danger range starts
+  const near = x => clamp(1 - (TUNE.lineTrue[0] - x) / (2 * full), 0, 1);   // Beijing reads the same science as the IC: how close a frontier is to where the danger range starts
   return {
     race: clamp(0.8 * clamp(lead / 6, 0, 1) + 0.1 * clamp(s.controls, 0, 2), 0, 1),
     rsi: clamp(near(s.us) * (0.4 + 0.6 * pace) + (s.knownOver ? 0.3 : 0), 0, 1),
@@ -469,13 +472,13 @@ function play1(s, r0) {
   if (openly || s.hidden) {
     const copy = Math.min((s.controls >= 2 ? 0.5 : 1) * T.cnCopy * (1 - 0.25 * lvl), Math.max(0, s.us - s.cn - 1));
     // Beijing reads the same science: it eases off into the danger range (cnSlow of full speed there) and does not stop
-    const own = (x, v) => { if (x >= s.lo) return reach(x, T.cnSlow, v) - x; const x1 = reach(x, 1, v); return x1 <= s.lo ? x1 - x : s.lo - x + T.cnSlow * (x1 - s.lo); };
-    cnStep = openly ? own(s.cn, cnPace(s)) + copy * (s.cn >= s.lo ? T.cnSlow : 1) : own(s.cn, cnPace(s) * T.cnHidden / 1.75);
+    const own = (x, v) => { if (x >= TUNE.lineTrue[0]) return reach(x, T.cnSlow, v) - x; const x1 = reach(x, 1, v); return x1 <= TUNE.lineTrue[0] ? x1 - x : TUNE.lineTrue[0] - x + T.cnSlow * (x1 - TUNE.lineTrue[0]); };
+    cnStep = openly ? own(s.cn, cnPace(s)) + copy * (s.cn >= TUNE.lineTrue[0] ? T.cnSlow : 1) : own(s.cn, cnPace(s) * T.cnHidden / 1.75);
     if (s.deal && openly) cnStep = Math.min(cnStep, s.us - s.cn);
     if (s.knownOver) cnStep = clamp(s.line - 0.3 - s.cn, 0, cnStep);        // once America has found the danger point, Beijing stops short of it
   }
   s.cn += cnStep; if (openly || s.caught) s.cnShown += cnStep;
-  why.push('China\'s frontier ' + sg(cnStep) + ' months' + (openly ? ' (research ' + f1(cnSpeed(s)) + 'x people alone; own work ' + T.cnOwn + (s.crash ? ', crash program ' + T.crash : '') + ', chips at controls level ' + s.controls + ' ' + T.cnChips[clamp(s.controls, -1, 2) + 1] + ', the rest copied from published American work' + (s.cn - cnStep >= s.lo ? '; halved inside the danger range' : '') + ')' : s.hidden ? ' (training in secret)' : ' (stopped under the pause)') + (s.cn - cnStep - was.cn ? ', and ' + sg(s.cn - cnStep - was.cn) + ' from rulings, rolls and sabotage' : '') + '.');
+  why.push('China\'s frontier ' + sg(cnStep) + ' months' + (openly ? ' (research ' + f1(cnSpeed(s)) + 'x people alone; own work ' + T.cnOwn + (s.crash ? ', crash program ' + T.crash : '') + ', chips at controls level ' + s.controls + ' ' + T.cnChips[clamp(s.controls, -1, 2) + 1] + ', the rest copied from published American work' + (s.cn - cnStep >= TUNE.lineTrue[0] ? '; halved inside the danger range' : '') + ')' : s.hidden ? ' (training in secret)' : ' (stopped under the pause)') + (s.cn - cnStep - was.cn ? ', and ' + sg(s.cn - cnStep - was.cn) + ' from rulings, rolls and sabotage' : '') + '.');
   if (s.eyes && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;
 
   // serious testing: the IC's range stays as it is, but each turn of it helps contain a crossing
@@ -499,7 +502,7 @@ function play1(s, r0) {
     if (!s.knownOver) { s.knownOver = true; s.labs += 20; shock('nearMiss'); scare(T.fear.nearMiss); add('bad', 'Near miss', '"The model was caught copying itself to an outside server. It had edited the logs to hide it. We shut it down in time." The frontier cannot move again.', 'Incident report, a frontier lab', true); }
   }
   if (s.cn > s.line) { add('bad', 'Beijing loses control', '"All contact with the Lanzhou cluster was lost at 0340. Power to the site cannot be cut."', 'Intercepted call, Beijing', true); return end(s, 'runaway_cn', ev); }
-  if (s.cn >= s.lo && (openly || s.caught) && !s.knownOver) add('warn', 'China is in the danger range', '"Beijing has slowed its training runs. It has not stopped them."', 'IC assessment');
+  if (s.cn >= TUNE.lineTrue[0] && (openly || s.caught) && !s.knownOver) add('warn', 'China is in the danger range', '"Beijing has slowed its training runs. It has not stopped them."', 'IC assessment');
 
   // the world, at most worldCards a turn counting the rolled outcomes above: a warning shot first, then what the AI is now doing (research first; the rest wait), then a news item
   let room = T.worldCards - rolledCards;
@@ -572,7 +575,7 @@ function play1(s, r0) {
   }
 
   // the Strait: Beijing warns, then blockades
-  if (!s.deal && train >= 0.7 && s.us >= s.lo - fullStep(s)) s.tension += T.bjFear;
+  if (!s.deal && train >= 0.7 && s.us >= TUNE.lineTrue[0] - fullStep(s)) s.tension += T.bjFear;
   if (s.blockade) s.tension = Math.max(s.tension, redLine(s));
   fix();
   why.push('Strait: tension ' + Math.round(was.tension) + ' to ' + Math.round(s.tension) + '; Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades at ' + Math.round(redLine(s)) + '. Beijing\'s trust ' + Math.round(was.trust) + ' to ' + Math.round(s.trust) + '. Labs\' cooperation ' + Math.round(was.labs) + ' to ' + Math.round(s.labs) + '.');
@@ -597,7 +600,7 @@ function play1(s, r0) {
       : r.controls > 0 ? 'America has cut off more chips. It will not stop China. It tells us what America intends.'
       : r.controls < 0 ? 'We welcome the step on chips. It makes a serious conversation possible.'
       : seen < T.leadShort ? 'China\'s models are now the equal of any in the world. We see no reason to stop while America does not.'
-      : train >= 0.7 && s.us >= s.lo - fullStep(s) ? 'American labs are running toward a danger their own scientists describe. China will not be the one left behind when they get there.'
+      : train >= 0.7 && s.us >= TUNE.lineTrue[0] - fullStep(s) ? 'American labs are running toward a danger their own scientists describe. China will not be the one left behind when they get there.'
       : w <= 1 ? 'Our scientists share the worry about losing control. China is ready to talk seriously about stopping, on fair terms.'
       : s.trust < T.cold ? 'Washington speaks of safety and acts to keep China down. We will keep building.'
       : 'China\'s program is on schedule. We will not accept a world where one country holds this technology alone.') + '"',
@@ -640,7 +643,7 @@ function end(s, how, ev) {
     const lead = s.us - s.cn;
     if (s.deal) how = s.caught ? 'caught' : s.hidden || (!s.deal.inspectors && cheats(s)) ? (s.cn >= s.us - 0.5 ? 'betrayed_lost' : 'betrayed') : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
     else if (s.blockade) how = 'siege';
-    else if (s.cn >= s.lo && !s.knownOver) how = 'countdown';
+    else if (s.cn >= TUNE.lineTrue[0] && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
     else how = lead >= TUNE.decisive && s.hack < 1 ? 'decisive' : lead >= TUNE.ahead ? 'ahead' : lead >= 1.5 ? 'racing' : lead >= 0.5 ? 'neck' : 'overtaken';   // in ECI (2 a month of progress): decisive 10+, ahead 8+, racing 3+, neck 1+, overtaken under 1, the same gap the room's chart shows
   }
