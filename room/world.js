@@ -53,6 +53,8 @@ const TUNE = {
 };
 const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Mar 2028', 'Apr-Jun 2028', 'Jul-Sep 2028', 'Oct-Dec 2028'];
 const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC', cong: 'The Congressional Majority' };   // cong plays only when a game is started with the majority as a table
+// Outcomes the ledger decides that the facilitator may settle by word (ruling.force): the named rolls, Beijing signing the pause proposed this turn, a warning shot, a blockade, Beijing's own move (no only).
+const FIAT = ['sign', 'theft', 'law', 'court', 'intel', 'sabotage', 'confront', 'congressActs', 'sneakStarts', 'inspectorsFind', 'shot', 'blockade', 'move'];
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
 // extra is anything else State wrote into the deal; the game master weighs it through leverage.
@@ -311,6 +313,7 @@ function rule(s, r0) {
     pressure: b('pressure'), resolve: clamp(r.resolve, -1, 1), congress: clamp(r.congress, 0, 10), support: clamp(r.support, -10, 10), public: clamp(r.public, -10, 10),
     markets: clamp(r.markets, -10, 10), backstop: b('backstop'), contested: b('contested') && !obey(s) && !s.deal, courtOdds: r.courtOdds == null ? TUNE.court : clamp(r.courtOdds, 0, 1),
     intelOdds: odds(r.intelOdds), sabotageOdds: odds(r.sabotageOdds), ops, facts: Array.isArray(r.facts) ? r.facts.slice(0, TUNE.maxFacts).map(x => str(x, 150)).filter(Boolean) : null,
+    force: Object.fromEntries(FIAT.filter(k => r.force && (r.force[k] === true || r.force[k] === false)).map(k => [k, r.force[k]])),
     chances: (Array.isArray(r.chances) ? r.chances : []).slice(0, TUNE.maxChances).map(c => ({ what: str(c.what, 110), table: TABLES[c.table] ? c.table : 'pent', reply: Number.isInteger(c.reply) ? c.reply : -1, op: str(c.op, 60), odds: clamp(c.odds, 0.02, 0.98), yes: side(c.yes), no: side(c.no), force: c.force === true || c.force === false ? c.force : null })),
   };
 }
@@ -331,7 +334,10 @@ function play1(s, r0) {
   const f1 = x => (Math.round(x * 10) / 10).toFixed(1), f2 = x => (Math.round(x * 100) / 100).toFixed(2), sg = x => (x >= 0 ? '+' : '') + f2(x);
   const why = [], rolls = [], was = { tension: s.tension, trust: s.trust, labs: s.labs, hack: s.hack, us: s.us, cn: s.cn, mkt: s.mkt };
   s.last = { turn: t, why, rolls };
-  const roll = (key, odds, force) => { const u = hash01(s.seed, 'roll', t, key), hit = force == null ? u < odds : force; return { u, hit }; };
+  const F = r.force || {};   // outcomes the facilitator settled: they stand in for the die or the rule
+  const roll = (key, odds, force) => { if (force == null && F[key] != null) force = F[key]; const u = hash01(s.seed, 'roll', t, key), hit = force == null ? u < odds : force; return { u, hit }; };
+  if (Object.keys(F).length) why.push('Set by the facilitator: ' + Object.keys(F).map(k => k + ' ' + (F[k] ? 'yes' : 'no')).join(', ') + '.');
+  if (F.law) r.law = true;
   s.fear = s.fear || { cg: T.fear.cg }; let scared = false;
   const scare = k => { s.fear.cg = clamp(s.fear.cg + k, 0, 100); scared = true; };
 
@@ -430,10 +436,10 @@ function play1(s, r0) {
   }
   if (r.propose) { const dw = dealWorth(s, r.propose, r.leverage); why.push('Pause: worth ' + f2(dw.total) + ' to Beijing against the ' + f2(dw.need) + ' it holds out for (' + Object.keys(dw.parts).filter(k => Math.abs(dw.parts[k]) >= 0.005).map(k => DEAL_WORDS[k] + ' ' + sg(dw.parts[k])).join(', ') + ').'); }
   if (r.propose && r.sabotage) why.push('The attack this turn rules out signing.');
-  if (r.propose && !r.sabotage) {
-    if (signs(s, r.propose, r.leverage)) {
-      if (train > 0.5)  { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
-      else if (!willing(s, r.propose)) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
+  if (r.propose && (!r.sabotage || F.sign)) {
+    if (F.sign != null ? F.sign : signs(s, r.propose, r.leverage)) {
+      if (!F.sign && train > 0.5)  { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
+      else if (!F.sign && !willing(s, r.propose)) { s.trust -= 10; add('bad', 'The labs refuse', '"We will not stop on these terms. Beijing can see that as well as we can."', 'Joint letter, frontier lab chief executives'); }
       else {
         s.deal = Object.assign({ t }, r.propose); signed = true; if (!obey(s)) s.labs += verified(s, r.propose) ? T.ceos.signVerified : T.ceos.signLoose; if (r.propose.chips) s.support -= T.support.chips; shock('pause'); train = 0; defy = false; s.trust += 20; s.tension -= 25; bj.face += 10; if (r.propose.chips) s.controls = -1;
         add('good', 'A pause is signed', terms(s.deal).join('. ') + '.', 'Joint statement, Geneva', true);
@@ -443,7 +449,7 @@ function play1(s, r0) {
   } else if (!s.deal && !s.blockade && s.offer != null && want(s) > s.offer) { s.offer = want(s); add('bad', 'Beijing raises its price', '"Circumstances have changed. What we could accept last season we cannot accept now."', 'Chinese delegation, Geneva'); }
   bj.soft *= 0.5;
   // Beijing acts on its own: the move its goals score highest this turn, if any is worth making
-  const mv = signed ? null : bjMoves(s, { train, controls: r.controls, pressure: r.pressure }).find(m => m.score >= 0.5);
+  const mv = signed || F.move === false ? null : bjMoves(s, { train, controls: r.controls, pressure: r.pressure }).find(m => m.score >= 0.5);
   bj.move = mv ? mv.id : null;
   if (mv) why.push('Beijing\'s own move: ' + mv.id + ' (scored ' + f2(mv.score) + ').');
   if (bj.move === 'sprint') { s.cn += 0.6; s.cnShown += 0.6; s.trust -= 3; add('warn', 'Beijing speeds up', '"China\'s labs are running every chip they can find, day and night. Beijing sees America slowing and means to close the gap."', 'IC assessment'); }
@@ -540,7 +546,7 @@ function play1(s, r0) {
   // a warning shot: at most one a turn, likelier as the frontier climbs and when the labs race
   { const SH = T.shot, world = s.us + T.diffuse * (t + 1), p = clamp(SH.base + SH.perMonth * world + (train >= 0.7 ? SH.race : 0) - (test >= 0.3 ? SH.test : 0), 0.03, SH.max), u = hash01(s.seed, 'shot', t);
     const open = SHOTS.map((x, k) => k).filter(k => !(s.shots & (1 << k)) && world >= SHOTS[k][0]);
-    var shot = room > 0 && u < p && open.length; if (shot) room--;
+    var shot = open.length && (F.shot != null ? F.shot : room > 0 && u < p); if (shot) room--;
     if (shot) { const k = open[Math.floor(hash01(s.seed, 'shotPick', t) * open.length)], x = SHOTS[k]; s.shots |= 1 << k; scare(x[1] * T.fear.shot); s.anger += T.anger.shot; s.mkt -= (s.backstop ? 0.5 : 1) * x[2]; bj.scared = Math.min(0.5, bj.scared + 0.05); add(x[3], x[4], x[5], x[6]); }
     why.push('Warning shot: odds ' + f2(p) + ', die ' + f2(u) + (shot ? ', one came.' : u < p && open.length ? ', but no room this turn.' : ', none.')); }
   const due = MILESTONES.map((m, k) => k).filter(k => !(s.ms & (1 << k)) && (MILESTONES[k][5] ? s.us + T.diffuse * (t + 1) : s.us) >= MILESTONES[k][0]);
@@ -572,11 +578,11 @@ function play1(s, r0) {
   if (t === 6) add('info', 'AI on the ballot', '"Both candidates now run on AI. One promises to win the race with China; the other promises to slow it down. Polls say most voters want neither of the paths the labs are on."', 'Wire report, the party conventions');
   const thefts0 = s.thefts;
   // theft: Beijing's hackers work on any lead worth stealing; security slows them and hunting drives them out; once inside, Beijing chooses whether to take the weights (theftOdds)
-  if ((!s.deal || s.hidden) && s.us - s.cn >= T.hackLead) {
+  if (F.theft || (!s.deal || s.hidden) && s.us - s.cn >= T.hackLead) {
     const gain = s.hackRate * T.secMul[lvl] * (1 + T.hackCtl * Math.max(0, s.controls)), uncapped = s.hack + gain;
     s.hack = !s.seenHack ? Math.min(uncapped, T.hackWarn) : uncapped;   // no theft the room was not warned of a turn ahead, with room left to stop it
     why.push('Hackers: ' + f2(was.hack) + (hackNudge ? ' ' + sg(hackNudge) + ' from rulings and rolls' : '') + ' -' + f2(evict) + ' driven out +' + f2(gain) + ' gained at security "' + SECURITY[lvl] + '" = ' + f2(uncapped) + (uncapped > s.hack ? ', held to ' + f2(s.hack) + ' because the room had not been warned' : '') + '. Seen at 1.00, weights gone at 2.00.');   // no theft the room was not warned of a turn ahead, with room left to stop it
-    const th = theftOdds(s, lvl), tr = th.p ? roll('theft', th.p) : null;
+    const th = theftOdds(s, lvl), tr = th.p || F.theft ? roll('theft', th.p) : null;
     if (tr) { rolls.push({ what: 'Beijing takes the weights', table: 'pent', odds: th.p, word: oddsWord(th.p), u: tr.u, hit: tr.hit }); why.push('Theft: odds ' + f2(th.p) + ' (how far in ' + f2(th.access) + ', motive ' + f2(th.motive) + ', getting away ' + f2(th.away) + ', little left to lose ' + f2(th.stake) + ', security ' + f2(th.sec) + '); the die came up ' + f2(tr.u) + '.'); }
     const inside = !!(tr && tr.hit && th.sec <= TUNE.theft.floor);   // taken past the best security there is: an inside job
     if (tr && tr.hit) {
@@ -613,7 +619,7 @@ function play1(s, r0) {
   if (s.blockade) s.tension = Math.max(s.tension, redLine(s));
   fix();
   why.push('Strait: tension ' + Math.round(was.tension) + ' to ' + Math.round(s.tension) + '; Beijing warns at ' + Math.round(redLine(s) - T.warn) + ' and blockades at ' + Math.round(redLine(s)) + '. Beijing\'s trust ' + Math.round(was.trust) + ' to ' + Math.round(s.trust) + '. Labs\' cooperation ' + Math.round(was.labs) + ' to ' + Math.round(s.labs) + '.');
-  if (!s.blockade && s.tension >= redLine(s)) {
+  if (!s.blockade && (F.blockade != null ? F.blockade : s.tension >= redLine(s))) {
     s.blockade = true; s.offer = null; shock('blockade'); scare(T.fear.blockade);
     add('bad', 'Taiwan is blockaded', '"Chinese warships have closed the sea lanes around Taiwan. No chip has left the island in a week."', 'Wire flash, Taipei', true);
   } else if (!s.blockade) {
@@ -736,6 +742,6 @@ function brief(s) {
   return L.join('\n');
 }
 
-const api = { RANK, oddsWord, TUNE, DATES, TABLES, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months, eci, trail, firstAt, lagMonths, project, cnErr };
+const api = { RANK, oddsWord, TUNE, DATES, TABLES, FIAT, terms, gives, DEFAULT, SECURITY, newGame, view, rule, play, brief, want, worries, dealWorth, cheapest, secLevel, ENDINGS, hash01, months, eci, trail, firstAt, lagMonths, project, cnErr };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.World = api;
 })(typeof window !== 'undefined' ? window : globalThis);
