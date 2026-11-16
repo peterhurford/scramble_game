@@ -41,7 +41,8 @@ const TUNE = {
   confront: [0.9, 0.7, 0.25],   // the odds that Beijing, caught and confronted, seals its site rather than walk out, by floor; a sealed cheat grades a notch down
   // the CEOs' letter: the labs sign a verified halt with China at any cooperation short of defiance (signVerified on signing, signLoose for any other pause), and lose alone a turn held back while China is not
   ceos: { signVerified: 10, signLoose: -10, alone: -5 },
-  maxOps: 8, maxChances: 2, maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
+  maxOps: 8, maxChances: 2, worldCards: 2,   // worldCards: rolled outcomes, warning shots, milestones and news items shown a turn, together
+  maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
 const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC' };
@@ -334,12 +335,14 @@ function play1(s, r0) {
   const stale = (s.ops || []).filter(o => o.left === 0).map(o => o.name);   // ready last turn: settled this turn or lapsed
   if (r.ops) s.ops = r.ops;
   if (r.facts) s.facts = r.facts;
+  let rolledCards = 0;
   r.chances.forEach((c, i) => {
     const op = c.op ? s.ops.find(o => o.name === c.op) : null;
     if (op && op.left > 0) { rolls.push({ what: c.what, table: c.table, op: c.op, odds: c.odds, skipped: true }); why.push('Not rolled: "' + c.what + '" belongs to an operation that is not ready (' + op.left + ' more turn' + (op.left > 1 ? 's' : '') + ').'); return; }
     const k = roll(i, c.odds, c.force), e = k.hit ? c.yes : c.no;
     s.tension += e.tension; s.trust += e.trust; s.labs += e.labs; s.cn += e.cn; s.cnShown += e.cn; s.us += e.us; s.hack = Math.max(0, s.hack + e.hack); s.secWork += e.secure;
     if (op) s.ops = s.ops.filter(o => o !== op);
+    if (e.title) rolledCards++;
     if (e.title) add(e.tone, e.title, e.text ? '"' + e.text.replace(/"/g, "'") + '"' : '', e.by);
     const moved = ['tension', 'trust', 'labs', 'cn', 'us', 'hack', 'secure'].filter(x => e[x]).map(x => x + ' ' + sg(e[x])).join(', ');
     rolls.push({ what: c.what, table: c.table, op: c.op, odds: c.odds, word: oddsWord(c.odds), u: k.u, hit: k.hit, forced: c.force != null, moved });
@@ -500,17 +503,18 @@ function play1(s, r0) {
   if (s.cn > s.line) { add('bad', 'Beijing loses control', '"All contact with the Lanzhou cluster was lost at 0340. Power to the site cannot be cut."', 'Intercepted call, Beijing', true); return end(s, 'runaway_cn', ev); }
   if (s.cn >= s.lo && (openly || s.caught) && !s.knownOver) add('warn', 'China is in the danger range', '"Beijing has slowed its training runs. It has not stopped them."', 'IC assessment');
 
-  // what the AI is now doing in the world: one milestone a turn, research first; the rest wait their turn
-  const due = MILESTONES.map((m, k) => k).filter(k => !(s.ms & (1 << k)) && (MILESTONES[k][5] ? s.us + T.diffuse * (t + 1) : s.us) >= MILESTONES[k][0]);
-  due.filter(k => !MILESTONES[k][5]).concat(due.filter(k => MILESTONES[k][5])).slice(0, 1).forEach(k => { s.ms |= 1 << k; const m = MILESTONES[k]; if (m[1] === 'warn') scare(T.fear.ms); if (k === 2) s.anger += T.anger.jobs; add(m[1], m[2], m[3], m[4]); });
+  // the world, at most worldCards a turn counting the rolled outcomes above: a warning shot first, then what the AI is now doing (research first; the rest wait), then a news item
+  let room = T.worldCards - rolledCards;
   // a warning shot: at most one a turn, likelier as the frontier climbs and when the labs race
   { const SH = T.shot, world = s.us + T.diffuse * (t + 1), p = clamp(SH.base + SH.perMonth * world + (train >= 0.7 ? SH.race : 0) - (test >= 0.3 ? SH.test : 0), 0.03, SH.max), u = hash01(s.seed, 'shot', t);
     const open = SHOTS.map((x, k) => k).filter(k => !(s.shots & (1 << k)) && world >= SHOTS[k][0]);
-    var shot = u < p && open.length;
+    var shot = room > 0 && u < p && open.length; if (shot) room--;
     if (shot) { const k = open[Math.floor(hash01(s.seed, 'shotPick', t) * open.length)], x = SHOTS[k]; s.shots |= 1 << k; scare(x[1] * T.fear.shot); s.anger += T.anger.shot; s.mkt -= (s.backstop ? 0.5 : 1) * x[2]; bj.scared = Math.min(0.5, bj.scared + 0.05); add(x[3], x[4], x[5], x[6]); }
-    why.push('Warning shot: odds ' + f2(p) + ', die ' + f2(u) + (u < p && open.length ? ', one came.' : ', none.')); }   // research first, three at most
-  // the world goes on: a news item on a turn with no warning shot
-  if (!shot) { const open = NEWS.map((x, k) => k).filter(k => !(s.news & (1 << k)) && s.us + T.diffuse * (t + 1) >= NEWS[k][0]);
+    why.push('Warning shot: odds ' + f2(p) + ', die ' + f2(u) + (shot ? ', one came.' : u < p && open.length ? ', but no room this turn.' : ', none.')); }
+  const due = MILESTONES.map((m, k) => k).filter(k => !(s.ms & (1 << k)) && (MILESTONES[k][5] ? s.us + T.diffuse * (t + 1) : s.us) >= MILESTONES[k][0]);
+  due.filter(k => !MILESTONES[k][5]).concat(due.filter(k => MILESTONES[k][5])).slice(0, room > 0 ? 1 : 0).forEach(k => { room--; s.ms |= 1 << k; const m = MILESTONES[k]; if (m[1] === 'warn') scare(T.fear.ms); if (k === 2) s.anger += T.anger.jobs; add(m[1], m[2], m[3], m[4]); });
+  // the world goes on: a news item, if there is room
+  if (room > 0) { const open = NEWS.map((x, k) => k).filter(k => !(s.news & (1 << k)) && s.us + T.diffuse * (t + 1) >= NEWS[k][0]);
     if (open.length) { const k = open[Math.floor(hash01(s.seed, 'news', t) * open.length)], x = NEWS[k], e = x[5]; s.news |= 1 << k;
       s.anger += e.anger || 0; s.mkt += e.mkt || 0; s.tension += e.tension || 0; s.labs += e.labs || 0; s.cn += e.cn || 0; if (e.cn) s.cnShown += e.cn; if (e.cg) scare(e.cg);
       add(x[1], x[2], x[3], x[4]); } }
