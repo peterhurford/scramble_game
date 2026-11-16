@@ -8,7 +8,7 @@
 'use strict';
 
 const TUNE = {
-  turns: 7, tm: 3,                // seven turns of three months: Jan 2027 to Sep 2028
+  turns: 8, tm: 3,                // eight turns of three months: Jan 2027 to Dec 2028
   // takeoff: the AI speeds its own research as it improves, dx/dt = train x v0 x e^(x / accel), x the frontier in months of progress past Jan 2027.
   // v0 (months of progress a turn at the start of all-out training) is the same in every game: flat out, a turn gains about 7.5, 9, 12, 15 ECI and so on, above the 2026 pace,
   // and the danger point (line, set below) lies between where two and three flat-out turns reach, so three full turns of racing always cross it.
@@ -46,7 +46,7 @@ const TUNE = {
   maxOps: 8, maxChances: 2, worldCards: 2,   // worldCards: rolled outcomes, warning shots, milestones and news items shown a turn, together
   maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
-const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Mar 2028', 'Apr-Jun 2028', 'Jul-Sep 2028'];
+const DATES = ['Jan-Mar 2027', 'Apr-Jun 2027', 'Jul-Sep 2027', 'Oct-Dec 2027', 'Jan-Mar 2028', 'Apr-Jun 2028', 'Jul-Sep 2028', 'Oct-Dec 2028'];
 const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC', cong: 'The Congressional Majority' };   // cong plays only when a game is started with the majority as a table
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
@@ -688,7 +688,7 @@ function brief(s) {
   L.push('CONGRESS: its fear of AI is ' + Math.round(F.cg) + ' of 100 (the room sees "' + fearText(F.cg) + '"). ' + (s.law ? 'It has passed the halt power: the labs are bound by law.' : 'A halt bill asked this turn passes at ' + f2(lawOdds(s)) + ' (the ledger rolls the vote; what the room does to frighten Congress this turn, congress 0 to 10, counts first, adding up to 10 fear and about 0.17 to the odds).') + ' Fear rises with lab warnings, warning shots, office jobs lost, hackers, thefts and a blockade, and ebbs ' + T.fear.decay + ' a quiet turn under the labs\' lobbying.');
   L.push('THE LAB CHIEFS\' LETTER: in December 2026 the chief executives of every American frontier lab wrote privately to the President that they are losing confidence they can control their systems, that China\'s labs are worse, and that they want a verifiable halt binding every lab, China\'s included. They resist anything less: held back while China is not costs ' + (-T.ceos.alone) + ' cooperation a turn (unless bound by law or taken over).');
   L.push('PRESIDENTIAL AUTHORITY: the labs are ' + (s.national ? 'nationalized: they obey' : s.law ? 'bound by an act of Congress: they obey' : 'bound by nothing but their own consent; an order to stop, cap or inspect them rests on the President alone (set contested and courtOdds)') + '.' + (s.court === 'blocked' ? ' A court has blocked the President\'s order on the labs: no presidential order can hold them back until Congress acts; say so in the replies.' : s.court === 'upheld' ? ' A court has upheld the President\'s order on the labs; it stands, though the labs are appealing.' : ' The courts have not yet ruled; they rule once, the first turn such an order holds the labs.'));
-  const when = n => DATES[s.turn + n] || 'after the game ends in September 2028';
+  const when = n => DATES[s.turn + n] || 'after the end of 2028';
   L.push('OPERATION DATES: an operation you return with left 0 lands this period (' + when(0) + '); left 1 in ' + when(1) + '; left 2 in ' + when(2) + '; left 3 in ' + when(3) + '. Its report must give the time that matches its left, and never a time that has already passed.');
   L.push('OPERATIONS UNDER WAY: ' + ((s.ops || []).length ? s.ops.map(o => '"' + o.name + '" (' + TABLES[o.table] + ', begun ' + DATES[o.since] + '; ' + (o.left ? 'ready in ' + o.left + ' more turn' + (o.left > 1 ? 's' : '') : 'ready to attempt now') + '): ' + o.report).join(' | ') : 'none') + '. Return the full list every turn under the same names; one left out is dropped. ' + TUNE.maxOps + ' at most: past that the ledger drops the last ones, so fold related work under one name or end the least useful operation, and say so in a reply. Time left falls by one a turn at most, and an operation may slip only once. An outcome tied to an operation is rolled only once it is ready, and the operation then ends. One marked ready to attempt now must be settled this turn (a rolled outcome naming it, the sabotage dial, or its sure result said in the reply) and left out of ops; otherwise it lapses with nothing to show.');
   if (s.last && s.last.rolls.length) L.push('LAST TURN\'S DICE: ' + s.last.rolls.map(k => '"' + k.what + '" ' + (k.skipped ? 'was not rolled (not ready)' : k.hit ? 'happened' : 'did not happen')).join('; ') + '.');
