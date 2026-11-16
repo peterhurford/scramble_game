@@ -408,7 +408,7 @@ function play1(s, r0) {
   if (r.propose) { const dw = dealWorth(s, r.propose, r.leverage); why.push('Pause: worth ' + f2(dw.total) + ' to Beijing against the ' + f2(dw.need) + ' it holds out for (' + Object.keys(dw.parts).filter(k => Math.abs(dw.parts[k]) >= 0.005).map(k => DEAL_WORDS[k] + ' ' + sg(dw.parts[k])).join(', ') + ').'); }
   if (r.propose && r.sabotage) why.push('The attack this turn rules out signing.');
   if (r.propose && !r.sabotage) {
-    const old = s.deal, ok = old ? !s.blockade && dealWorth(s, r.propose, r.leverage).total >= dealWorth(s, old, 0).total : signs(s, r.propose, r.leverage);   // a pause in force is replaced by any terms at least as good for Beijing as the ones it has
+    const old = s.deal, ok = old ? !s.blockade && dealWorth(s, r.propose, 0).total >= dealWorth(s, old, 0).total : signs(s, r.propose, r.leverage);   // a pause in force is replaced by terms at least as good for Beijing as the ones it has, both scored without leverage, so goodwill cannot buy back a concession
     if (old && !ok) add('info', 'Beijing keeps the old terms', '"The agreement in force serves both sides. China sees no reason to reopen it."', 'Foreign Ministry spokesperson, Beijing');
     if (ok) {
       if (train > 0.5)  { s.trust -= 10; add('bad', 'Beijing walks out', '"The American labs trained straight through the talks. There is nothing to sign."', 'Chinese delegation, Geneva'); }
