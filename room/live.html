@@ -68,7 +68,7 @@ button{font:inherit;color:inherit}
 .bar.t i{background:var(--bad)}
 
 .seats{flex:1 1 auto}
-.seats,.bolds{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px} .bolds{margin-top:4px} .bl{margin-top:14px}
+.seats,.bolds{margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px} .seats.four{grid-template-columns:repeat(4,1fr)} .opt4{display:block;margin:0 0 14px;font-size:1.2em;cursor:pointer} .opt4 input{width:1.1em;height:1.1em;margin-right:8px;vertical-align:middle} .bolds{margin-top:4px} .bl{margin-top:14px}
 .seat{background:var(--sheet);border:1px solid var(--rule);border-top:5px solid var(--accent);padding:.7rem .9rem .9rem;display:flex;flex-direction:column;gap:.55rem;min-width:0}
 .seat.set{border-top-color:var(--good)}
 .seat h3{margin:0;font-size:.9em;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
@@ -144,7 +144,7 @@ button{font:inherit;color:inherit}
 // The facilitator's screen for the free-response game; the ledger is world.js and the game master is gm.js (POST /gm).
 // Each table says its order and the facilitator types it. Send asks the game master; its answers can be edited before Go applies them.
 // G opens the facilitator's drawer (the ruling, the game master's note, the hidden facts). U undoes a turn.
-const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-live-v4', IDS = Object.keys(World.TABLES);
+const TURN_SECS = 240, GAME_MINS = 30, SAVE = 'scramble-live-v4', ids = g => Object.keys(World.TABLES).filter(k => k !== 'cong' || (g && g.congress));
 // Served by gm.js, the game master is next door; on the public site it is the server on the facilitator's laptop.
 const GM = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? 'gm' : 'http://localhost:8787/gm';
 const $ = id => document.getElementById(id);
@@ -157,10 +157,11 @@ function save() { try { localStorage.setItem(SAVE, JSON.stringify(st)); } catch 
 function load() { try { const s = JSON.parse(localStorage.getItem(SAVE)); if (s && s.game) { st = s; if (st.screen === 'wait') st.screen = 'orders'; } } catch (e) {} }
 function keep() { document.querySelectorAll('[data-order]').forEach(t => st.orders[t.dataset.order] = t.value); document.querySelectorAll('[data-reply]').forEach(q => st.answer.replies[+q.dataset.reply].quote = q.textContent.trim()); document.querySelectorAll('[data-did]').forEach(q => st.answer.replies[+q.dataset.did].did = q.textContent.trim()); const r = $('ruling'); if (r) st.rulingText = r.value; }
 
-function start(seed) { st = { screen: 'orders', game: World.newGame(seed), past: [], orders: {}, answer: null, error: '', events: [], news: 0, drawer: false, t0: Date.now(), turnT0: Date.now() }; draw(); }
+let congressOpt = false;   // the intro's toggle: a fourth table plays Congress
+function start(seed) { st = { screen: 'orders', game: World.newGame(seed, { congress: congressOpt }), past: [], orders: {}, answer: null, error: '', events: [], news: 0, drawer: false, t0: Date.now(), turnT0: Date.now() }; draw(); }
 async function ask() {
   keep();
-  if (!IDS.some(k => (st.orders[k] || '').trim())) return;
+  if (!ids(st.game).some(k => (st.orders[k] || '').trim())) return;
   st.screen = 'wait'; st.error = ''; st.waitT0 = Date.now(); live = { step: '', frac: null, miss: 0, at: 0, left: 1e9 }; draw(); tick();
   try {
     const res = await fetch(GM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state: st.game, orders: st.orders }) }), out = await res.json();
@@ -265,7 +266,7 @@ function topbar(g) {
 
 function draw() {
   const g = st.game; let h = '';
-  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">On New Year\'s Eve the chief executives of every American frontier lab sent you a private joint letter.</p><div class="letter"><div class="lbl">Private</div><p>To the President:</p><p>We are losing confidence that we can control the systems we are building. Our models now do most of our research, faster than our people can check it, and runaway self-improvement may be less than a year of progress away.</p><p>China\'s labs are close behind us, and they are taking fewer precautions than we are. None of us can stop alone.</p><p>We ask you to secure a halt that binds every frontier lab, here and in China, and that can be verified. We will not stand down for less.</p><p class="sig">The chief executives of the American frontier labs</p></div><p class="lede">The IC agrees with it.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><button class="btn" id="b-start">Start</button></div>';
+  if (st.screen === 'intro') h = '<div class="intro"><h1>The Scramble</h1><p class="lede">It is January 2027.</p><p class="lede">AI now does much of the work at the frontier labs, and every month it speeds up its own research a little more.</p><p class="lede">On New Year\'s Eve the chief executives of every American frontier lab sent you a private joint letter.</p><div class="letter"><div class="lbl">Private</div><p>To the President:</p><p>We are losing confidence that we can control the systems we are building. Our models now do most of our research, faster than our people can check it, and runaway self-improvement may be less than a year of progress away.</p><p>China\'s labs are close behind us, and they are taking fewer precautions than we are. None of us can stop alone.</p><p>We ask you to secure a halt that binds every frontier lab, here and in China, and that can be verified. We will not stand down for less.</p><p class="sig">The chief executives of the American frontier labs</p></div><p class="lede">The IC agrees with it.</p><p class="lede">American labs are about six months ahead of China.</p><p class="lede">But Beijing\'s hackers are trying to get into the labs and steal the model.</p><p class="lede">You have six turns, to the end of 2028.</p><p class="lede">Let\'s get to work.</p><label class="opt4"><input type="checkbox" id="c-cong"' + (congressOpt ? ' checked' : '') + '> Congress plays as a fourth table</label><button class="btn" id="b-start">Start</button></div>';
   else {
     const v = World.view(g);
     h = topbar(g) + '<div class="panel">' + track(g, v, st.screen === 'end') + facts(g, v) + '</div>';
@@ -275,11 +276,11 @@ function draw() {
   $('app').innerHTML = h; wire(); tick(); save();
 }
 // Shown under each order while the game master answers.
-const OUT = { wh: 'On the line with the labs', state: 'Cable out to Beijing', pent: 'With the agencies' };
+const OUT = { wh: 'On the line with the labs', state: 'Cable out to Beijing', pent: 'With the agencies', cong: 'On the floor' };
 function seats(g, v) {
   const a = st.screen === 'answers' || st.screen === 'news' ? st.answer : null;
-  let h = '<div class="seats">';
-  for (const k of IDS) {
+  let h = '<div class="seats' + (g.congress ? ' four' : '') + '">';
+  for (const k of ids(g)) {
     h += '<div class="seat"><h3>' + World.TABLES[k] + '</h3>';
     if (st.screen === 'wait') h += '<p class="order">' + esc(st.orders[k] || 'No order.') + '</p>' + ((st.orders[k] || '').trim() ? '<div class="pend"><div class="out">' + OUT[k] + '<i></i><i></i><i></i></div><div class="sk"></div><div class="sk"></div><div class="sk s"></div></div>' : '');
     else if (!a) h += lock(g, v, k) + (g.ops || []).filter(o => o.table === k).map(o => '<p class="op"><b>' + esc(o.name) + '.</b> ' + esc(o.report) + '</p>').join('') + '<textarea data-order="' + k + '" placeholder="What do you do?">' + esc(st.orders[k] || '') + '</textarea>';
@@ -325,11 +326,12 @@ function ending(g) {
 
 function wire() {
   const on = (id, f) => { const e = $(id); if (e) e.onclick = f; };
+  const cc = document.getElementById('c-cong'); if (cc) cc.onchange = () => { congressOpt = cc.checked; };
   on('b-start', () => start(seedFromHash())); on('b-ask', ask); on('b-go', go); on('b-next', next); on('b-undo', undo);
   on('b-back', () => { keep(); st.answer = null; st.screen = 'orders'; draw(); });
   on('b-new', () => { st = { screen: 'intro', game: null, past: [], orders: {}, events: [] }; draw(); });
   on('b-epi', () => { const g = st.game; g.over.epi = null; g.over.asked = false; draw(); });
-  on('b-again', () => start(String(Math.floor(Math.random() * 1e6)))); on('b-same', () => start(st.game.seed));
+  on('b-again', () => { congressOpt = !!st.game.congress; start(String(Math.floor(Math.random() * 1e6))); }); on('b-same', () => { congressOpt = !!st.game.congress; start(st.game.seed); });
 }
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;

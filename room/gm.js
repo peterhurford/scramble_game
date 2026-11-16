@@ -52,7 +52,7 @@ const RULING = {
 };
 const VOICE = who => ({ type: 'object', additionalProperties: false, required: ['by', 'quote'], description: who, properties: {
   by: { type: 'string', description: 'Who is speaking and where, short.' }, quote: { type: 'string', description: 'Two or three plain, complete sentences, 50 words at most, understood on first hearing, no quotation marks.' } } });
-const TABLE = { type: 'string', enum: ['wh', 'state', 'pent'] };
+const TABLE = { type: 'string', enum: ['wh', 'state', 'pent', 'cong'] };
 const SIDE = d => ({ type: 'object', additionalProperties: false, required: ['tone', 'title', 'text', 'by', 'tension', 'trust', 'labs', 'cn', 'us', 'hack', 'secure'], description: d, properties: {
   tone: { type: 'string', enum: ['good', 'bad', 'warn', 'info'], description: 'How the room will take the news.' },
   title: { type: 'string', description: 'Headline of the bulletin the room reads if this comes up, 5 words at most. Empty for no bulletin.' },
@@ -63,7 +63,7 @@ const SIDE = d => ({ type: 'object', additionalProperties: false, required: ['to
 // The reading comes first, so the model has said what it understands before it rules.
 const SCHEMA = { type: 'object', additionalProperties: false, required: ['picture', 'replies', 'ops', 'facts', 'chances', 'ruling', 'updates', 'note'], properties: {
   picture: { type: 'string', description: 'For the facilitator: the strategic picture as it stands before this turn\'s orders, in two or three plain sentences. Who is ahead and by how much in truth, what is closest to going wrong, what each hidden actor wants right now.' },
-  replies: { type: 'array', description: 'The replies to the tables that gave an order, in the order wh, state, pent: at least one for every table that wrote anything, and a second for a table whose order turns on two different parties.', items: { type: 'object', additionalProperties: false, required: ['table', 'aim', 'did', 'by', 'quote'], properties: {
+  replies: { type: 'array', description: 'The replies to the tables that gave an order, in the order wh, state, pent, cong: at least one for every table that wrote anything, and a second for a table whose order turns on two different parties.', items: { type: 'object', additionalProperties: false, required: ['table', 'aim', 'did', 'by', 'quote'], properties: {
     table: TABLE,
     aim: { type: 'string', description: 'For the facilitator: what this table is trying to achieve, in your own words, and how its order fits or cuts against the picture. One sentence.' },
     did: { type: 'string', description: 'What is now happening because of this order, as a plain fact the room can check its order against: "Half the labs\' engineers are rebuilding security." If the main thing takes time, say when to expect it: "Teams are being recruited; ready by the autumn at the earliest." 24 words at most, no numbers finer than a half or a third, no game words.' },
@@ -87,7 +87,7 @@ const SCHEMA = { type: 'object', additionalProperties: false, required: ['pictur
   ruling: { type: 'object', additionalProperties: false, required: Object.keys(RULING), properties: RULING },
   note: { type: 'string', description: 'For the facilitator only, one sentence: how you read the orders and anything you were unsure of.' } } };
 
-const SYSTEM = `You are the game master of The Scramble, a 30-minute tabletop exercise. Thirty people at three tables play the United States government from January 2027 to December 2028, in six turns. American labs are racing China toward AI that can improve itself; somewhere ahead is a point past which it cannot be controlled, and nobody knows exactly where.
+const SYSTEM = `You are the game master of The Scramble, a 30-minute tabletop exercise. Thirty people at three tables (four when a table plays Congress; the brief says so) play the United States government from January 2027 to December 2028, in six turns. American labs are racing China toward AI that can improve itself; somewhere ahead is a point past which it cannot be controlled, and nobody knows exactly where.
 
 Each turn every table writes one sentence saying what it does: the Executive Office of the President (the labs, the engineers, the law), the State, Commerce and Treasury Departments (Beijing, chips, treaties, the markets), and the Department of War (the Pentagon), NSA and intelligence community (spies, hackers, the Navy). You play everyone else: the lab chief executives, Congress, Beijing, and the officials below the tables who carry out their orders and report back. You answer each table in the voice of whoever must carry out its order or sits across the table from it, and you turn the three orders into one ruling: numbers on the dials a ledger keeps. The ledger then works out what happens. It reports the big events itself (a theft, a blockade, a signing, a loss of control), so do not announce those; your replies come before the results.
 
@@ -166,7 +166,7 @@ How to write the replies.
 function prompt(body) {
   const log = (body.state.log || []).map(t => t.date + '\n' + Object.keys(W.TABLES).map(k => (t.orders[k] ? W.TABLES[k] + ' ordered: ' + t.orders[k] + '\n' : '') + (t.replies || []).filter(r => r.table === k).map(r => '  ' + r.by + ': ' + r.quote + '\n').join('')).join('') + (t.events.length ? 'Then: ' + t.events.join('; ') + '.\n' : '') + (t.updates ? '  Beijing, afterwards: ' + t.updates.beijing.quote + '\n' : '')).join('\n');
   return W.brief(body.state) + '\n\n' + (log ? 'EARLIER TURNS\n' + log + '\n' : '') + (body.state.standing ? 'STANDING FROM LAST TURN: the labs\' engineers were split train ' + body.state.standing.train + ', secure ' + body.state.standing.secure + ', test ' + body.state.standing.test + '; NSA on the labs (hunt) ' + body.state.standing.hunt + '. This stands unless a table changes it.\n\n' : '') + 'THIS TURN\'S ORDERS\n' +
-    Object.keys(W.TABLES).map(k => W.TABLES[k] + ': ' + (String(body.orders[k] || '').trim().slice(0, 1200) || '(no order)')).join('\n');
+    Object.keys(W.TABLES).filter(k => k !== 'cong' || body.state.congress).map(k => W.TABLES[k] + ': ' + (String(body.orders[k] || '').trim().slice(0, 1200) || '(no order)')).join('\n');
 }
 
 async function viaSdk(text) {

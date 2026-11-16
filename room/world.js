@@ -45,7 +45,7 @@ const TUNE = {
   maxFacts: 8, sabAgain: 0.6, opTurns: 4, sabFail: { tension: 15, trust: -10 },
 };
 const DATES = ['Jan-Apr 2027', 'May-Aug 2027', 'Sep-Dec 2027', 'Jan-Apr 2028', 'May-Aug 2028', 'Sep-Dec 2028'];
-const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC' };
+const TABLES = { wh: 'Executive Office of the President', state: 'State, Commerce and Treasury Departments', pent: 'Department of War/Pentagon/NSA/IC', cong: 'Congress' };   // cong plays only when a game is started with Congress as a table
 const SECURITY = ['ordinary', 'tightened', 'hardened', 'sealed off'];
 // A pause is whatever terms America proposes. Three of them are concessions Beijing counts: chips, no inspectors, and parity (China stops only once it has caught up).
 // extra is anything else State wrote into the deal; the game master weighs it through leverage.
@@ -68,7 +68,7 @@ const str = (x, n) => String(x == null ? '' : x).replace(/[{}\[\]]+\s*$/, '').sl
 const WORDS = [[0.05, 'almost no chance'], [0.2, 'very unlikely'], [0.45, 'unlikely'], [0.55, 'roughly even odds'], [0.8, 'likely'], [0.95, 'very likely'], [2, 'almost certain']];
 const oddsWord = p => WORDS.find(w => p < w[0])[1];
 
-function newGame(seed) {
+function newGame(seed, opts) {
   seed = String(seed);
   const h = k => hash01(seed, k), bw = {}; for (const k of GOALS) bw[k] = 0.6 + 0.8 * h('goal-' + k);
   const hard = (bw.face + bw.race) / 2 - (bw.ctl + bw.rsi) / 2;   // a proud, race-minded Beijing is the hard-line one: it cheats more and resists inspectors
@@ -87,6 +87,7 @@ function newGame(seed) {
     tension: TUNE.tension0, trust: TUNE.trust0, thefts: 0, log: [], over: null, lastTrain: 1,
   };
   g.path = [{ t: 0, us: 0, cn: g.cnShown, real: g.cn, err: TUNE.eci.cnErr[0] }];
+  if (opts && opts.congress) g.congress = true;   // a fourth table plays Congress: its votes are its own, not rolled
   return g;
 }
 
@@ -313,7 +314,8 @@ function play1(s, r0) {
   const angry0 = s.anger, US = T.support;
   s.support += r.support - (r.controls < 0 && s.controls > -1 ? US.ease : 0) - (r.nationalize ? US.seize : 0) - (r.contested ? US.contested : 0);
   s.anger = clamp(s.anger + r.public, 0, 100);   // the room's own work on Congress this turn: hearings, the evidence declassified, members briefed
-  if (r.law && !s.law) {   // the halt bill: the ledger rolls the vote at odds set by how frightened Congress is
+  if (r.law && !s.law && s.congress) { s.law = true; add('good', 'Congress passes the halt bill', '"Congress passed the emergency halt power tonight. Every frontier lab is now bound by it, and the President has signed it."', 'Wire report, the Capitol'); }   // Congress at the table: its vote is its own
+  else if (r.law && !s.law) {   // the halt bill: the ledger rolls the vote at odds set by how frightened Congress is
     const p = lawOdds(s), lr = roll('law', p);
     rolls.push({ what: 'Congress passes the halt bill', table: 'wh', odds: p, word: oddsWord(p), u: lr.u, hit: lr.hit });
     why.push('Rolled: the halt bill at ' + f2(p) + ' (Congress\'s fear ' + Math.round(s.fear.cg) + '); the die came up ' + f2(lr.u) + ', so it ' + (lr.hit ? 'passed.' : 'failed.'));
@@ -519,7 +521,7 @@ function play1(s, r0) {
   if (s.anger <= angry0) s.anger = Math.max(T.anger.start * 0.7, s.anger - T.anger.ebb);
   // Congress against the White House: a hostile Congress acts on its own
   s.support = clamp(s.support, 0, 100);
-  if (s.support < T.support.hostile) {
+  if (s.support < T.support.hostile && !s.congress) {
     const p2 = clamp((T.support.hostile - s.support) / 40, 0.05, 0.6), cr = roll('congressActs', p2);
     rolls.push({ what: 'A hostile Congress acts against the White House', table: 'wh', odds: p2, word: oddsWord(p2), u: cr.u, hit: cr.hit });
     if (cr.hit) {
@@ -680,6 +682,7 @@ function brief(s) {
   const F = s.fear || T.fear;
   L.push('THE PUBLIC: anger about AI ' + Math.round(s.anger == null ? T.anger.start : s.anger) + ' of 100 (the room sees "' + angerText(s.anger == null ? T.anger.start : s.anger) + '"). It rises with lost jobs, incidents, power bills and falling markets; at ' + T.anger.hot + ' it frightens Congress and turns it on the White House each turn; at ' + T.anger.riot + ' the streets fill. public (-10 to 10) is your judgment of the room\'s conduct this turn.');
   L.push('CONGRESS AND THE PRESIDENT: support ' + Math.round(s.support == null ? T.support.start : s.support) + ' of 100 (the room sees "' + supportText(s.support == null ? T.support.start : s.support) + '"). Below ' + T.support.hostile + ' Congress acts against the White House on its own (the ledger rolls it each turn). The ledger takes support away for eased chip controls (' + T.support.ease + '), chips given up in a deal (' + T.support.chips + '), a takeover (' + T.support.seize + '), a contested order (' + T.support.contested + '); support (-10 to 10) is your judgment of the rest. Support also scales the halt bill\'s odds.');
+  if (s.congress) L.push('CONGRESS IS A PLAYER: a fourth table (cong) plays Congress, the House and Senate leaders together. Its order is Congress\'s own action. Set law true only when the Congress table itself passes a halt bill binding every frontier lab this turn; the ledger does not roll it, and the President signs it. A bill another table asks for passes only if the Congress table passes it. Do not speak for Congress\'s leaders: reply to the Congress table as whoever answers what it did (the lab chiefs, the White House, Beijing, the press). Any other bill it passes (money, sanctions, a bar on an order) goes through the dials and facts, as a real act of Congress would; a complicated one still takes the time it honestly would. The fear and support numbers below are background only.');
   L.push('CONGRESS: its fear of AI is ' + Math.round(F.cg) + ' of 100 (the room sees "' + fearText(F.cg) + '"). ' + (s.law ? 'It has passed the halt power: the labs are bound by law.' : 'A halt bill asked this turn passes at ' + f2(lawOdds(s)) + ' (the ledger rolls the vote; what the room does to frighten Congress this turn, congress 0 to 10, counts first, adding up to 10 fear and about 0.17 to the odds).') + ' Fear rises with lab warnings, warning shots, office jobs lost, hackers, thefts and a blockade, and ebbs ' + T.fear.decay + ' a quiet turn under the labs\' lobbying.');
   L.push('THE LAB CHIEFS\' LETTER: in December 2026 the chief executives of every American frontier lab wrote privately to the President that they are losing confidence they can control their systems, that China\'s labs are worse, and that they want a verifiable halt binding every lab, China\'s included. They resist anything less: held back while China is not costs ' + (-T.ceos.alone) + ' cooperation a turn (unless bound by law or taken over).');
   L.push('PRESIDENTIAL AUTHORITY: the labs are ' + (s.national ? 'nationalized: they obey' : s.law ? 'bound by an act of Congress: they obey' : 'bound by nothing but their own consent; an order to stop, cap or inspect them rests on the President alone (set contested and courtOdds)') + '.' + (s.court === 'blocked' ? ' A court has blocked the President\'s order on the labs: no presidential order can hold them back until Congress acts; say so in the replies.' : s.court === 'upheld' ? ' A court has upheld the President\'s order on the labs; it stands, though the labs are appealing.' : ' The courts have not yet ruled; they rule once, the first turn such an order holds the labs.'));
