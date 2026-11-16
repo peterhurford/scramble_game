@@ -62,6 +62,7 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, +x || 0));
 const eci = x => TUNE.eci.base + TUNE.eci.per * x;
 const months = x => { const n = Math.round(Math.abs(x)); return n < 1 ? 'under a month' : 'about ' + n + (n === 1 ? ' month' : ' months'); };
 const span = (r, u) => r[0] + (r[1] - r[0]) * u;
+const clip = (x, n) => { x = String(x || '').trim(); return x.length <= n ? x : x.slice(0, n).replace(/[\s,;]+\S*$/, '') + '...'; };   // a long term ends at a word
 const str = (x, n) => String(x == null ? '' : x).replace(/[{}\[\]]+\s*$/, '').slice(0, n);   // a stray bracket from the model's JSON is dropped
 // Odds as the room hears them: the IC's estimative words, never a number.
 const WORDS = [[0.05, 'almost no chance'], [0.2, 'very unlikely'], [0.45, 'unlikely'], [0.55, 'roughly even odds'], [0.8, 'likely'], [0.95, 'very likely'], [2, 'almost certain']];
@@ -271,7 +272,7 @@ function rule(s, r0) {
   return {
     train: Math.min(clamp(r.train, 0, 1), 1 - secure - test), secure, test,
     nationalize: b('nationalize') && !s.national, law: b('law') && !s.law, breakout: b('breakout') && !!s.deal, backdown: b('backdown') && s.blockade, run: b('run') && s.blockade,
-    controls: Math.sign(clamp(r.controls, -1, 1)), confront: b('confront') && !!s.caught, propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: String(d.extra || '').slice(0, 140) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
+    controls: Math.sign(clamp(r.controls, -1, 1)), confront: b('confront') && !!s.caught, propose: !s.deal && r.propose ? { inspectors: !!d.inspectors, chips: !!d.chips, parity: !!d.parity, extra: clip(d.extra, 200) } : null, leverage: Math.round(clamp(r.leverage, -2, 2)), care: clamp(r.care, -0.1, 0.1),
     face: clamp(r.face, -15, 15), alarm: clamp(r.alarm, 0, 0.3),
     intel: b('intel') && s.eyes < 2, watch: b('watch') && !s.watch, deter: b('deter'), hunt: clamp(r.hunt, 0, 1), sabotage: b('sabotage'),
     tension: clamp(r.tension, -N.tension, N.tension), trust: clamp(r.trust, -N.trust, N.trust), labs: clamp(r.labs, -N.labs, N.labs),
