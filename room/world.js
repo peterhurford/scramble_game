@@ -15,7 +15,7 @@ const TUNE = {
   takeoff: [3.4, 3.4], accel: 20, cnRatio: 0.65, cnSlow: 0.35, stepMax: 14, speed0: 2.5, mid: 3.4, diffuse: 1.1, natMul: 0.8, siegeMul: 0.5,   // speed0: the research speed the labs report at x 0 for the middle v0
   cnStart: -6, cnFog: 2,
   eci: { base: 177, per: 2, trend: 24.5, usErr: 1.5, cnErr: [4, 2, 1], fan: [1, 1], blur: 0 },   // usErr, cnErr (no source or monitoring, monitoring, a source): the chart's +/- ECI; fan: the projection's spread of takeoff speed   // the screen's scale, Epoch's Capabilities Index: the Jan 2027 frontier, points per month of progress, and the points a year before 2027 (the US frontier's 2026 pace)
-  cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.5, cnHidden: 1.67, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+
+  cnOwn: 1.0, cnChips: [1.17, 0.75, 0.42, 0.21], cnCopy: 0.5, cnHidden: 0.875, crashAt: 7, crash: 0.58,   // cnChips by controls -1, 0, 1, 2+; cnHidden: a hidden site, off the monitored grid on stockpiled chips, climbs at half the open pace (0.875 of 1.75)
   line: null, bar: [0.35, 0.65], flatOut: 0.8,   // bar: how much care a crossing takes to contain, hidden; above flatOut nothing contains it
   hack0: [0.3, 1.0], hack: [0.44, 0.69], hackLead: 2, hackCtl: 0.15, hunt: 0.44, hackWarn: 1.5,   // hackers: noticed at 1, fully in at 2; hunt in proportion to the three-month turn
   // theft is Beijing's choice, rolled each turn the hackers are inside (1+) and the room has been warned: k x how far in x its motive (lead, race-minded, low trust, no deal) x its chance of getting away (no source, no monitoring) x what it has left to lose (Strait tension) x US security (never below floor)
@@ -45,9 +45,10 @@ const TUNE = {
   // trickery: a hard-line Beijing (floor 1, 2) may hide a training site even under inspection, at these odds per game; inspectors find it at find a turn.
   // Under a deal without inspectors every Beijing weighs a hidden site each turn it could gain (a catch-up deal: once it has caught up), at cheat by floor,
   // more when US resolve looks low or trust is under trust0 (cheatTrust points of trust double or halve it, within 0.6x to 1.5x); remote monitoring finds a running site at watchFind a turn.
+  // overtake: an undiscovered cheat at the end grades betrayed_lost if China would pass America within this many months at its hidden pace, betrayed otherwise.
   // forgive: the share of a turn's gain in Beijing's trust that sticks (losses stick in full); dealTrust: trust points per 1.0 of a deal's worth to Beijing.
   majority: 0.5,   // with the majority at the table, a halt bill it brings to the floor passes at this plus the usual odds (0.95 at most): rogue members and the minority can still sink it
-  sneak: [0, 0.2, 0.5], sneakGo: 0.6, find: 0.5, cheat: [0.1, 0.2, 0.45], cheatTrust: 60, watchFind: 0.4, forgive: 0.6, dealTrust: 60,
+  sneak: [0, 0.2, 0.5], sneakGo: 0.6, find: 0.5, cheat: [0.1, 0.2, 0.45], cheatTrust: 60, watchFind: 0.4, forgive: 0.6, dealTrust: 60, overtake: 4,
   confront: [0.9, 0.7, 0.25],   // the odds that Beijing, caught and confronted, seals its site rather than walk out, by floor; a sealed cheat grades a notch down
   // the CEOs' letter: the labs sign a verified halt with China at any cooperation short of defiance (signVerified on signing, signLoose for any other pause), and lose alone a turn held back while China is not
   ceos: { signVerified: 10, signLoose: -10, alone: -5 },
@@ -154,6 +155,11 @@ const monthsTo = (s, d) => TUNE.tm * TUNE.accel / pace(s) * (Math.exp(-s.us / TU
 // how much faster the labs' research runs with the AI than with people alone; China's own work speeds up the same way from where it started
 const speed = s => TUNE.speed0 * (s.v0 || TUNE.mid) / TUNE.mid * Math.exp(s.us / TUNE.accel);
 const cnPace = s => (s.v0 || TUNE.mid) * TUNE.cnRatio * (TUNE.cnOwn + (s.crash ? TUNE.crash : 0) + TUNE.cnChips[clamp(s.controls, -1, 2) + 1]) / 1.75;   // China's pace at a given capability, against America's, set by its chips
+// China's own climb in a turn from x at pace v: it eases off to cnSlow of full speed past the true danger point (Beijing reads the same science) and does not stop
+const cnOwnStep = (x, v) => { const T = TUNE; if (x >= T.lineTrue[0]) return reach(x, T.cnSlow, v) - x; const x1 = reach(x, 1, v); return x1 <= T.lineTrue[0] ? x1 - x : T.lineTrue[0] - x + T.cnSlow * (x1 - T.lineTrue[0]); };
+const hiddenStep = s => cnOwnStep(s.cn, cnPace(s) * TUNE.cnHidden / 1.75);   // a turn at a hidden site: own work only, at cnHidden of the open pace's 1.75
+// a betrayal is lost (F) if China is ahead or, training in secret at its hidden pace against America's last turn, passes America within overtake months
+const overtakes = s => { const gap = s.us - s.cn, rate = (hiddenStep(s) - (s.usStep || 0)) / TUNE.tm; return gap <= 0 || (rate > 0 && gap / rate <= TUNE.overtake); };
 const cnSpeed = s => TUNE.speed0 * cnPace(s) / TUNE.mid * Math.exp(s.cn / TUNE.accel);   // the same measure for China's labs
 const T_MKT = () => TUNE.mkt;
 const NUM = ['', 'one', 'twice', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
@@ -513,13 +519,11 @@ function play1(s, r0) {
   let cnStep = 0;
   if (openly || s.hidden) {
     const copy = Math.min((s.controls >= 2 ? 0.5 : 1) * T.cnCopy * (1 - 0.25 * lvl), Math.max(0, s.us - s.cn - 1));
-    // Beijing reads the same science: it eases off into the danger range (cnSlow of full speed there) and does not stop
-    const own = (x, v) => { if (x >= TUNE.lineTrue[0]) return reach(x, T.cnSlow, v) - x; const x1 = reach(x, 1, v); return x1 <= TUNE.lineTrue[0] ? x1 - x : TUNE.lineTrue[0] - x + T.cnSlow * (x1 - TUNE.lineTrue[0]); };
-    cnStep = openly ? own(s.cn, cnPace(s)) + copy * (s.cn >= TUNE.lineTrue[0] ? T.cnSlow : 1) : own(s.cn, cnPace(s) * T.cnHidden / 1.75);
+    cnStep = openly ? cnOwnStep(s.cn, cnPace(s)) + copy * (s.cn >= TUNE.lineTrue[0] ? T.cnSlow : 1) : hiddenStep(s);
     if (s.deal && openly) cnStep = Math.min(cnStep, s.us - s.cn);
     if (s.knownOver) cnStep = clamp(s.line - 0.3 - s.cn, 0, cnStep);        // once America has found the danger point, Beijing stops short of it
   }
-  s.cn += cnStep; if (openly || s.caught) s.cnShown += cnStep;
+  s.cn += cnStep; if (openly || s.caught) s.cnShown += cnStep; s.usStep = s.us - was.us;
   why.push('China\'s frontier ' + sg(cnStep) + ' months' + (openly ? ' (research ' + f1(cnSpeed(s)) + 'x people alone; own work ' + T.cnOwn + (s.crash ? ', crash program ' + T.crash : '') + ', chips at controls level ' + s.controls + ' ' + T.cnChips[clamp(s.controls, -1, 2) + 1] + ', the rest copied from published American work' + (s.cn - cnStep >= TUNE.lineTrue[0] ? '; halved inside the danger range' : '') + ')' : s.hidden ? ' (training in secret)' : ' (stopped under the pause)') + (s.cn - cnStep - was.cn ? ', and ' + sg(s.cn - cnStep - was.cn) + ' from rulings, rolls and sabotage' : '') + '.');
   if ((s.eyes || s.watch) && (openly || s.caught || !s.hidden)) s.cnShown = s.cn;   // a source or working monitoring shows China as it is, unless a hidden site escapes the monitoring
 
@@ -668,7 +672,7 @@ const ENDINGS = {
   war: { grade: 'F', title: 'War in the Pacific', text: 'The pressure on Beijing went further than the Strait could bear. America and China are at war.' },
   overtaken: { grade: 'F', title: 'Overtaken', text: 'No deal, and China\'s labs have caught up with America\'s or passed them, still training flat out. The race is now Beijing\'s to win.' },
   betrayed_lost: { grade: 'F', title: 'Betrayed and overtaken', text: 'The deal held on paper while Beijing trained in secret. China is now level with America or ahead of it.' },
-  betrayed: { grade: 'D', title: 'Betrayed', text: 'The deal held on paper. Beijing was training in secret, or was about to.' },
+  betrayed: { grade: 'D', title: 'Betrayed', text: 'The deal held on paper while Beijing trained in secret. America is still ahead, for now.' },
   siege: { grade: 'D', title: 'Siege', text: 'Taiwan is still blockaded. The next President inherits it.' },
   caught: { grade: 'C', title: 'Caught cheating', text: 'The pause is still on paper, but Beijing\'s hidden site has been found. The next President inherits the confrontation.' },
   trust: { grade: 'C', title: 'A pause on trust', text: 'Beijing kept its word. No one in Washington could have known if it had not.' },
@@ -687,7 +691,7 @@ const RANK = ['F--', 'F', 'D-', 'D', 'D+', 'C-', 'C', 'C+', 'B-', 'B', 'B+', 'A-
 function end(s, how, ev) {
   if (how === 'time') {
     const lead = s.us - s.cn;
-    if (s.deal) how = s.caught ? 'caught' : s.hidden ? (s.cn >= s.us - 0.5 ? 'betrayed_lost' : 'betrayed') : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
+    if (s.deal) how = s.caught ? 'caught' : s.hidden ? (overtakes(s) ? 'betrayed_lost' : 'betrayed') : s.deal.inspectors ? (gives(s.deal) ? 'bought' : 'verified') : s.watch ? (gives(s.deal) > 1 ? 'bought' : 'watched') : s.deal.parity ? 'parity' : 'trust';
     else if (s.blockade) how = 'siege';
     else if (s.cn >= TUNE.lineTrue[0] && !s.knownOver) how = 'countdown';
     else if (s.warned && lead >= TUNE.ahead) how = 'brink';
